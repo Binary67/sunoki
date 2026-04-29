@@ -34,6 +34,12 @@ const ChevronRightIcon = ({ className }: IconProps) => (
   </svg>
 );
 
+const ChevronDownIcon = ({ className }: IconProps) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="M6 9l6 6 6-6" />
+  </svg>
+);
+
 const WEEKDAYS = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
 
 const MONTH_NAMES = [
@@ -107,6 +113,33 @@ function slotBulletClass(paxLeft: number) {
   return "bg-emerald-500";
 }
 
+type SlotPeriod = "morning" | "afternoon" | "evening";
+
+const PERIOD_ORDER: readonly SlotPeriod[] = ["morning", "afternoon", "evening"];
+
+const PERIOD_LABEL: Record<SlotPeriod, string> = {
+  morning: "Morning",
+  afternoon: "Afternoon",
+  evening: "Evening",
+};
+
+function bucketSlotsByPeriod<T extends { startTime: string }>(
+  slots: readonly T[],
+): Record<SlotPeriod, T[]> {
+  const buckets: Record<SlotPeriod, T[]> = {
+    morning: [],
+    afternoon: [],
+    evening: [],
+  };
+  for (const slot of slots) {
+    const hour = Number(slot.startTime.slice(0, 2));
+    if (hour < 12) buckets.morning.push(slot);
+    else if (hour < 17) buckets.afternoon.push(slot);
+    else buckets.evening.push(slot);
+  }
+  return buckets;
+}
+
 export default function BookingClient({
   facilitySlug,
   selectedDateValue,
@@ -122,6 +155,9 @@ export default function BookingClient({
   const selectedDate = parseBookingDate(selectedDateValue);
   const [viewMonth, setViewMonth] = useState(() => startOfMonth(selectedDate));
   const [selectedSlot, setSelectedSlot] = useState<number | null>(null);
+  const [expandedPeriods, setExpandedPeriods] = useState<
+    Record<SlotPeriod, boolean>
+  >({ morning: false, afternoon: false, evening: false });
   const [prevSelectedDateValue, setPrevSelectedDateValue] =
     useState(selectedDateValue);
   const [state, rawFormAction, pending] = useActionState(
@@ -134,6 +170,7 @@ export default function BookingClient({
     setPrevSelectedDateValue(selectedDateValue);
     setViewMonth(startOfMonth(selectedDate));
     setSelectedSlot(null);
+    setExpandedPeriods({ morning: false, afternoon: false, evening: false });
   }
 
   const formAction = (formData: FormData) => {
@@ -188,14 +225,16 @@ export default function BookingClient({
     if (muted) setViewMonth(startOfMonth(date));
   };
 
+  const slotsByPeriod = bucketSlotsByPeriod(availability.slots);
+
   return (
-    <div className="flex-1 flex min-h-0">
-      <main className="flex-1 px-10 py-8 min-w-0">
+    <div className="flex-1 flex flex-col lg:grid lg:grid-cols-2 lg:gap-0 min-h-0">
+      <main className="px-10 py-8 min-w-0">
         <h1 className="text-3xl font-semibold tracking-tight">{f.title}</h1>
         <p className="mt-3 text-sm leading-6 text-ink/60">{f.description}</p>
 
         <div
-          className={`relative mt-6 rounded-2xl overflow-hidden bg-gradient-to-br aspect-[16/9] ${f.gradientClasses}`}
+          className={`relative mt-6 rounded-2xl overflow-hidden bg-gradient-to-br aspect-[16/9] lg:aspect-[21/9] xl:aspect-[16/9] ${f.gradientClasses}`}
         >
           <div className="absolute inset-0 grid place-items-center">
             <div className="text-center">
@@ -226,7 +265,7 @@ export default function BookingClient({
         </div>
       </main>
 
-      <aside className="w-[440px] shrink-0 border-l border-black/5 px-6 py-8 space-y-6">
+      <aside className="border-t border-black/5 lg:border-t-0 lg:border-l px-6 py-8 space-y-6 min-w-0">
         <div className="rounded-2xl border border-black/5 bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2 text-sm font-medium">
@@ -285,81 +324,133 @@ export default function BookingClient({
         </div>
 
         <div className="rounded-2xl border border-black/5 bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
-          <h2 className="text-base font-semibold">Evening Availability</h2>
+          <h2 className="text-base font-semibold">Availability</h2>
           <div className="mt-1 text-xs text-ink/55">
             Selected Date: <span className="text-ink/80">{selectedDateLabel}</span>
           </div>
 
-          <ul className="mt-5 flex flex-col gap-3">
-            {availability.slots.map((slot) => {
-              const unavailable = !slot.isAvailable;
-              const selected = selectedSlot === slot.id;
+          <div className="mt-5 flex flex-col gap-3">
+            {PERIOD_ORDER.map((period) => {
+              const periodSlots = slotsByPeriod[period];
+              const hasSlots = periodSlots.length > 0;
+              const expanded = hasSlots && expandedPeriods[period];
+              const togglePeriod = () =>
+                setExpandedPeriods((prev) => ({
+                  ...prev,
+                  [period]: !prev[period],
+                }));
               return (
-                <li
-                  key={slot.id}
-                  className={`flex items-center justify-between rounded-xl px-4 py-3 transition-colors ${
-                    unavailable
-                      ? "bg-surface/60 opacity-50 grayscale"
-                      : selected
-                        ? "bg-surface ring-1 ring-brand"
-                        : "bg-surface"
-                  }`}
+                <section
+                  key={period}
+                  className="rounded-xl border border-black/5"
                 >
-                  <div className="flex items-center gap-3">
-                    <span
-                      aria-hidden="true"
-                      className={`size-2.5 rounded-full ${slotBulletClass(slot.paxLeft)}`}
-                    />
-                    <div>
-                      <div
-                        className={`text-base font-semibold ${
-                          unavailable ? "text-ink/40 line-through" : ""
-                        }`}
-                      >
-                        {slot.startTime}
-                      </div>
-                      <div
-                        className={`text-[11px] ${
-                          unavailable ? "text-ink/35" : "text-ink/55"
-                        }`}
-                      >
-                        {slot.durationMinutes} Minute Session
-                      </div>
+                  <button
+                    type="button"
+                    onClick={hasSlots ? togglePeriod : undefined}
+                    aria-expanded={expanded}
+                    disabled={!hasSlots}
+                    className={`w-full flex items-center justify-between px-4 py-3 rounded-xl ${
+                      hasSlots ? "cursor-pointer" : "cursor-default"
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <h3 className="text-[11px] font-semibold tracking-[0.18em] text-ink/60 uppercase">
+                        {PERIOD_LABEL[period]}
+                      </h3>
+                      <span className="text-[11px] text-ink/40">
+                        {hasSlots
+                          ? `${periodSlots.length} slot${periodSlots.length === 1 ? "" : "s"}`
+                          : "No slots available"}
+                      </span>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <span
-                      className={`text-xs font-medium ${
-                        unavailable ? "text-red-600/80" : "text-ink/55"
-                      }`}
-                    >
-                      {unavailable
-                        ? "Not available"
-                        : `${slot.paxLeft} of ${slot.capacityPax} pax left`}
-                    </span>
-                    <button
-                      type="button"
-                      disabled={unavailable || pending}
-                      onClick={() => setSelectedSlot(slot.id)}
-                      className={`text-sm font-medium ${
-                        unavailable
-                          ? "text-ink/30 cursor-not-allowed"
-                          : pending
-                            ? "text-ink/40 cursor-not-allowed"
-                            : selected
-                              ? "text-brand"
-                              : "text-brand hover:underline"
-                      }`}
-                    >
-                      {unavailable ? "Full" : selected ? "Selected" : "Select"}
-                    </button>
-                  </div>
-                </li>
+                    {hasSlots && (
+                      <ChevronDownIcon
+                        className={`size-4 text-ink/50 transition-transform ${
+                          expanded ? "rotate-180" : ""
+                        }`}
+                      />
+                    )}
+                  </button>
+                  {expanded && (
+                    <ul className="px-3 pb-3 flex flex-col gap-3">
+                      {periodSlots.map((slot) => {
+                        const unavailable = !slot.isAvailable;
+                        const selected = selectedSlot === slot.id;
+                        return (
+                          <li
+                            key={slot.id}
+                            className={`flex items-center justify-between rounded-xl px-4 py-3 transition-colors ${
+                              unavailable
+                                ? "bg-surface/60 opacity-50 grayscale"
+                                : selected
+                                  ? "bg-surface ring-1 ring-brand"
+                                  : "bg-surface"
+                            }`}
+                          >
+                            <div className="flex items-center gap-3">
+                              <span
+                                aria-hidden="true"
+                                className={`size-2.5 rounded-full ${slotBulletClass(slot.paxLeft)}`}
+                              />
+                              <div>
+                                <div
+                                  className={`text-base font-semibold ${
+                                    unavailable ? "text-ink/40 line-through" : ""
+                                  }`}
+                                >
+                                  {slot.startTime}
+                                </div>
+                                <div
+                                  className={`text-[11px] ${
+                                    unavailable ? "text-ink/35" : "text-ink/55"
+                                  }`}
+                                >
+                                  {slot.durationMinutes} Minute Session
+                                </div>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-4">
+                              <span
+                                className={`text-xs font-medium ${
+                                  unavailable ? "text-red-600/80" : "text-ink/55"
+                                }`}
+                              >
+                                {unavailable
+                                  ? "Not available"
+                                  : `${slot.paxLeft} of ${slot.capacityPax} pax left`}
+                              </span>
+                              <button
+                                type="button"
+                                disabled={unavailable || pending}
+                                onClick={() => setSelectedSlot(slot.id)}
+                                className={`text-sm font-medium ${
+                                  unavailable
+                                    ? "text-ink/30 cursor-not-allowed"
+                                    : pending
+                                      ? "text-ink/40 cursor-not-allowed"
+                                      : selected
+                                        ? "text-brand"
+                                        : "text-brand hover:underline"
+                                }`}
+                              >
+                                {unavailable
+                                  ? "Full"
+                                  : selected
+                                    ? "Selected"
+                                    : "Select"}
+                              </button>
+                            </div>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                </section>
               );
             })}
-          </ul>
+          </div>
 
-          <form action={formAction} className="mt-5">
+          <form action={formAction} className="mt-6">
             <input type="hidden" name="facility" value={facilitySlug} />
             <input type="hidden" name="bookingDate" value={selectedDateValue} />
             <input type="hidden" name="timeSlotId" value={selectedSlot ?? ""} />

@@ -22,7 +22,19 @@ const facilities = [
   { slug: "lounge", name: "Tranquil Lounge" },
 ] as const;
 
-const timeSlots = ["18:00", "19:30", "21:00", "22:30"] as const;
+const timeSlots = [
+  "07:00",
+  "08:30",
+  "10:00",
+  "11:30",
+  "13:00",
+  "14:30",
+  "16:00",
+  "18:00",
+  "19:30",
+  "21:00",
+  "22:30",
+] as const;
 
 const insertFacility = db.prepare(
   "INSERT OR IGNORE INTO facilities (slug, name) VALUES (?, ?)",
