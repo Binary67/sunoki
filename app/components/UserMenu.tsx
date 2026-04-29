@@ -42,7 +42,7 @@ export default function UserMenu({ username }: { username: string }) {
             <div className="text-[11px] tracking-wider text-ink/50">
               SIGNED IN AS
             </div>
-            <div className="mt-0.5 text-sm font-medium text-ink truncate">
+            <div className="mt-0.5 text-sm font-medium text-ink truncate capitalize">
               {username}
             </div>
           </div>

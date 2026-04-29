@@ -26,7 +26,12 @@ export default function Header({ user }: { user: { username: string } }) {
           </>
         )}
       </div>
-      <UserMenu username={user.username} />
+      <div className="flex items-center gap-3">
+        <span className="text-sm font-medium text-ink/70 capitalize">
+          {user.username}
+        </span>
+        <UserMenu username={user.username} />
+      </div>
     </header>
   );
 }
