@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type IconProps = { className?: string };
 
@@ -60,6 +60,12 @@ const ChevronIcon = ({ className }: IconProps) => (
   </svg>
 );
 
+const CloseIcon = ({ className }: IconProps) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="M6 6l12 12M6 18 18 6" />
+  </svg>
+);
+
 const bookingChildren = [
   { label: "Gym", href: "/booking/gym", Icon: GymIcon },
   { label: "Karaoke", href: "/booking/karaoke", Icon: KaraokeIcon },
@@ -67,11 +73,20 @@ const bookingChildren = [
   { label: "Lounge", href: "/booking/lounge", Icon: LoungeIcon },
 ];
 
-export default function Sidebar({ role }: { role: "admin" | "guest" }) {
+export default function Sidebar({
+  role,
+  mobileOpen,
+  onClose,
+}: {
+  role: "admin" | "guest";
+  mobileOpen: boolean;
+  onClose: () => void;
+}) {
   const pathname = usePathname();
   const inBooking = pathname.startsWith("/booking/");
   const [bookingOpen, setBookingOpen] = useState(inBooking);
   const [prevInBooking, setPrevInBooking] = useState(inBooking);
+  const prevPathname = useRef(pathname);
 
   if (inBooking && !prevInBooking) {
     setBookingOpen(true);
@@ -80,91 +95,128 @@ export default function Sidebar({ role }: { role: "admin" | "guest" }) {
     setPrevInBooking(inBooking);
   }
 
+  useEffect(() => {
+    if (prevPathname.current !== pathname) {
+      prevPathname.current = pathname;
+      onClose();
+    }
+  }, [pathname, onClose]);
+
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [mobileOpen, onClose]);
+
   const dashboardActive = pathname === "/";
   const isAdmin = role === "admin";
 
   return (
-    <aside className="w-56 shrink-0 border-r border-black/5 bg-white flex flex-col px-4 py-6">
-      <div className="flex items-start gap-2 px-2">
-        <div className="size-9 shrink-0 rounded-lg bg-brand text-white grid place-items-center font-semibold">
-          N
-        </div>
-        <div className="leading-tight">
-          <div className="text-[13px] font-semibold text-brand">Natured Tranquility</div>
-          <div className="text-[10px] text-black/50">
-            Wellness Dashboard
-            <br />
-            Facility Management
+    <>
+      {mobileOpen && (
+        <div
+          aria-hidden="true"
+          onClick={onClose}
+          className="lg:hidden fixed inset-0 bg-black/40 z-30"
+        />
+      )}
+      <aside
+        className={`${
+          mobileOpen ? "flex" : "hidden lg:flex"
+        } fixed inset-y-0 left-0 z-40 w-56 shrink-0 border-r border-black/5 bg-white flex-col px-4 py-6 lg:static`}
+      >
+        <div className="flex items-start gap-2 px-2">
+          <div className="size-9 shrink-0 rounded-lg bg-brand text-white grid place-items-center font-semibold">
+            N
           </div>
-        </div>
-      </div>
-
-      <nav className="mt-6 flex flex-col">
-        {isAdmin && (
-          <Link
-            href="/"
-            className={`flex items-center gap-3 px-3 py-2.5 rounded-md text-sm transition-colors duration-200 ${
-              dashboardActive
-                ? "text-brand font-medium bg-surface"
-                : "text-ink/70 hover:text-ink"
-            }`}
+          <div className="leading-tight flex-1">
+            <div className="text-[13px] font-semibold text-brand">Natured Tranquility</div>
+            <div className="text-[10px] text-black/50">
+              Wellness Dashboard
+              <br />
+              Facility Management
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close menu"
+            className="lg:hidden size-7 -mt-1 -mr-1 grid place-items-center rounded-md text-ink/60 hover:bg-surface"
           >
-            <HomeIcon className="size-4" />
-            <span>Dashboard</span>
-          </Link>
-        )}
+            <CloseIcon className="size-4" />
+          </button>
+        </div>
+
+        <nav className="mt-6 flex flex-col">
+          {isAdmin && (
+            <Link
+              href="/"
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-md text-sm transition-colors duration-200 ${
+                dashboardActive
+                  ? "text-brand font-medium bg-surface"
+                  : "text-ink/70 hover:text-ink"
+              }`}
+            >
+              <HomeIcon className="size-4" />
+              <span>Dashboard</span>
+            </Link>
+          )}
+
+          <button
+            type="button"
+            onClick={() => setBookingOpen((v) => !v)}
+            aria-expanded={bookingOpen}
+            className="flex items-center gap-3 px-3 py-2.5 rounded-md text-sm text-ink/70 hover:text-ink"
+          >
+            <BookingIcon className="size-4" />
+            <span className="flex-1 text-left">Booking</span>
+            <ChevronIcon
+              className={`size-3.5 text-ink/40 transition-transform ${
+                bookingOpen ? "rotate-90" : ""
+              }`}
+            />
+          </button>
+
+          {bookingOpen && (
+            <div className="mt-1 ml-5 pl-3 border-l border-black/10 flex flex-col">
+              {bookingChildren.map(({ label, href, Icon }) => {
+                const active = pathname === href;
+                return (
+                  <Link
+                    key={href}
+                    href={href}
+                    className={`relative flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors duration-200 ${
+                      active
+                        ? "text-brand font-medium bg-surface"
+                        : "text-ink/70 hover:text-ink"
+                    }`}
+                  >
+                    <span
+                      aria-hidden="true"
+                      className={`absolute -left-[13px] top-1.5 bottom-1.5 w-0.5 rounded-r bg-brand transition-opacity duration-200 ${
+                        active ? "opacity-100" : "opacity-0"
+                      }`}
+                    />
+                    <Icon className="size-4" />
+                    <span>{label}</span>
+                  </Link>
+                );
+              })}
+            </div>
+          )}
+        </nav>
 
         <button
           type="button"
-          onClick={() => setBookingOpen((v) => !v)}
-          aria-expanded={bookingOpen}
-          className="flex items-center gap-3 px-3 py-2.5 rounded-md text-sm text-ink/70 hover:text-ink"
+          className="mt-auto flex items-center gap-3 px-3 py-2.5 rounded-md text-sm text-ink/70 hover:text-ink"
         >
-          <BookingIcon className="size-4" />
-          <span className="flex-1 text-left">Booking</span>
-          <ChevronIcon
-            className={`size-3.5 text-ink/40 transition-transform ${
-              bookingOpen ? "rotate-90" : ""
-            }`}
-          />
+          <SettingsIcon className="size-4" />
+          <span>Settings</span>
         </button>
-
-        {bookingOpen && (
-          <div className="mt-1 ml-5 pl-3 border-l border-black/10 flex flex-col">
-            {bookingChildren.map(({ label, href, Icon }) => {
-              const active = pathname === href;
-              return (
-                <Link
-                  key={href}
-                  href={href}
-                  className={`relative flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors duration-200 ${
-                    active
-                      ? "text-brand font-medium bg-surface"
-                      : "text-ink/70 hover:text-ink"
-                  }`}
-                >
-                  <span
-                    aria-hidden="true"
-                    className={`absolute -left-[13px] top-1.5 bottom-1.5 w-0.5 rounded-r bg-brand transition-opacity duration-200 ${
-                      active ? "opacity-100" : "opacity-0"
-                    }`}
-                  />
-                  <Icon className="size-4" />
-                  <span>{label}</span>
-                </Link>
-              );
-            })}
-          </div>
-        )}
-      </nav>
-
-      <button
-        type="button"
-        className="mt-auto flex items-center gap-3 px-3 py-2.5 rounded-md text-sm text-ink/70 hover:text-ink"
-      >
-        <SettingsIcon className="size-4" />
-        <span>Settings</span>
-      </button>
-    </aside>
+      </aside>
+    </>
   );
 }

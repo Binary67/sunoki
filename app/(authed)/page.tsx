@@ -31,9 +31,9 @@ export default async function Dashboard() {
   const bookings = getUpcomingBookings();
 
   return (
-    <main className="flex-1 px-10 py-8">
+    <main className="flex-1 px-4 sm:px-6 lg:px-10 py-6 sm:py-8">
       <div className="mb-8">
-        <h1 className="text-2xl font-semibold text-ink">Dashboard</h1>
+        <h1 className="text-xl sm:text-2xl font-semibold text-ink">Dashboard</h1>
         <p className="mt-1 text-sm text-ink/60">
           Overview of facility activity for the team.
         </p>
@@ -54,8 +54,8 @@ export default async function Dashboard() {
             No upcoming bookings.
           </div>
         ) : (
-          <div className="overflow-hidden rounded-lg border border-black/5">
-            <table className="w-full text-sm">
+          <div className="overflow-x-auto rounded-lg border border-black/5">
+            <table className="w-full min-w-[640px] text-sm">
               <thead className="bg-surface text-[11px] tracking-[0.14em] text-ink/50 uppercase">
                 <tr>
                   <th className="text-left font-medium px-5 py-3">Date</th>

@@ -10,24 +10,50 @@ const BREADCRUMB_LABELS: Record<string, string> = {
   lounge: "TRANQUIL LOUNGE",
 };
 
-export default function Header({ user }: { user: { username: string } }) {
+export default function Header({
+  user,
+  onMenuClick,
+}: {
+  user: { username: string };
+  onMenuClick: () => void;
+}) {
   const pathname = usePathname();
   const facilityMatch = pathname.match(/^\/booking\/([^/]+)/);
   const sublabel = facilityMatch ? BREADCRUMB_LABELS[facilityMatch[1]] : undefined;
 
   return (
-    <header className="h-16 shrink-0 flex items-center justify-between px-10 border-b border-black/5">
-      <div className="text-[11px] tracking-[0.18em] text-black/50">
-        FACILITIES
-        {sublabel && (
-          <>
-            <span className="mx-2 text-black/30">/</span>
-            {sublabel}
-          </>
-        )}
+    <header className="h-16 shrink-0 flex items-center justify-between gap-3 px-4 sm:px-6 lg:px-10 border-b border-black/5">
+      <div className="flex items-center gap-3 min-w-0">
+        <button
+          type="button"
+          onClick={onMenuClick}
+          aria-label="Open menu"
+          className="lg:hidden size-9 -ml-1 grid place-items-center rounded-md text-ink/70 hover:bg-surface"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.6"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="size-5"
+          >
+            <path d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </button>
+        <div className="text-[11px] tracking-[0.18em] text-black/50 truncate min-w-0">
+          FACILITIES
+          {sublabel && (
+            <>
+              <span className="mx-2 text-black/30">/</span>
+              {sublabel}
+            </>
+          )}
+        </div>
       </div>
-      <div className="flex items-center gap-3">
-        <span className="text-sm font-medium text-ink/70 capitalize">
+      <div className="flex items-center gap-3 min-w-0">
+        <span className="text-sm font-medium text-ink/70 capitalize truncate max-w-[120px] sm:max-w-none">
           {user.username}
         </span>
         <UserMenu username={user.username} />

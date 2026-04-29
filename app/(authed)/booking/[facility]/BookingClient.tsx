@@ -17,7 +17,7 @@ export default function BookingClient({
     <div className="flex-1 flex flex-col lg:grid lg:grid-cols-2 lg:gap-0 min-h-0">
       <FacilityHero facility={FACILITIES[facilitySlug]} />
 
-      <aside className="border-t border-black/5 lg:border-t-0 lg:border-l px-6 py-8 space-y-6 min-w-0">
+      <aside className="border-t border-black/5 lg:border-t-0 lg:border-l px-4 sm:px-6 py-6 sm:py-8 space-y-6 min-w-0">
         <CalendarPicker selectedDateValue={selectedDateValue} />
         <SlotPicker
           facilitySlug={facilitySlug}

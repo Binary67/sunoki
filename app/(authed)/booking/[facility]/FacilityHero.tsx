@@ -2,12 +2,12 @@ import type { Facility } from "./facility-content";
 
 export default function FacilityHero({ facility }: { facility: Facility }) {
   return (
-    <main className="px-10 py-8 min-w-0">
-      <h1 className="text-3xl font-semibold tracking-tight">{facility.title}</h1>
+    <main className="px-4 sm:px-6 lg:px-10 py-6 sm:py-8 min-w-0">
+      <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight">{facility.title}</h1>
       <p className="mt-3 text-sm leading-6 text-ink/60">{facility.description}</p>
 
       <div
-        className={`relative mt-6 rounded-2xl overflow-hidden bg-gradient-to-br aspect-[16/9] lg:aspect-[21/9] xl:aspect-[16/9] ${facility.gradientClasses}`}
+        className={`relative mt-6 rounded-2xl overflow-hidden bg-gradient-to-br aspect-[16/9] ${facility.gradientClasses}`}
       >
         <div className="absolute inset-0 grid place-items-center">
           <div className="text-center">

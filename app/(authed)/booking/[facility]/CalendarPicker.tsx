@@ -68,12 +68,12 @@ export default function CalendarPicker({
 
   return (
     <div className="rounded-2xl border border-black/5 bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div className="flex items-center gap-2 text-sm font-medium">
           <CalendarIcon className="size-4 text-ink/70" />
           <span>Select Your Date</span>
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 self-end sm:self-auto">
           <button
             type="button"
             onClick={goToToday}
