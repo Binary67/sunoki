@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 type IconProps = { className?: string };
 
@@ -71,10 +71,14 @@ export default function Sidebar({ role }: { role: "admin" | "guest" }) {
   const pathname = usePathname();
   const inBooking = pathname.startsWith("/booking/");
   const [bookingOpen, setBookingOpen] = useState(inBooking);
+  const [prevInBooking, setPrevInBooking] = useState(inBooking);
 
-  useEffect(() => {
-    if (inBooking) setBookingOpen(true);
-  }, [inBooking]);
+  if (inBooking && !prevInBooking) {
+    setBookingOpen(true);
+  }
+  if (inBooking !== prevInBooking) {
+    setPrevInBooking(inBooking);
+  }
 
   const dashboardActive = pathname === "/";
   const isAdmin = role === "admin";

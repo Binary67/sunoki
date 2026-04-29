@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
-import { useActionState, useEffect, useMemo, useRef, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import type { FacilityAvailability } from "@/src/lib/bookings";
 import { useToast } from "@/app/components/Toast";
 import {
@@ -119,22 +119,27 @@ export default function BookingClient({
   const router = useRouter();
   const pathname = usePathname();
   const { showToast } = useToast();
-  const selectedDate = useMemo(
-    () => parseBookingDate(selectedDateValue),
-    [selectedDateValue],
-  );
+  const selectedDate = parseBookingDate(selectedDateValue);
   const [viewMonth, setViewMonth] = useState(() => startOfMonth(selectedDate));
   const [selectedSlot, setSelectedSlot] = useState<number | null>(null);
-  const [state, formAction, pending] = useActionState(
+  const [prevSelectedDateValue, setPrevSelectedDateValue] =
+    useState(selectedDateValue);
+  const [state, rawFormAction, pending] = useActionState(
     reserveFacilitySlotAction,
     initialActionState,
   );
   const lastNotifiedSubmissionId = useRef<number | undefined>(undefined);
 
-  useEffect(() => {
+  if (prevSelectedDateValue !== selectedDateValue) {
+    setPrevSelectedDateValue(selectedDateValue);
     setViewMonth(startOfMonth(selectedDate));
     setSelectedSlot(null);
-  }, [selectedDate]);
+  }
+
+  const formAction = (formData: FormData) => {
+    setSelectedSlot(null);
+    rawFormAction(formData);
+  };
 
   useEffect(() => {
     if (state.submissionId === undefined) return;
@@ -151,7 +156,6 @@ export default function BookingClient({
         title: "Reservation confirmed",
         description: `${dateLabel} at ${state.success.startTime}`,
       });
-      setSelectedSlot(null);
     } else if (state.error) {
       showToast({
         tone: "error",
