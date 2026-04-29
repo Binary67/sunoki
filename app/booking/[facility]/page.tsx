@@ -98,39 +98,37 @@ export default function FacilityPage({
   return (
     <div className="flex-1 flex min-h-0">
       <main className="flex-1 px-10 py-8 min-w-0">
-        <div className="max-w-2xl">
-          <h1 className="text-3xl font-semibold tracking-tight">{f.title}</h1>
-          <p className="mt-3 text-sm leading-6 text-ink/60">{f.description}</p>
+        <h1 className="text-3xl font-semibold tracking-tight">{f.title}</h1>
+        <p className="mt-3 text-sm leading-6 text-ink/60">{f.description}</p>
 
-          <div
-            className={`relative mt-6 rounded-2xl overflow-hidden bg-gradient-to-br aspect-[16/9] ${f.gradientClasses}`}
-          >
-            <div className="absolute inset-0 grid place-items-center">
-              <div className="text-center">
-                <div
-                  className="font-serif italic text-3xl tracking-wide drop-shadow"
-                  style={{ color: f.accentColor }}
-                >
-                  {f.serifName}
-                </div>
-                <div
-                  className="mt-1 text-[10px] tracking-[0.3em]"
-                  style={{ color: `${f.accentColor}b3` }}
-                >
-                  {f.sublabel}
-                </div>
+        <div
+          className={`relative mt-6 rounded-2xl overflow-hidden bg-gradient-to-br aspect-[16/9] ${f.gradientClasses}`}
+        >
+          <div className="absolute inset-0 grid place-items-center">
+            <div className="text-center">
+              <div
+                className="font-serif italic text-3xl tracking-wide drop-shadow"
+                style={{ color: f.accentColor }}
+              >
+                {f.serifName}
+              </div>
+              <div
+                className="mt-1 text-[10px] tracking-[0.3em]"
+                style={{ color: `${f.accentColor}b3` }}
+              >
+                {f.sublabel}
               </div>
             </div>
-            <div className="absolute left-4 bottom-4 flex flex-wrap gap-2">
-              {f.tags.map((tag) => (
-                <span
-                  key={tag}
-                  className="rounded-full bg-white/95 backdrop-blur px-3 py-1 text-[10px] font-medium tracking-wider text-ink"
-                >
-                  {tag}
-                </span>
-              ))}
-            </div>
+          </div>
+          <div className="absolute left-4 bottom-4 flex flex-wrap gap-2">
+            {f.tags.map((tag) => (
+              <span
+                key={tag}
+                className="rounded-full bg-white/95 backdrop-blur px-3 py-1 text-[10px] font-medium tracking-wider text-ink"
+              >
+                {tag}
+              </span>
+            ))}
           </div>
         </div>
       </main>
