@@ -180,38 +180,40 @@ export default function Home() {
 
         <div className="flex-1 flex min-h-0">
           <main className="flex-1 px-10 py-8 min-w-0">
-            <div className="max-w-xl">
+            <div className="max-w-2xl">
               <h1 className="text-3xl font-semibold tracking-tight">Echoes of Serenity</h1>
               <p className="mt-3 text-sm leading-6 text-ink/60">
                 A private sanctuary designed for musical expression and emotional release,
                 featuring studio-grade acoustics and intimate ambient lighting.
               </p>
-            </div>
 
-            <div className="relative mt-6 rounded-2xl overflow-hidden bg-gradient-to-br from-[#3b2a20] via-[#2a1f18] to-[#0e0a08] aspect-[16/9]">
-              <div className="absolute inset-0 grid place-items-center">
-                <div className="text-center">
-                  <div className="font-serif italic text-[#d4a574] text-3xl tracking-wide drop-shadow">
-                    Dynasty
-                  </div>
-                  <div className="mt-1 text-[10px] tracking-[0.3em] text-[#d4a574]/70">
-                    KARAOKE LOUNGE
+              <div className="relative mt-6 rounded-2xl overflow-hidden bg-gradient-to-br from-[#3b2a20] via-[#2a1f18] to-[#0e0a08] aspect-[16/9]">
+                <div className="absolute inset-0 grid place-items-center">
+                  <div className="text-center">
+                    <div className="font-serif italic text-[#d4a574] text-3xl tracking-wide drop-shadow">
+                      Dynasty
+                    </div>
+                    <div className="mt-1 text-[10px] tracking-[0.3em] text-[#d4a574]/70">
+                      KARAOKE LOUNGE
+                    </div>
                   </div>
                 </div>
-              </div>
-              <div className="absolute left-4 bottom-4 flex flex-wrap gap-2">
-                {["HI-FI AUDIO", "ATMOSPHERE", "MAX 4 PEOPLE"].map((tag) => (
-                  <span
-                    key={tag}
-                    className="rounded-full bg-white/95 backdrop-blur px-3 py-1 text-[10px] font-medium tracking-wider text-ink"
-                  >
-                    {tag}
-                  </span>
-                ))}
+                <div className="absolute left-4 bottom-4 flex flex-wrap gap-2">
+                  {["HI-FI AUDIO", "ATMOSPHERE", "MAX 4 PEOPLE"].map((tag) => (
+                    <span
+                      key={tag}
+                      className="rounded-full bg-white/95 backdrop-blur px-3 py-1 text-[10px] font-medium tracking-wider text-ink"
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                </div>
               </div>
             </div>
+          </main>
 
-            <section className="mt-8">
+          <aside className="w-[440px] shrink-0 border-l border-black/5 px-6 py-8 space-y-6">
+            <div className="rounded-2xl border border-black/5 bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
               <div className="flex items-center gap-2 text-sm font-medium">
                 <CalendarIcon className="size-4 text-ink/70" />
                 <span>Select Your Date</span>
@@ -238,10 +240,8 @@ export default function Home() {
                   </div>
                 ))}
               </div>
-            </section>
-          </main>
+            </div>
 
-          <aside className="w-[340px] shrink-0 border-l border-black/5 px-6 py-8">
             <div className="rounded-2xl border border-black/5 bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
               <h2 className="text-base font-semibold">Evening Availability</h2>
               <div className="mt-1 text-xs text-ink/55">
