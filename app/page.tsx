@@ -65,8 +65,13 @@ const CalendarIcon = ({ className }: IconProps) => (
   </svg>
 );
 
-const navItems = [
-  { id: "booking", label: "Booking", Icon: BookingIcon },
+const ChevronIcon = ({ className }: IconProps) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="m9 6 6 6-6 6" />
+  </svg>
+);
+
+const bookingChildren = [
   { id: "gym", label: "Gym", Icon: GymIcon },
   { id: "karaoke", label: "Karaoke", Icon: KaraokeIcon },
   { id: "yoga", label: "Yoga Studio", Icon: YogaIcon },
@@ -92,6 +97,7 @@ const weekdays = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
 
 export default function Home() {
   const [reserved, setReserved] = useState(false);
+  const [bookingOpen, setBookingOpen] = useState(true);
 
   return (
     <div className="flex flex-1 w-full bg-white text-ink">
@@ -119,24 +125,43 @@ export default function Home() {
         </button>
 
         <nav className="mt-4 flex flex-col">
-          {navItems.map(({ id, label, Icon }) => {
-            const active = id === "karaoke";
-            return (
-              <button
-                key={id}
-                type="button"
-                className={`relative flex items-center gap-3 px-3 py-2.5 rounded-md text-sm transition-colors ${
-                  active ? "text-brand font-medium" : "text-ink/70 hover:text-ink"
-                }`}
-              >
-                {active && (
-                  <span className="absolute -left-4 top-1.5 bottom-1.5 w-0.5 rounded-r bg-brand" />
-                )}
-                <Icon className="size-4" />
-                <span>{label}</span>
-              </button>
-            );
-          })}
+          <button
+            type="button"
+            onClick={() => setBookingOpen((v) => !v)}
+            aria-expanded={bookingOpen}
+            className="flex items-center gap-3 px-3 py-2.5 rounded-md text-sm text-ink/70 hover:text-ink"
+          >
+            <BookingIcon className="size-4" />
+            <span className="flex-1 text-left">Booking</span>
+            <ChevronIcon
+              className={`size-3.5 text-ink/40 transition-transform ${
+                bookingOpen ? "rotate-90" : ""
+              }`}
+            />
+          </button>
+
+          {bookingOpen && (
+            <div className="mt-1 ml-5 pl-3 border-l border-black/10 flex flex-col">
+              {bookingChildren.map(({ id, label, Icon }) => {
+                const active = id === "karaoke";
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    className={`relative flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors ${
+                      active ? "text-brand font-medium" : "text-ink/70 hover:text-ink"
+                    }`}
+                  >
+                    {active && (
+                      <span className="absolute -left-[13px] top-1.5 bottom-1.5 w-0.5 rounded-r bg-brand" />
+                    )}
+                    <Icon className="size-4" />
+                    <span>{label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </nav>
 
         <button
