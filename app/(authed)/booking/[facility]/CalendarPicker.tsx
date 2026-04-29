@@ -60,6 +60,12 @@ export default function CalendarPicker({
     router.push(`${pathname}?${params.toString()}`);
   };
 
+  const goToToday = () => {
+    const today = new Date();
+    setViewMonth(startOfMonth(today));
+    pickDate(today);
+  };
+
   return (
     <div className="rounded-2xl border border-black/5 bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
       <div className="flex items-center justify-between gap-2">
@@ -68,6 +74,13 @@ export default function CalendarPicker({
           <span>Select Your Date</span>
         </div>
         <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={goToToday}
+            className="px-2 h-7 rounded-full text-xs font-medium text-ink/60 hover:bg-surface"
+          >
+            Today
+          </button>
           <button
             type="button"
             onClick={() => goToMonth(-1)}
