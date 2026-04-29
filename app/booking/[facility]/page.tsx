@@ -12,6 +12,18 @@ const CalendarIcon = ({ className }: IconProps) => (
   </svg>
 );
 
+const ChevronLeftIcon = ({ className }: IconProps) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="M15 18l-6-6 6-6" />
+  </svg>
+);
+
+const ChevronRightIcon = ({ className }: IconProps) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="M9 6l6 6-6 6" />
+  </svg>
+);
+
 type Facility = {
   title: string;
   description: string;
@@ -67,22 +79,61 @@ const FACILITIES = {
 
 type FacilitySlug = keyof typeof FACILITIES;
 
-const timeSlots = [
-  { time: "18:00", reserved: false },
-  { time: "19:30", reserved: false },
-  { time: "21:00", reserved: true },
-  { time: "22:30", reserved: false },
+const TIME_SLOTS = ["18:00", "19:30", "21:00", "22:30"];
+
+const WEEKDAYS = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
+
+const MONTH_NAMES = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
 ];
 
-const calendarRows: { d: number; muted?: boolean; selected?: boolean }[][] = [
-  [{ d: 28, muted: true }, { d: 29, muted: true }, { d: 30, muted: true }, { d: 31, muted: true }, { d: 1 }, { d: 2 }, { d: 3 }],
-  [{ d: 4 }, { d: 5 }, { d: 6 }, { d: 7 }, { d: 8, selected: true }, { d: 9 }, { d: 10 }],
-  [{ d: 11 }, { d: 12 }, { d: 13 }, { d: 14 }, { d: 15 }, { d: 16 }, { d: 17 }],
-  [{ d: 18 }, { d: 19 }, { d: 20 }, { d: 21 }, { d: 22 }, { d: 23 }, { d: 24 }],
-  [{ d: 25 }, { d: 26 }, { d: 27 }, { d: 28 }, { d: 29 }, { d: 30 }, { d: 1, muted: true }],
+const WEEKDAY_NAMES = [
+  "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday",
 ];
 
-const weekdays = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
+function ordinal(n: number) {
+  const v = n % 100;
+  if (v >= 11 && v <= 13) return `${n}th`;
+  switch (n % 10) {
+    case 1: return `${n}st`;
+    case 2: return `${n}nd`;
+    case 3: return `${n}rd`;
+    default: return `${n}th`;
+  }
+}
+
+function startOfMonth(date: Date) {
+  return new Date(date.getFullYear(), date.getMonth(), 1);
+}
+
+function isSameDay(a: Date, b: Date) {
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  );
+}
+
+function buildCalendarCells(viewMonth: Date) {
+  const year = viewMonth.getFullYear();
+  const month = viewMonth.getMonth();
+  // Make Monday the first column: shift JS getDay (0=Sun) so Mon=0.
+  const leading = (new Date(year, month, 1).getDay() + 6) % 7;
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const cells: { date: Date; muted: boolean }[] = [];
+  for (let i = leading; i > 0; i--) {
+    cells.push({ date: new Date(year, month, 1 - i), muted: true });
+  }
+  for (let d = 1; d <= daysInMonth; d++) {
+    cells.push({ date: new Date(year, month, d), muted: false });
+  }
+  while (cells.length % 7 !== 0) {
+    const offset = cells.length - leading - daysInMonth + 1;
+    cells.push({ date: new Date(year, month + 1, offset), muted: true });
+  }
+  return cells;
+}
 
 export default function FacilityPage({
   params,
@@ -90,10 +141,39 @@ export default function FacilityPage({
   params: Promise<{ facility: string }>;
 }) {
   const { facility } = use(params);
-  const [reserved, setReserved] = useState(false);
+  const [viewMonth, setViewMonth] = useState(() => startOfMonth(new Date()));
+  const [selectedDate, setSelectedDate] = useState(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  });
+  const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
+  const [reservedSlot, setReservedSlot] = useState<string | null>(null);
 
   if (!(facility in FACILITIES)) notFound();
   const f = FACILITIES[facility as FacilitySlug];
+
+  const cells = buildCalendarCells(viewMonth);
+  const monthLabel = `${MONTH_NAMES[viewMonth.getMonth()]} ${viewMonth.getFullYear()}`;
+  const selectedDateLabel = `${WEEKDAY_NAMES[selectedDate.getDay()]}, ${
+    MONTH_NAMES[selectedDate.getMonth()]
+  } ${ordinal(selectedDate.getDate())}`;
+
+  const goToMonth = (offset: number) =>
+    setViewMonth(
+      new Date(viewMonth.getFullYear(), viewMonth.getMonth() + offset, 1),
+    );
+
+  const pickDate = (date: Date, muted: boolean) => {
+    setSelectedDate(date);
+    setSelectedSlot(null);
+    setReservedSlot(null);
+    if (muted) setViewMonth(startOfMonth(date));
+  };
+
+  const reserve = () => {
+    if (!selectedSlot || reservedSlot) return;
+    setReservedSlot(selectedSlot);
+  };
 
   return (
     <div className="flex-1 flex min-h-0">
@@ -135,76 +215,119 @@ export default function FacilityPage({
 
       <aside className="w-[440px] shrink-0 border-l border-black/5 px-6 py-8 space-y-6">
         <div className="rounded-2xl border border-black/5 bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
-          <div className="flex items-center gap-2 text-sm font-medium">
-            <CalendarIcon className="size-4 text-ink/70" />
-            <span>Select Your Date</span>
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 text-sm font-medium">
+              <CalendarIcon className="size-4 text-ink/70" />
+              <span>Select Your Date</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => goToMonth(-1)}
+                aria-label="Previous month"
+                className="size-7 grid place-items-center rounded-full text-ink/60 hover:bg-surface"
+              >
+                <ChevronLeftIcon className="size-4" />
+              </button>
+              <div className="text-xs font-medium text-ink/80 min-w-[110px] text-center">
+                {monthLabel}
+              </div>
+              <button
+                type="button"
+                onClick={() => goToMonth(1)}
+                aria-label="Next month"
+                className="size-7 grid place-items-center rounded-full text-ink/60 hover:bg-surface"
+              >
+                <ChevronRightIcon className="size-4" />
+              </button>
+            </div>
           </div>
           <div className="mt-4 grid grid-cols-7 gap-y-2 text-center">
-            {weekdays.map((d) => (
+            {WEEKDAYS.map((d) => (
               <div key={d} className="text-[10px] tracking-wider text-ink/40 pb-2">
                 {d}
               </div>
             ))}
-            {calendarRows.flat().map((cell, i) => (
-              <div key={i} className="grid place-items-center">
-                <div
-                  className={`size-9 grid place-items-center text-sm rounded-full ${
-                    cell.selected
-                      ? "bg-brand text-white font-medium"
-                      : cell.muted
-                      ? "text-ink/25"
-                      : "text-ink/80 hover:bg-surface"
-                  }`}
-                >
-                  {cell.d}
+            {cells.map((cell, i) => {
+              const selected = isSameDay(cell.date, selectedDate);
+              return (
+                <div key={i} className="grid place-items-center">
+                  <button
+                    type="button"
+                    onClick={() => pickDate(cell.date, cell.muted)}
+                    className={`size-9 grid place-items-center text-sm rounded-full transition-colors ${
+                      selected
+                        ? "bg-brand text-white font-medium"
+                        : cell.muted
+                        ? "text-ink/25 hover:bg-surface"
+                        : "text-ink/80 hover:bg-surface"
+                    }`}
+                  >
+                    {cell.date.getDate()}
+                  </button>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 
         <div className="rounded-2xl border border-black/5 bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
           <h2 className="text-base font-semibold">Evening Availability</h2>
           <div className="mt-1 text-xs text-ink/55">
-            Selected Date: <span className="text-ink/80">Friday, November 8th</span>
+            Selected Date: <span className="text-ink/80">{selectedDateLabel}</span>
           </div>
 
           <ul className="mt-5 flex flex-col gap-3">
-            {timeSlots.map((slot) => (
-              <li
-                key={slot.time}
-                className={`flex items-center justify-between rounded-xl px-4 py-3 ${
-                  slot.reserved ? "bg-brand/10" : "bg-surface"
-                }`}
-              >
-                <div>
-                  <div className="text-base font-semibold">{slot.time}</div>
-                  <div className="text-[11px] text-ink/55">60 Minute Session</div>
-                </div>
-                <button
-                  type="button"
-                  disabled={slot.reserved}
-                  className={`text-sm font-medium ${
-                    slot.reserved ? "text-ink/40 cursor-not-allowed" : "text-brand hover:underline"
+            {TIME_SLOTS.map((time) => {
+              const reserved = reservedSlot === time;
+              const selected = !reservedSlot && selectedSlot === time;
+              return (
+                <li
+                  key={time}
+                  className={`flex items-center justify-between rounded-xl px-4 py-3 transition-colors ${
+                    reserved
+                      ? "bg-brand/10"
+                      : selected
+                      ? "bg-surface ring-1 ring-brand"
+                      : "bg-surface"
                   }`}
                 >
-                  {slot.reserved ? "Reserved" : "Select"}
-                </button>
-              </li>
-            ))}
+                  <div>
+                    <div className="text-base font-semibold">{time}</div>
+                    <div className="text-[11px] text-ink/55">60 Minute Session</div>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={!!reservedSlot}
+                    onClick={() => setSelectedSlot(time)}
+                    className={`text-sm font-medium ${
+                      reserved
+                        ? "text-brand"
+                        : reservedSlot
+                        ? "text-ink/40 cursor-not-allowed"
+                        : selected
+                        ? "text-brand"
+                        : "text-brand hover:underline"
+                    }`}
+                  >
+                    {reserved ? "Reserved" : selected ? "Selected" : "Select"}
+                  </button>
+                </li>
+              );
+            })}
           </ul>
 
           <button
             type="button"
-            onClick={() => setReserved(true)}
-            disabled={reserved}
+            onClick={reserve}
+            disabled={!selectedSlot || !!reservedSlot}
             className={`mt-5 w-full rounded-full px-6 py-2.5 text-sm font-medium transition-colors ${
-              reserved
+              !selectedSlot || reservedSlot
                 ? "bg-surface text-ink/40 cursor-not-allowed"
                 : "bg-brand text-white hover:bg-brand/90"
             }`}
           >
-            {reserved ? "Reserved ✓" : "Reserve Now"}
+            {reservedSlot ? `Reserved for ${reservedSlot} ✓` : "Reserve Now"}
           </button>
         </div>
       </aside>
