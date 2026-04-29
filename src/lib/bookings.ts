@@ -1,0 +1,212 @@
+import { db } from "./db";
+
+export type FacilitySlotAvailability = {
+  id: number;
+  startTime: string;
+  durationMinutes: number;
+  capacityPax: number;
+  bookedPax: number;
+  paxLeft: number;
+  isAvailable: boolean;
+};
+
+export type FacilityAvailability = {
+  id: number;
+  slug: string;
+  name: string;
+  slots: FacilitySlotAvailability[];
+};
+
+type FacilityRow = {
+  id: number;
+  slug: string;
+  name: string;
+};
+
+type SlotAvailabilityRow = {
+  id: number;
+  startTime: string;
+  durationMinutes: number;
+  capacityPax: number;
+  bookedPax: number;
+};
+
+type SlotRow = {
+  id: number;
+  startTime: string;
+  capacityPax: number;
+};
+
+type CountRow = {
+  bookedPax: number;
+};
+
+export function isBookingDate(value: string): boolean {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!match) return false;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const date = new Date(year, month - 1, day);
+  return (
+    date.getFullYear() === year &&
+    date.getMonth() === month - 1 &&
+    date.getDate() === day
+  );
+}
+
+export function getFacilityAvailability(
+  facilitySlug: string,
+  bookingDate: string,
+): FacilityAvailability | null {
+  if (!isBookingDate(bookingDate)) return null;
+
+  const facility = db
+    .prepare("SELECT id, slug, name FROM facilities WHERE slug = ?")
+    .get(facilitySlug) as FacilityRow | undefined;
+
+  if (!facility) return null;
+
+  const rows = db
+    .prepare(
+      `
+        SELECT
+          s.id,
+          s.start_time AS startTime,
+          s.duration_minutes AS durationMinutes,
+          s.capacity_pax AS capacityPax,
+          COUNT(b.id) AS bookedPax
+        FROM facility_time_slots s
+        LEFT JOIN facility_bookings b
+          ON b.facility_time_slot_id = s.id
+         AND b.booking_date = ?
+        WHERE s.facility_id = ?
+          AND s.active = 1
+        GROUP BY s.id
+        ORDER BY s.start_time
+      `,
+    )
+    .all(bookingDate, facility.id) as SlotAvailabilityRow[];
+
+  return {
+    ...facility,
+    slots: rows.map((row) => {
+      const bookedPax = Number(row.bookedPax);
+      const capacityPax = Number(row.capacityPax);
+      const paxLeft = Math.max(0, capacityPax - bookedPax);
+      return {
+        id: row.id,
+        startTime: row.startTime,
+        durationMinutes: Number(row.durationMinutes),
+        capacityPax,
+        bookedPax,
+        paxLeft,
+        isAvailable: paxLeft > 0,
+      };
+    }),
+  };
+}
+
+export type CreateFacilityBookingInput = {
+  userId: number;
+  facilitySlug: string;
+  bookingDate: string;
+  timeSlotId: number;
+};
+
+export type CreateFacilityBookingResult =
+  | { ok: true; startTime: string }
+  | { ok: false; error: string };
+
+export function createFacilityBooking({
+  userId,
+  facilitySlug,
+  bookingDate,
+  timeSlotId,
+}: CreateFacilityBookingInput): CreateFacilityBookingResult {
+  if (!isBookingDate(bookingDate) || !Number.isInteger(timeSlotId)) {
+    return { ok: false, error: "Choose a valid date and time slot." };
+  }
+
+  let inTransaction = false;
+
+  try {
+    db.exec("BEGIN IMMEDIATE");
+    inTransaction = true;
+
+    const slot = db
+      .prepare(
+        `
+          SELECT
+            s.id,
+            s.start_time AS startTime,
+            s.capacity_pax AS capacityPax
+          FROM facility_time_slots s
+          JOIN facilities f ON f.id = s.facility_id
+          WHERE s.id = ?
+            AND f.slug = ?
+            AND s.active = 1
+        `,
+      )
+      .get(timeSlotId, facilitySlug) as SlotRow | undefined;
+
+    if (!slot) {
+      db.exec("ROLLBACK");
+      inTransaction = false;
+      return { ok: false, error: "Choose a valid date and time slot." };
+    }
+
+    const existing = db
+      .prepare(
+        `
+          SELECT id
+          FROM facility_bookings
+          WHERE user_id = ?
+            AND facility_time_slot_id = ?
+            AND booking_date = ?
+        `,
+      )
+      .get(userId, timeSlotId, bookingDate);
+
+    if (existing) {
+      db.exec("ROLLBACK");
+      inTransaction = false;
+      return { ok: false, error: "You already booked this time slot." };
+    }
+
+    const count = db
+      .prepare(
+        `
+          SELECT COUNT(*) AS bookedPax
+          FROM facility_bookings
+          WHERE facility_time_slot_id = ?
+            AND booking_date = ?
+        `,
+      )
+      .get(timeSlotId, bookingDate) as CountRow;
+
+    if (Number(count.bookedPax) >= Number(slot.capacityPax)) {
+      db.exec("ROLLBACK");
+      inTransaction = false;
+      return { ok: false, error: "This time slot is no longer available." };
+    }
+
+    db.prepare(
+      `
+        INSERT INTO facility_bookings (
+          user_id,
+          facility_time_slot_id,
+          booking_date
+        )
+        VALUES (?, ?, ?)
+      `,
+    ).run(userId, timeSlotId, bookingDate);
+
+    db.exec("COMMIT");
+    inTransaction = false;
+    return { ok: true, startTime: slot.startTime };
+  } catch {
+    if (inTransaction) db.exec("ROLLBACK");
+    return { ok: false, error: "Unable to reserve this time slot." };
+  }
+}
