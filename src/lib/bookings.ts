@@ -107,6 +107,83 @@ export function getFacilityAvailability(
   };
 }
 
+export type UpcomingBooking = {
+  bookingId: number;
+  facilitySlug: string;
+  facilityName: string;
+  bookingDate: string;
+  startTime: string;
+  durationMinutes: number;
+  guestUsername: string;
+  capacityPax: number;
+  bookedPax: number;
+};
+
+type UpcomingBookingRow = {
+  bookingId: number;
+  facilitySlug: string;
+  facilityName: string;
+  bookingDate: string;
+  startTime: string;
+  durationMinutes: number;
+  guestUsername: string;
+  capacityPax: number;
+  bookedPax: number;
+};
+
+function formatNowForSqlite(now: Date): string {
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  const hour = String(now.getHours()).padStart(2, "0");
+  const minute = String(now.getMinutes()).padStart(2, "0");
+  return `${year}-${month}-${day} ${hour}:${minute}`;
+}
+
+export function getUpcomingBookings(now: Date = new Date()): UpcomingBooking[] {
+  const cutoff = formatNowForSqlite(now);
+
+  const rows = db
+    .prepare(
+      `
+        SELECT
+          b.id              AS bookingId,
+          f.slug            AS facilitySlug,
+          f.name            AS facilityName,
+          b.booking_date    AS bookingDate,
+          s.start_time      AS startTime,
+          s.duration_minutes AS durationMinutes,
+          u.username        AS guestUsername,
+          s.capacity_pax    AS capacityPax,
+          (
+            SELECT COUNT(*)
+            FROM facility_bookings b2
+            WHERE b2.facility_time_slot_id = b.facility_time_slot_id
+              AND b2.booking_date = b.booking_date
+          ) AS bookedPax
+        FROM facility_bookings b
+        JOIN facility_time_slots s ON s.id = b.facility_time_slot_id
+        JOIN facilities f ON f.id = s.facility_id
+        JOIN users u ON u.id = b.user_id
+        WHERE (b.booking_date || ' ' || s.start_time) >= ?
+        ORDER BY b.booking_date ASC, s.start_time ASC, b.id ASC
+      `,
+    )
+    .all(cutoff) as UpcomingBookingRow[];
+
+  return rows.map((row) => ({
+    bookingId: Number(row.bookingId),
+    facilitySlug: row.facilitySlug,
+    facilityName: row.facilityName,
+    bookingDate: row.bookingDate,
+    startTime: row.startTime,
+    durationMinutes: Number(row.durationMinutes),
+    guestUsername: row.guestUsername,
+    capacityPax: Number(row.capacityPax),
+    bookedPax: Number(row.bookedPax),
+  }));
+}
+
 export type CreateFacilityBookingInput = {
   userId: number;
   facilitySlug: string;

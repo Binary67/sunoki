@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import Sidebar from "../components/Sidebar";
 import Header from "../components/Header";
+import { ToastProvider } from "../components/Toast";
 import { getCurrentUser } from "@/src/lib/auth";
 
 export default async function AuthedLayout({
@@ -12,12 +13,14 @@ export default async function AuthedLayout({
   if (!user) redirect("/login");
 
   return (
-    <div className="flex flex-1 w-full bg-white text-ink">
-      <Sidebar />
-      <div className="flex-1 flex flex-col min-w-0">
-        <Header user={user} />
-        {children}
+    <ToastProvider>
+      <div className="flex flex-1 w-full bg-white text-ink">
+        <Sidebar role={user.role} />
+        <div className="flex-1 flex flex-col min-w-0">
+          <Header user={user} />
+          {children}
+        </div>
       </div>
-    </div>
+    </ToastProvider>
   );
 }

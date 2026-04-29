@@ -1,8 +1,9 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
-import { useActionState, useEffect, useMemo, useState } from "react";
+import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import type { FacilityAvailability } from "@/src/lib/bookings";
+import { useToast } from "@/app/components/Toast";
 import {
   FACILITIES,
   type FacilitySlug,
@@ -117,6 +118,7 @@ export default function BookingClient({
 }) {
   const router = useRouter();
   const pathname = usePathname();
+  const { showToast } = useToast();
   const selectedDate = useMemo(
     () => parseBookingDate(selectedDateValue),
     [selectedDateValue],
@@ -127,6 +129,7 @@ export default function BookingClient({
     reserveFacilitySlotAction,
     initialActionState,
   );
+  const lastNotifiedSubmissionId = useRef<number | undefined>(undefined);
 
   useEffect(() => {
     setViewMonth(startOfMonth(selectedDate));
@@ -134,8 +137,29 @@ export default function BookingClient({
   }, [selectedDate]);
 
   useEffect(() => {
-    if (state.success) setSelectedSlot(null);
-  }, [state.success]);
+    if (state.submissionId === undefined) return;
+    if (lastNotifiedSubmissionId.current === state.submissionId) return;
+    lastNotifiedSubmissionId.current = state.submissionId;
+
+    if (state.success) {
+      const date = parseBookingDate(state.success.bookingDate);
+      const dateLabel = `${WEEKDAY_NAMES[date.getDay()]}, ${
+        MONTH_NAMES[date.getMonth()]
+      } ${ordinal(date.getDate())}`;
+      showToast({
+        tone: "success",
+        title: "Reservation confirmed",
+        description: `${dateLabel} at ${state.success.startTime}`,
+      });
+      setSelectedSlot(null);
+    } else if (state.error) {
+      showToast({
+        tone: "error",
+        title: "Couldn't reserve",
+        description: state.error,
+      });
+    }
+  }, [state, showToast]);
 
   const f = FACILITIES[facilitySlug];
   const cells = buildCalendarCells(viewMonth);
@@ -335,17 +359,6 @@ export default function BookingClient({
             <input type="hidden" name="facility" value={facilitySlug} />
             <input type="hidden" name="bookingDate" value={selectedDateValue} />
             <input type="hidden" name="timeSlotId" value={selectedSlot ?? ""} />
-
-            {state.error && (
-              <p className="mb-3 text-xs text-red-600" role="alert">
-                {state.error}
-              </p>
-            )}
-            {state.success && (
-              <p className="mb-3 text-xs text-emerald-700" role="status">
-                {state.success}
-              </p>
-            )}
 
             <button
               type="submit"

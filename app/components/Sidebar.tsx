@@ -67,7 +67,7 @@ const bookingChildren = [
   { label: "Lounge", href: "/booking/lounge", Icon: LoungeIcon },
 ];
 
-export default function Sidebar() {
+export default function Sidebar({ role }: { role: "admin" | "guest" }) {
   const pathname = usePathname();
   const inBooking = pathname.startsWith("/booking/");
   const [bookingOpen, setBookingOpen] = useState(inBooking);
@@ -76,7 +76,8 @@ export default function Sidebar() {
     if (inBooking) setBookingOpen(true);
   }, [inBooking]);
 
-  const homeActive = pathname === "/";
+  const dashboardActive = pathname === "/";
+  const isAdmin = role === "admin";
 
   return (
     <aside className="w-56 shrink-0 border-r border-black/5 bg-white flex flex-col px-4 py-6">
@@ -95,17 +96,19 @@ export default function Sidebar() {
       </div>
 
       <nav className="mt-6 flex flex-col">
-        <Link
-          href="/"
-          className={`flex items-center gap-3 px-3 py-2.5 rounded-md text-sm transition-colors duration-200 ${
-            homeActive
-              ? "text-brand font-medium bg-surface"
-              : "text-ink/70 hover:text-ink"
-          }`}
-        >
-          <HomeIcon className="size-4" />
-          <span>Home</span>
-        </Link>
+        {isAdmin && (
+          <Link
+            href="/"
+            className={`flex items-center gap-3 px-3 py-2.5 rounded-md text-sm transition-colors duration-200 ${
+              dashboardActive
+                ? "text-brand font-medium bg-surface"
+                : "text-ink/70 hover:text-ink"
+            }`}
+          >
+            <HomeIcon className="size-4" />
+            <span>Dashboard</span>
+          </Link>
+        )}
 
         <button
           type="button"
