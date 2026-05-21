@@ -19,6 +19,44 @@ export function formatBookingDate(date: Date) {
   return `${year}-${month}-${day}`;
 }
 
+export function isBookingDate(value: string): boolean {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!match) return false;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const date = new Date(year, month - 1, day);
+  return (
+    date.getFullYear() === year &&
+    date.getMonth() === month - 1 &&
+    date.getDate() === day
+  );
+}
+
+export function addBookingDays(value: string, days: number) {
+  const date = parseBookingDate(value);
+  date.setDate(date.getDate() + days);
+  return formatBookingDate(date);
+}
+
+export function isWithinBookingDateRange(
+  value: string,
+  checkInDate: string,
+  checkOutDate: string,
+) {
+  return value >= checkInDate && value <= checkOutDate;
+}
+
+export function clampBookingDateToRange(
+  value: string,
+  checkInDate: string,
+  checkOutDate: string,
+) {
+  if (value < checkInDate) return checkInDate;
+  if (value > checkOutDate) return checkOutDate;
+  return value;
+}
+
 export function ordinal(n: number) {
   const v = n % 100;
   if (v >= 11 && v <= 13) return `${n}th`;

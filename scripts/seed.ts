@@ -1,16 +1,53 @@
 import { db } from "../src/lib/db";
+import { addBookingDays, formatBookingDate } from "../src/lib/booking-dates";
 
 const upsert = db.prepare(
-  "INSERT OR IGNORE INTO users (username, password, role) VALUES (?, ?, ?)",
+  `
+    INSERT OR IGNORE INTO users (
+      username,
+      password,
+      role,
+      check_in_date,
+      check_out_date
+    )
+    VALUES (?, ?, ?, ?, ?)
+  `,
 );
 
+const defaultCheckInDate = formatBookingDate(new Date());
+const defaultCheckOutDate = addBookingDays(defaultCheckInDate, 7);
+
 const accounts = [
-  { username: "admin", password: "admin123", role: "admin" },
-  { username: "guest", password: "guest123", role: "guest" },
+  {
+    username: "admin",
+    password: "admin123",
+    role: "admin",
+    checkInDate: null,
+    checkOutDate: null,
+  },
+  {
+    username: "guest",
+    password: "guest123",
+    role: "guest",
+    checkInDate: defaultCheckInDate,
+    checkOutDate: defaultCheckOutDate,
+  },
 ] as const;
 
-for (const { username, password, role } of accounts) {
-  const result = upsert.run(username, password, role);
+for (const {
+  username,
+  password,
+  role,
+  checkInDate,
+  checkOutDate,
+} of accounts) {
+  const result = upsert.run(
+    username,
+    password,
+    role,
+    checkInDate,
+    checkOutDate,
+  );
   const action = Number(result.changes) === 1 ? "inserted" : "already exists";
   console.log(`${username} (${role}): ${action}`);
 }

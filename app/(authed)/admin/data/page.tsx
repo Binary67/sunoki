@@ -11,6 +11,7 @@ import {
   type AdminSelectOptions,
   type EditableTableName,
 } from "@/src/lib/admin-data";
+import AdminDateField from "./AdminDateField";
 import { createAdminRowAction, updateAdminRowAction } from "./actions";
 import DeleteRowForm from "./DeleteRowForm";
 
@@ -258,6 +259,24 @@ function AdminField({
   const value = getFieldValue(column, row);
   const baseClasses =
     "mt-1 h-10 w-full rounded-md border border-black/10 bg-white px-3 text-sm text-ink outline-none focus:border-brand focus:ring-2 focus:ring-brand/15";
+
+  if (column.input === "date") {
+    return (
+      <div className="block text-sm font-medium text-ink/75">
+        <label htmlFor={id}>
+          {column.label}
+          {column.required && <span className="text-red-600"> *</span>}
+        </label>
+        <AdminDateField
+          key={`${id}-${value}`}
+          id={id}
+          name={column.name}
+          required={column.required}
+          defaultValue={value}
+        />
+      </div>
+    );
+  }
 
   return (
     <label htmlFor={id} className="block text-sm font-medium text-ink/75">

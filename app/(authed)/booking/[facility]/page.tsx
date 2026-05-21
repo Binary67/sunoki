@@ -1,9 +1,12 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
+import { getCurrentUser } from "@/src/lib/auth";
+import { getFacilityAvailability } from "@/src/lib/bookings";
 import {
-  getFacilityAvailability,
+  clampBookingDateToRange,
+  formatBookingDate,
   isBookingDate,
-} from "@/src/lib/bookings";
-import { formatBookingDate } from "@/src/lib/booking-dates";
+} from "@/src/lib/booking-dates";
+import type { User } from "@/src/lib/db";
 import BookingClient from "./BookingClient";
 import { FACILITIES, type FacilitySlug } from "./facility-content";
 
@@ -12,9 +15,39 @@ type PageProps = {
   searchParams: Promise<{ date?: string | string[] }>;
 };
 
-function getSelectedDate(searchDate: string | string[] | undefined) {
+type GuestBookingWindow = {
+  checkInDate: string;
+  checkOutDate: string;
+};
+
+function getSelectedDate(
+  searchDate: string | string[] | undefined,
+  bookingWindow: GuestBookingWindow | null,
+) {
   const value = Array.isArray(searchDate) ? searchDate[0] : searchDate;
-  return value && isBookingDate(value) ? value : formatBookingDate(new Date());
+  const selectedDate =
+    value && isBookingDate(value) ? value : formatBookingDate(new Date());
+
+  return bookingWindow
+    ? clampBookingDateToRange(
+        selectedDate,
+        bookingWindow.checkInDate,
+        bookingWindow.checkOutDate,
+      )
+    : selectedDate;
+}
+
+function getGuestBookingWindow(user: User): GuestBookingWindow | null {
+  if (user.role !== "guest") return null;
+  if (!user.checkInDate || !user.checkOutDate) return null;
+  if (!isBookingDate(user.checkInDate) || !isBookingDate(user.checkOutDate)) {
+    return null;
+  }
+  if (user.checkOutDate < user.checkInDate) return null;
+  return {
+    checkInDate: user.checkInDate,
+    checkOutDate: user.checkOutDate,
+  };
 }
 
 export default async function FacilityPage({
@@ -24,8 +57,12 @@ export default async function FacilityPage({
   const { facility } = await params;
   if (!(facility in FACILITIES)) notFound();
 
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+
   const query = await searchParams;
-  const selectedDate = getSelectedDate(query.date);
+  const bookingWindow = getGuestBookingWindow(user);
+  const selectedDate = getSelectedDate(query.date, bookingWindow);
   const availability = getFacilityAvailability(facility, selectedDate);
 
   if (!availability) notFound();
@@ -35,6 +72,7 @@ export default async function FacilityPage({
       key={`${facility}-${selectedDate}`}
       facilitySlug={facility as FacilitySlug}
       selectedDateValue={selectedDate}
+      bookingWindow={bookingWindow}
       availability={availability}
     />
   );

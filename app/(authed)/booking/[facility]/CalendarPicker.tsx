@@ -6,6 +6,7 @@ import {
   MONTH_NAMES,
   formatBookingDate,
   isSameDay,
+  isWithinBookingDateRange,
   parseBookingDate,
   startOfMonth,
 } from "@/src/lib/booking-dates";
@@ -38,8 +39,10 @@ function buildCalendarCells(viewMonth: Date) {
 
 export default function CalendarPicker({
   selectedDateValue,
+  bookingWindow,
 }: {
   selectedDateValue: string;
+  bookingWindow: { checkInDate: string; checkOutDate: string } | null;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -54,16 +57,33 @@ export default function CalendarPicker({
       new Date(viewMonth.getFullYear(), viewMonth.getMonth() + offset, 1),
     );
 
-  const pickDate = (date: Date) => {
+  const pushDateValue = (dateValue: string) => {
     const params = new URLSearchParams();
-    params.set("date", formatBookingDate(date));
+    params.set("date", dateValue);
     router.push(`${pathname}?${params.toString()}`);
   };
 
-  const goToToday = () => {
-    const today = new Date();
-    setViewMonth(startOfMonth(today));
-    pickDate(today);
+  const pickDate = (date: Date) => {
+    const dateValue = formatBookingDate(date);
+    if (
+      bookingWindow &&
+      !isWithinBookingDateRange(
+        dateValue,
+        bookingWindow.checkInDate,
+        bookingWindow.checkOutDate,
+      )
+    ) {
+      return;
+    }
+    pushDateValue(dateValue);
+  };
+
+  const goToCheckInDate = () => {
+    const dateValue = bookingWindow
+      ? bookingWindow.checkInDate
+      : formatBookingDate(new Date());
+    setViewMonth(startOfMonth(parseBookingDate(dateValue)));
+    pushDateValue(dateValue);
   };
 
   return (
@@ -76,10 +96,10 @@ export default function CalendarPicker({
         <div className="flex items-center gap-1 self-end sm:self-auto">
           <button
             type="button"
-            onClick={goToToday}
+            onClick={goToCheckInDate}
             className="px-2 h-7 rounded-full text-xs font-medium text-ink/60 hover:bg-surface"
           >
-            Today
+            Check-In Date
           </button>
           <button
             type="button"
@@ -109,14 +129,25 @@ export default function CalendarPicker({
           </div>
         ))}
         {cells.map((cell, i) => {
+          const dateValue = formatBookingDate(cell.date);
           const selected = isSameDay(cell.date, selectedDate);
+          const disabled =
+            bookingWindow !== null &&
+            !isWithinBookingDateRange(
+              dateValue,
+              bookingWindow.checkInDate,
+              bookingWindow.checkOutDate,
+            );
           return (
             <div key={i} className="grid place-items-center">
               <button
                 type="button"
+                disabled={disabled}
                 onClick={() => pickDate(cell.date)}
                 className={`size-9 grid place-items-center text-sm rounded-full transition-colors ${
-                  selected
+                  disabled
+                    ? "cursor-not-allowed bg-surface/50 text-ink/20"
+                    : selected
                     ? "bg-brand text-white font-medium"
                     : cell.muted
                       ? "text-ink/25 hover:bg-surface"

@@ -55,14 +55,37 @@ export async function clearSessionCookie(): Promise<void> {
 
 export function getUserByUsername(username: string): UserWithPassword | null {
   const row = db
-    .prepare("SELECT id, username, password, role FROM users WHERE username = ?")
+    .prepare(
+      `
+        SELECT
+          id,
+          username,
+          password,
+          role,
+          check_in_date AS checkInDate,
+          check_out_date AS checkOutDate
+        FROM users
+        WHERE username = ?
+      `,
+    )
     .get(username) as UserWithPassword | undefined;
   return row ? { ...row } : null;
 }
 
 export function getUserById(id: number): User | null {
   const row = db
-    .prepare("SELECT id, username, role FROM users WHERE id = ?")
+    .prepare(
+      `
+        SELECT
+          id,
+          username,
+          role,
+          check_in_date AS checkInDate,
+          check_out_date AS checkOutDate
+        FROM users
+        WHERE id = ?
+      `,
+    )
     .get(id) as User | undefined;
   return row ? { ...row } : null;
 }

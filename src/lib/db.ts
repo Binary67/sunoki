@@ -1,6 +1,7 @@
 import { DatabaseSync } from "node:sqlite";
 import { mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { addBookingDays, formatBookingDate } from "./booking-dates";
 
 const DB_PATH = join(process.cwd(), "data", "sunoki.db");
 
@@ -12,11 +13,13 @@ db.exec("PRAGMA foreign_keys = ON;");
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS users (
-    id         INTEGER PRIMARY KEY,
-    username   TEXT UNIQUE NOT NULL,
-    password   TEXT NOT NULL,
-    role       TEXT NOT NULL CHECK (role IN ('admin','guest')),
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    id             INTEGER PRIMARY KEY,
+    username       TEXT UNIQUE NOT NULL,
+    password       TEXT NOT NULL,
+    role           TEXT NOT NULL CHECK (role IN ('admin','guest')),
+    check_in_date  TEXT,
+    check_out_date TEXT,
+    created_at     TEXT NOT NULL DEFAULT (datetime('now'))
   );
 
   CREATE TABLE IF NOT EXISTS facilities (
@@ -57,10 +60,42 @@ db.exec(`
   );
 `);
 
+type TableColumnRow = {
+  name: string;
+};
+
+const userColumns = db
+  .prepare("PRAGMA table_info(users)")
+  .all() as TableColumnRow[];
+const userColumnNames = new Set(userColumns.map((column) => column.name));
+
+if (!userColumnNames.has("check_in_date")) {
+  db.exec("ALTER TABLE users ADD COLUMN check_in_date TEXT;");
+}
+
+if (!userColumnNames.has("check_out_date")) {
+  db.exec("ALTER TABLE users ADD COLUMN check_out_date TEXT;");
+}
+
+const defaultCheckInDate = formatBookingDate(new Date());
+const defaultCheckOutDate = addBookingDays(defaultCheckInDate, 7);
+
+db.prepare(
+  `
+    UPDATE users
+    SET check_in_date = ?,
+        check_out_date = ?
+    WHERE role = 'guest'
+      AND (check_in_date IS NULL OR check_out_date IS NULL)
+  `,
+).run(defaultCheckInDate, defaultCheckOutDate);
+
 export type User = {
   id: number;
   username: string;
   role: "admin" | "guest";
+  checkInDate: string | null;
+  checkOutDate: string | null;
 };
 
 export type UserWithPassword = User & { password: string };

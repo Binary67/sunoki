@@ -1,4 +1,5 @@
 import { db } from "./db";
+import { isBookingDate, isWithinBookingDateRange } from "./booking-dates";
 
 export type FacilitySlotAvailability = {
   id: number;
@@ -37,23 +38,15 @@ type SlotRow = {
   capacityPax: number;
 };
 
+type BookingUserRow = {
+  role: "admin" | "guest";
+  checkInDate: string | null;
+  checkOutDate: string | null;
+};
+
 type CountRow = {
   bookedPax: number;
 };
-
-export function isBookingDate(value: string): boolean {
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
-  if (!match) return false;
-  const year = Number(match[1]);
-  const month = Number(match[2]);
-  const day = Number(match[3]);
-  const date = new Date(year, month - 1, day);
-  return (
-    date.getFullYear() === year &&
-    date.getMonth() === month - 1 &&
-    date.getDate() === day
-  );
-}
 
 export function getFacilityAvailability(
   facilitySlug: string,
@@ -210,6 +203,51 @@ export function createFacilityBooking({
   try {
     db.exec("BEGIN IMMEDIATE");
     inTransaction = true;
+
+    const bookingUser = db
+      .prepare(
+        `
+          SELECT
+            role,
+            check_in_date AS checkInDate,
+            check_out_date AS checkOutDate
+          FROM users
+          WHERE id = ?
+        `,
+      )
+      .get(userId) as BookingUserRow | undefined;
+
+    if (!bookingUser) {
+      db.exec("ROLLBACK");
+      inTransaction = false;
+      return { ok: false, error: "Sign in before reserving a time slot." };
+    }
+
+    if (bookingUser.role === "guest") {
+      const checkInDate = bookingUser.checkInDate;
+      const checkOutDate = bookingUser.checkOutDate;
+
+      if (
+        !checkInDate ||
+        !checkOutDate ||
+        !isBookingDate(checkInDate) ||
+        !isBookingDate(checkOutDate) ||
+        checkOutDate < checkInDate
+      ) {
+        db.exec("ROLLBACK");
+        inTransaction = false;
+        return {
+          ok: false,
+          error: "Your stay dates are not set up for booking.",
+        };
+      }
+
+      if (!isWithinBookingDateRange(bookingDate, checkInDate, checkOutDate)) {
+        db.exec("ROLLBACK");
+        inTransaction = false;
+        return { ok: false, error: "Choose a date within your stay dates." };
+      }
+    }
 
     const slot = db
       .prepare(
