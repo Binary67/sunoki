@@ -1,7 +1,7 @@
 "use client";
 
+import type { EditableTableName } from "@/src/lib/admin-data/definitions";
 import { deleteAdminRowAction } from "./actions";
-import type { EditableTableName } from "@/src/lib/admin-data";
 
 export default function DeleteRowForm({
   tableName,

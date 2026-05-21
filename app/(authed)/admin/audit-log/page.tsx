@@ -1,14 +1,16 @@
 import Link from "next/link";
 import {
-  AUDIT_OPERATIONS,
   EDITABLE_TABLE_NAMES,
   getAdminTableLabel,
+  isAuditTableName,
+  type AuditTableName,
+} from "@/src/lib/admin-data/definitions";
+import {
+  AUDIT_OPERATIONS,
   getAuditLogs,
   isAuditOperation,
-  isAuditTableName,
   type AuditOperation,
-  type AuditTableName,
-} from "@/src/lib/admin-data";
+} from "@/src/lib/admin-data/audit";
 
 type PageProps = {
   searchParams: Promise<{

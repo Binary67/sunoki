@@ -4,12 +4,14 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireAdminUser } from "@/src/lib/admin-auth";
 import {
+  isEditableTableName,
+  type EditableTableName,
+} from "@/src/lib/admin-data/definitions";
+import {
   createAdminRow,
   deleteAdminRow,
-  isEditableTableName,
   updateAdminRow,
-  type EditableTableName,
-} from "@/src/lib/admin-data";
+} from "@/src/lib/admin-data/mutations";
 
 const DATA_PATH = "/admin/data";
 const AUDIT_PATH = "/admin/audit-log";

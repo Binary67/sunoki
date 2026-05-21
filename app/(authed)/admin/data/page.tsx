@@ -1,16 +1,18 @@
 import Link from "next/link";
 import {
   EDITABLE_TABLE_NAMES,
-  getAdminRowForEdit,
   getAdminTableLabel,
-  getAdminTableView,
   getDefaultAdminTableName,
   isEditableTableName,
   type AdminColumnDefinition,
   type AdminRow,
   type AdminSelectOptions,
   type EditableTableName,
-} from "@/src/lib/admin-data";
+} from "@/src/lib/admin-data/definitions";
+import {
+  getAdminRowForEdit,
+  getAdminTableView,
+} from "@/src/lib/admin-data/queries";
 import AdminFormFields from "./AdminFormFields";
 import { createAdminRowAction, updateAdminRowAction } from "./actions";
 import DeleteRowForm from "./DeleteRowForm";

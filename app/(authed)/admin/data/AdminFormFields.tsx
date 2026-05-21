@@ -6,7 +6,7 @@ import type {
   AdminRow,
   AdminSelectOptions,
   EditableTableName,
-} from "@/src/lib/admin-data";
+} from "@/src/lib/admin-data/definitions";
 import AdminDateField from "./AdminDateField";
 
 const USER_STAY_DATE_FIELDS = new Set(["check_in_date", "check_out_date"]);
