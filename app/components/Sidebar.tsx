@@ -20,6 +20,21 @@ const BookingIcon = ({ className }: IconProps) => (
   </svg>
 );
 
+const DatabaseIcon = ({ className }: IconProps) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <ellipse cx="12" cy="5" rx="7" ry="3" />
+    <path d="M5 5v6c0 1.7 3.1 3 7 3s7-1.3 7-3V5" />
+    <path d="M5 11v6c0 1.7 3.1 3 7 3s7-1.3 7-3v-6" />
+  </svg>
+);
+
+const LogIcon = ({ className }: IconProps) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="M6 3h9l3 3v15H6z" />
+    <path d="M14 3v4h4M9 11h6M9 15h6M9 19h3" />
+  </svg>
+);
+
 const GymIcon = ({ className }: IconProps) => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" className={className}>
     <path d="M6 7v10M18 7v10M3 10v4M21 10v4M6 12h12" />
@@ -112,6 +127,8 @@ export default function Sidebar({
   }, [mobileOpen, onClose]);
 
   const dashboardActive = pathname === "/";
+  const dataActive = pathname === "/admin/data";
+  const auditActive = pathname === "/admin/audit-log";
   const isAdmin = role === "admin";
 
   return (
@@ -152,17 +169,41 @@ export default function Sidebar({
 
         <nav className="mt-6 flex flex-col">
           {isAdmin && (
-            <Link
-              href="/"
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-md text-sm transition-colors duration-200 ${
-                dashboardActive
-                  ? "text-brand font-medium bg-surface"
-                  : "text-ink/70 hover:text-ink"
-              }`}
-            >
-              <HomeIcon className="size-4" />
-              <span>Dashboard</span>
-            </Link>
+            <>
+              <Link
+                href="/"
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-md text-sm transition-colors duration-200 ${
+                  dashboardActive
+                    ? "text-brand font-medium bg-surface"
+                    : "text-ink/70 hover:text-ink"
+                }`}
+              >
+                <HomeIcon className="size-4" />
+                <span>Dashboard</span>
+              </Link>
+              <Link
+                href="/admin/data"
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-md text-sm transition-colors duration-200 ${
+                  dataActive
+                    ? "text-brand font-medium bg-surface"
+                    : "text-ink/70 hover:text-ink"
+                }`}
+              >
+                <DatabaseIcon className="size-4" />
+                <span>Data Editor</span>
+              </Link>
+              <Link
+                href="/admin/audit-log"
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-md text-sm transition-colors duration-200 ${
+                  auditActive
+                    ? "text-brand font-medium bg-surface"
+                    : "text-ink/70 hover:text-ink"
+                }`}
+              >
+                <LogIcon className="size-4" />
+                <span>Audit Log</span>
+              </Link>
+            </>
           )}
 
           <button

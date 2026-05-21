@@ -10,6 +10,20 @@ const BREADCRUMB_LABELS: Record<string, string> = {
   lounge: "TRANQUIL LOUNGE",
 };
 
+function getSectionLabel(pathname: string): string {
+  if (pathname === "/") return "DASHBOARD";
+  if (pathname === "/admin/data") return "ADMIN / DATA EDITOR";
+  if (pathname === "/admin/audit-log") return "ADMIN / AUDIT LOG";
+
+  const facilityMatch = pathname.match(/^\/booking\/([^/]+)/);
+  if (facilityMatch) {
+    const facilityLabel = BREADCRUMB_LABELS[facilityMatch[1]];
+    return facilityLabel ? `FACILITIES / ${facilityLabel}` : "FACILITIES";
+  }
+
+  return "FACILITIES";
+}
+
 export default function Header({
   user,
   onMenuClick,
@@ -18,8 +32,7 @@ export default function Header({
   onMenuClick: () => void;
 }) {
   const pathname = usePathname();
-  const facilityMatch = pathname.match(/^\/booking\/([^/]+)/);
-  const sublabel = facilityMatch ? BREADCRUMB_LABELS[facilityMatch[1]] : undefined;
+  const sectionLabel = getSectionLabel(pathname);
 
   return (
     <header className="h-16 shrink-0 flex items-center justify-between gap-3 px-4 sm:px-6 lg:px-10 border-b border-black/5">
@@ -43,13 +56,7 @@ export default function Header({
           </svg>
         </button>
         <div className="text-[11px] tracking-[0.18em] text-black/50 truncate min-w-0">
-          FACILITIES
-          {sublabel && (
-            <>
-              <span className="mx-2 text-black/30">/</span>
-              {sublabel}
-            </>
-          )}
+          {sectionLabel}
         </div>
       </div>
       <div className="flex items-center gap-3 min-w-0">

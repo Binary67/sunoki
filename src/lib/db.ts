@@ -43,6 +43,18 @@ db.exec(`
     created_at            TEXT NOT NULL DEFAULT (datetime('now')),
     UNIQUE (user_id, facility_time_slot_id, booking_date)
   );
+
+  CREATE TABLE IF NOT EXISTS audit_logs (
+    id             INTEGER PRIMARY KEY,
+    actor_user_id  INTEGER NOT NULL,
+    actor_username TEXT NOT NULL,
+    operation      TEXT NOT NULL CHECK (operation IN ('insert','update','delete')),
+    table_name     TEXT NOT NULL CHECK (table_name IN ('users','facilities','facility_time_slots','facility_bookings')),
+    row_id         INTEGER NOT NULL,
+    before_json    TEXT,
+    after_json     TEXT,
+    created_at     TEXT NOT NULL DEFAULT (datetime('now'))
+  );
 `);
 
 export type User = {
