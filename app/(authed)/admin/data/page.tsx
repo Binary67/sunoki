@@ -11,7 +11,7 @@ import {
   type AdminSelectOptions,
   type EditableTableName,
 } from "@/src/lib/admin-data";
-import AdminDateField from "./AdminDateField";
+import AdminFormFields from "./AdminFormFields";
 import { createAdminRowAction, updateAdminRowAction } from "./actions";
 import DeleteRowForm from "./DeleteRowForm";
 
@@ -101,16 +101,13 @@ export default async function AdminDataPage({ searchParams }: PageProps) {
         </div>
         <form action={createAdminRowAction}>
           <input type="hidden" name="tableName" value={selectedTable} />
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {editableColumns.map((column) => (
-              <AdminField
-                key={column.name}
-                column={column}
-                formId="create"
-                options={view.selectOptions}
-              />
-            ))}
-          </div>
+          <AdminFormFields
+            key={`create-${selectedTable}`}
+            columns={editableColumns}
+            formId="create"
+            options={view.selectOptions}
+            tableName={selectedTable}
+          />
           <div className="mt-5 flex justify-end">
             <button
               type="submit"
@@ -145,17 +142,14 @@ export default async function AdminDataPage({ searchParams }: PageProps) {
               <form action={updateAdminRowAction}>
                 <input type="hidden" name="tableName" value={selectedTable} />
                 <input type="hidden" name="rowId" value={editId} />
-                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                  {editableColumns.map((column) => (
-                    <AdminField
-                      key={column.name}
-                      column={column}
-                      formId={`edit-${editId}`}
-                      options={view.selectOptions}
-                      row={editRow}
-                    />
-                  ))}
-                </div>
+                <AdminFormFields
+                  key={`edit-${selectedTable}-${editId}`}
+                  columns={editableColumns}
+                  formId={`edit-${editId}`}
+                  options={view.selectOptions}
+                  row={editRow}
+                  tableName={selectedTable}
+                />
                 <div className="mt-5 flex justify-end">
                   <button
                     type="submit"
@@ -244,74 +238,6 @@ export default async function AdminDataPage({ searchParams }: PageProps) {
   );
 }
 
-function AdminField({
-  column,
-  formId,
-  options,
-  row,
-}: {
-  column: AdminColumnDefinition;
-  formId: string;
-  options: AdminSelectOptions;
-  row?: AdminRow;
-}) {
-  const id = `${formId}-${column.name}`;
-  const value = getFieldValue(column, row);
-  const baseClasses =
-    "mt-1 h-10 w-full rounded-md border border-black/10 bg-white px-3 text-sm text-ink outline-none focus:border-brand focus:ring-2 focus:ring-brand/15";
-
-  if (column.input === "date") {
-    return (
-      <div className="block text-sm font-medium text-ink/75">
-        <label htmlFor={id}>
-          {column.label}
-          {column.required && <span className="text-red-600"> *</span>}
-        </label>
-        <AdminDateField
-          key={`${id}-${value}`}
-          id={id}
-          name={column.name}
-          required={column.required}
-          defaultValue={value}
-        />
-      </div>
-    );
-  }
-
-  return (
-    <label htmlFor={id} className="block text-sm font-medium text-ink/75">
-      {column.label}
-      {column.required && <span className="text-red-600"> *</span>}
-      {column.input === "select" && column.optionsKey ? (
-        <select
-          id={id}
-          name={column.name}
-          required={column.required}
-          defaultValue={value}
-          className={baseClasses}
-        >
-          <option value="">Select {column.label.toLowerCase()}</option>
-          {options[column.optionsKey].map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-      ) : (
-        <input
-          id={id}
-          name={column.name}
-          type={column.input ?? "text"}
-          required={column.required}
-          min={column.min}
-          defaultValue={value}
-          className={baseClasses}
-        />
-      )}
-    </label>
-  );
-}
-
 function getSingleValue(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value;
 }
@@ -337,12 +263,6 @@ function getEditId(value: string | undefined): number | null {
   if (!value) return null;
   const id = Number(value);
   return Number.isInteger(id) && id > 0 ? id : null;
-}
-
-function getFieldValue(column: AdminColumnDefinition, row?: AdminRow): string {
-  if (!row && column.defaultValue) return column.defaultValue;
-  const value = row?.[column.name];
-  return value === undefined || value === null ? "" : String(value);
 }
 
 function formatCellValue(
