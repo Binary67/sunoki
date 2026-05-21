@@ -51,13 +51,29 @@ function slotBulletClass(paxLeft: number) {
   return "bg-emerald-500";
 }
 
+function hasSlotStarted(
+  selectedDateValue: string,
+  startTime: string,
+  currentDateValue: string,
+  currentTimeValue: string,
+) {
+  return (
+    selectedDateValue < currentDateValue ||
+    (selectedDateValue === currentDateValue && startTime <= currentTimeValue)
+  );
+}
+
 export default function SlotPicker({
   facilitySlug,
   selectedDateValue,
+  currentDateValue,
+  currentTimeValue,
   slots,
 }: {
   facilitySlug: FacilitySlug;
   selectedDateValue: string;
+  currentDateValue: string;
+  currentTimeValue: string;
   slots: FacilitySlotAvailability[];
 }) {
   const { showToast } = useToast();
@@ -159,7 +175,13 @@ export default function SlotPicker({
               {expanded && (
                 <ul className="px-3 pb-3 flex flex-col gap-3">
                   {periodSlots.map((slot) => {
-                    const unavailable = !slot.isAvailable;
+                    const started = hasSlotStarted(
+                      selectedDateValue,
+                      slot.startTime,
+                      currentDateValue,
+                      currentTimeValue,
+                    );
+                    const unavailable = !slot.isAvailable || started;
                     const selected = selectedSlot === slot.id;
                     return (
                       <li
@@ -175,7 +197,9 @@ export default function SlotPicker({
                         <div className="flex items-center gap-3">
                           <span
                             aria-hidden="true"
-                            className={`size-2.5 rounded-full ${slotBulletClass(slot.paxLeft)}`}
+                            className={`size-2.5 rounded-full ${slotBulletClass(
+                              unavailable ? 0 : slot.paxLeft,
+                            )}`}
                           />
                           <div>
                             <div
@@ -201,7 +225,9 @@ export default function SlotPicker({
                             }`}
                           >
                             {unavailable
-                              ? "Not available"
+                              ? started
+                                ? "Closed"
+                                : "Not available"
                               : `${slot.paxLeft} of ${slot.capacityPax} pax left`}
                           </span>
                           <button
@@ -219,7 +245,9 @@ export default function SlotPicker({
                             }`}
                           >
                             {unavailable
-                              ? "Full"
+                              ? started
+                                ? "Closed"
+                                : "Full"
                               : selected
                                 ? "Selected"
                                 : "Select"}

@@ -23,18 +23,25 @@ type GuestBookingWindow = {
 function getSelectedDate(
   searchDate: string | string[] | undefined,
   bookingWindow: GuestBookingWindow | null,
+  minBookableDate: string,
 ) {
   const value = Array.isArray(searchDate) ? searchDate[0] : searchDate;
   const selectedDate =
-    value && isBookingDate(value) ? value : formatBookingDate(new Date());
+    value && isBookingDate(value) ? value : minBookableDate;
 
-  return bookingWindow
-    ? clampBookingDateToRange(
-        selectedDate,
-        bookingWindow.checkInDate,
-        bookingWindow.checkOutDate,
-      )
-    : selectedDate;
+  if (!bookingWindow) {
+    return selectedDate < minBookableDate ? minBookableDate : selectedDate;
+  }
+
+  if (minBookableDate > bookingWindow.checkOutDate) {
+    return bookingWindow.checkOutDate;
+  }
+
+  return clampBookingDateToRange(
+    selectedDate,
+    minBookableDate,
+    bookingWindow.checkOutDate,
+  );
 }
 
 function getGuestBookingWindow(user: User): GuestBookingWindow | null {
@@ -62,7 +69,20 @@ export default async function FacilityPage({
 
   const query = await searchParams;
   const bookingWindow = getGuestBookingWindow(user);
-  const selectedDate = getSelectedDate(query.date, bookingWindow);
+  const now = new Date();
+  const todayDate = formatBookingDate(now);
+  const minBookableDate =
+    bookingWindow && bookingWindow.checkInDate > todayDate
+      ? bookingWindow.checkInDate
+      : todayDate;
+  const currentTimeValue = `${String(now.getHours()).padStart(2, "0")}:${String(
+    now.getMinutes(),
+  ).padStart(2, "0")}`;
+  const selectedDate = getSelectedDate(
+    query.date,
+    bookingWindow,
+    minBookableDate,
+  );
   const availability = getFacilityAvailability(facility, selectedDate);
 
   if (!availability) notFound();
@@ -73,6 +93,9 @@ export default async function FacilityPage({
       facilitySlug={facility as FacilitySlug}
       selectedDateValue={selectedDate}
       bookingWindow={bookingWindow}
+      minBookableDate={minBookableDate}
+      currentDateValue={todayDate}
+      currentTimeValue={currentTimeValue}
       availability={availability}
     />
   );

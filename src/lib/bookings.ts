@@ -48,6 +48,12 @@ type CountRow = {
   bookedPax: number;
 };
 
+function hasSlotStarted(bookingDate: string, startTime: string, now = new Date()) {
+  const [year, month, day] = bookingDate.split("-").map(Number);
+  const [hour, minute] = startTime.split(":").map(Number);
+  return new Date(year, month - 1, day, hour, minute) <= now;
+}
+
 export function getFacilityAvailability(
   facilitySlug: string,
   bookingDate: string,
@@ -269,6 +275,12 @@ export function createFacilityBooking({
       db.exec("ROLLBACK");
       inTransaction = false;
       return { ok: false, error: "Choose a valid date and time slot." };
+    }
+
+    if (hasSlotStarted(bookingDate, slot.startTime)) {
+      db.exec("ROLLBACK");
+      inTransaction = false;
+      return { ok: false, error: "Choose an upcoming date and time slot." };
     }
 
     const existing = db

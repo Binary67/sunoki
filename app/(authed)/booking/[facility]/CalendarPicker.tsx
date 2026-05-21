@@ -6,7 +6,6 @@ import {
   MONTH_NAMES,
   formatBookingDate,
   isSameDay,
-  isWithinBookingDateRange,
   parseBookingDate,
   startOfMonth,
 } from "@/src/lib/booking-dates";
@@ -40,9 +39,11 @@ function buildCalendarCells(viewMonth: Date) {
 export default function CalendarPicker({
   selectedDateValue,
   bookingWindow,
+  minBookableDate,
 }: {
   selectedDateValue: string;
   bookingWindow: { checkInDate: string; checkOutDate: string } | null;
+  minBookableDate: string;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -63,27 +64,23 @@ export default function CalendarPicker({
     router.push(`${pathname}?${params.toString()}`);
   };
 
+  const isDateDisabled = (dateValue: string) =>
+    dateValue < minBookableDate ||
+    (bookingWindow !== null && dateValue > bookingWindow.checkOutDate);
+
   const pickDate = (date: Date) => {
     const dateValue = formatBookingDate(date);
-    if (
-      bookingWindow &&
-      !isWithinBookingDateRange(
-        dateValue,
-        bookingWindow.checkInDate,
-        bookingWindow.checkOutDate,
-      )
-    ) {
-      return;
-    }
+    if (isDateDisabled(dateValue)) return;
     pushDateValue(dateValue);
   };
 
-  const goToCheckInDate = () => {
-    const dateValue = bookingWindow
-      ? bookingWindow.checkInDate
-      : formatBookingDate(new Date());
-    setViewMonth(startOfMonth(parseBookingDate(dateValue)));
-    pushDateValue(dateValue);
+  const hasBookableDates =
+    bookingWindow === null || minBookableDate <= bookingWindow.checkOutDate;
+
+  const goToEarliestDate = () => {
+    if (!hasBookableDates) return;
+    setViewMonth(startOfMonth(parseBookingDate(minBookableDate)));
+    pushDateValue(minBookableDate);
   };
 
   return (
@@ -96,10 +93,15 @@ export default function CalendarPicker({
         <div className="flex items-center gap-1 self-end sm:self-auto">
           <button
             type="button"
-            onClick={goToCheckInDate}
-            className="px-2 h-7 rounded-full text-xs font-medium text-ink/60 hover:bg-surface"
+            onClick={goToEarliestDate}
+            disabled={!hasBookableDates}
+            className={`px-2 h-7 rounded-full text-xs font-medium ${
+              hasBookableDates
+                ? "text-ink/60 hover:bg-surface"
+                : "text-ink/30 cursor-not-allowed"
+            }`}
           >
-            Check-In Date
+            Earliest Date
           </button>
           <button
             type="button"
@@ -131,13 +133,7 @@ export default function CalendarPicker({
         {cells.map((cell, i) => {
           const dateValue = formatBookingDate(cell.date);
           const selected = isSameDay(cell.date, selectedDate);
-          const disabled =
-            bookingWindow !== null &&
-            !isWithinBookingDateRange(
-              dateValue,
-              bookingWindow.checkInDate,
-              bookingWindow.checkOutDate,
-            );
+          const disabled = isDateDisabled(dateValue);
           return (
             <div key={i} className="grid place-items-center">
               <button

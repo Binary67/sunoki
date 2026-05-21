@@ -8,11 +8,17 @@ export default function BookingClient({
   facilitySlug,
   selectedDateValue,
   bookingWindow,
+  minBookableDate,
+  currentDateValue,
+  currentTimeValue,
   availability,
 }: {
   facilitySlug: FacilitySlug;
   selectedDateValue: string;
   bookingWindow: { checkInDate: string; checkOutDate: string } | null;
+  minBookableDate: string;
+  currentDateValue: string;
+  currentTimeValue: string;
   availability: FacilityAvailability;
 }) {
   return (
@@ -23,10 +29,13 @@ export default function BookingClient({
         <CalendarPicker
           selectedDateValue={selectedDateValue}
           bookingWindow={bookingWindow}
+          minBookableDate={minBookableDate}
         />
         <SlotPicker
           facilitySlug={facilitySlug}
           selectedDateValue={selectedDateValue}
+          currentDateValue={currentDateValue}
+          currentTimeValue={currentTimeValue}
           slots={availability.slots}
         />
       </aside>
