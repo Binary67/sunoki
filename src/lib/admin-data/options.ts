@@ -1,4 +1,5 @@
 import { db } from "../db";
+import type { UserRole } from "../roles";
 import type { AdminSelectOptions } from "./definitions";
 
 type FacilityOptionRow = {
@@ -10,7 +11,7 @@ type FacilityOptionRow = {
 type UserOptionRow = {
   id: number;
   username: string;
-  role: "admin" | "guest";
+  role: UserRole;
 };
 
 type TimeSlotOptionRow = {
@@ -54,6 +55,7 @@ export function getAdminSelectOptions(): AdminSelectOptions {
       label: `${facility.name} (${facility.slug})`,
     })),
     roles: [
+      { value: "superadmin", label: "Super Admin" },
       { value: "admin", label: "Admin" },
       { value: "guest", label: "Guest" },
     ],
@@ -65,7 +67,18 @@ export function getAdminSelectOptions(): AdminSelectOptions {
     })),
     users: users.map((user) => ({
       value: String(user.id),
-      label: `${user.username} (${user.role})`,
+      label: `${user.username} (${formatRoleLabel(user.role)})`,
     })),
   };
+}
+
+function formatRoleLabel(role: UserRole): string {
+  switch (role) {
+    case "superadmin":
+      return "Super Admin";
+    case "admin":
+      return "Admin";
+    case "guest":
+      return "Guest";
+  }
 }

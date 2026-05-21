@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { requireAdminUser } from "@/src/lib/admin-auth";
 import {
   EDITABLE_TABLE_NAMES,
   getAdminTableLabel,
@@ -17,9 +18,12 @@ import AdminFormFields from "./AdminFormFields";
 import { createAdminRowAction, updateAdminRowAction } from "./actions";
 import DeleteRowForm from "./DeleteRowForm";
 
+type UserCreateMode = "guest" | "admin";
+
 type PageProps = {
   searchParams: Promise<{
     table?: string | string[];
+    create?: string | string[];
     edit?: string | string[];
     error?: string | string[];
     success?: string | string[];
@@ -27,18 +31,40 @@ type PageProps = {
 };
 
 export default async function AdminDataPage({ searchParams }: PageProps) {
+  const actor = await requireAdminUser();
   const query = await searchParams;
   const selectedTable = getSelectedTable(getSingleValue(query.table));
+  const canManageAdminUsers = actor.role === "superadmin";
+  const createMode = getUserCreateMode(
+    getSingleValue(query.create),
+    canManageAdminUsers,
+  );
   const editId = getEditId(getSingleValue(query.edit));
   const error = getSingleValue(query.error);
   const success = getSingleValue(query.success);
-  const view = getAdminTableView(selectedTable);
+  const view = getAdminTableView(selectedTable, actor);
   const editRow = editId
-    ? getAdminRowForEdit(selectedTable, editId)
+    ? getAdminRowForEdit(selectedTable, editId, actor)
     : null;
   const editableColumns = view.table.columns.filter(
     (column) => !column.readOnly,
   );
+  const createColumns =
+    selectedTable === "users"
+      ? getUserCreateColumns(editableColumns, createMode)
+      : editableColumns;
+  const createOptions =
+    selectedTable === "users" && createMode === "admin"
+      ? getAdminUserCreateOptions(view.selectOptions)
+      : view.selectOptions;
+  const createFixedRole =
+    selectedTable === "users" && createMode === "guest" ? "guest" : undefined;
+  const editColumns =
+    selectedTable === "users" && !canManageAdminUsers
+      ? editableColumns.filter((column) => column.name !== "role")
+      : editableColumns;
+  const editFixedRole =
+    selectedTable === "users" && !canManageAdminUsers ? "guest" : undefined;
 
   return (
     <main className="flex-1 px-4 py-6 sm:px-6 sm:py-8 lg:px-10">
@@ -95,19 +121,46 @@ export default async function AdminDataPage({ searchParams }: PageProps) {
       <section className="mb-7 rounded-lg border border-black/5 bg-surface px-4 py-5 sm:px-5">
         <div className="mb-4">
           <h2 className="text-base font-semibold text-ink">
-            Create {getSingularLabel(selectedTable)}
+            Create {getCreateLabel(selectedTable, createMode)}
           </h2>
           <p className="mt-1 text-xs leading-5 text-ink/55">
             IDs and timestamp defaults are assigned by SQLite.
           </p>
         </div>
+        {selectedTable === "users" && canManageAdminUsers && (
+          <nav className="mb-4 flex flex-wrap gap-2">
+            {(["guest", "admin"] as const).map((mode) => {
+              const active = mode === createMode;
+              return (
+                <Link
+                  key={mode}
+                  href={`/admin/data?table=users&create=${mode}`}
+                  className={`rounded-md px-3 py-2 text-sm transition-colors ${
+                    active
+                      ? "bg-brand text-white"
+                      : "bg-white text-ink/70 hover:text-ink"
+                  }`}
+                >
+                  Create {mode === "guest" ? "Guest" : "Admin"}
+                </Link>
+              );
+            })}
+          </nav>
+        )}
         <form action={createAdminRowAction}>
           <input type="hidden" name="tableName" value={selectedTable} />
+          {selectedTable === "users" && (
+            <input type="hidden" name="createMode" value={createMode} />
+          )}
+          {createFixedRole && (
+            <input type="hidden" name="role" value={createFixedRole} />
+          )}
           <AdminFormFields
-            key={`create-${selectedTable}`}
-            columns={editableColumns}
+            key={`create-${selectedTable}-${createMode}`}
+            columns={createColumns}
+            fixedUserRole={createFixedRole}
             formId="create"
-            options={view.selectOptions}
+            options={createOptions}
             tableName={selectedTable}
           />
           <div className="mt-5 flex justify-end">
@@ -144,9 +197,13 @@ export default async function AdminDataPage({ searchParams }: PageProps) {
               <form action={updateAdminRowAction}>
                 <input type="hidden" name="tableName" value={selectedTable} />
                 <input type="hidden" name="rowId" value={editId} />
+                {editFixedRole && (
+                  <input type="hidden" name="role" value={editFixedRole} />
+                )}
                 <AdminFormFields
                   key={`edit-${selectedTable}-${editId}`}
-                  columns={editableColumns}
+                  columns={editColumns}
+                  fixedUserRole={editFixedRole}
                   formId={`edit-${editId}`}
                   options={view.selectOptions}
                   row={editRow}
@@ -259,6 +316,48 @@ function getSingularLabel(tableName: EditableTableName): string {
     case "facility_bookings":
       return "Booking";
   }
+}
+
+function getCreateLabel(
+  tableName: EditableTableName,
+  createMode: UserCreateMode,
+): string {
+  if (tableName === "users") {
+    return createMode === "admin" ? "Admin User" : "Guest User";
+  }
+  return getSingularLabel(tableName);
+}
+
+function getUserCreateMode(
+  value: string | undefined,
+  canManageAdminUsers: boolean,
+): UserCreateMode {
+  if (canManageAdminUsers && value === "admin") return "admin";
+  return "guest";
+}
+
+function getUserCreateColumns(
+  columns: AdminColumnDefinition[],
+  createMode: UserCreateMode,
+): AdminColumnDefinition[] {
+  if (createMode === "admin") {
+    return columns.filter(
+      (column) =>
+        column.name !== "check_in_date" && column.name !== "check_out_date",
+    );
+  }
+  return columns.filter((column) => column.name !== "role");
+}
+
+function getAdminUserCreateOptions(
+  options: AdminSelectOptions,
+): AdminSelectOptions {
+  return {
+    ...options,
+    roles: options.roles.filter(
+      (option) => option.value === "superadmin" || option.value === "admin",
+    ),
+  };
 }
 
 function getEditId(value: string | undefined): number | null {

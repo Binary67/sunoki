@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { isAdminRole, type UserRole } from "@/src/lib/roles";
 
 type IconProps = { className?: string };
 
@@ -93,7 +94,7 @@ export default function Sidebar({
   mobileOpen,
   onClose,
 }: {
-  role: "admin" | "guest";
+  role: UserRole;
   mobileOpen: boolean;
   onClose: () => void;
 }) {
@@ -129,7 +130,7 @@ export default function Sidebar({
   const dashboardActive = pathname === "/";
   const dataActive = pathname === "/admin/data";
   const auditActive = pathname === "/admin/audit-log";
-  const isAdmin = role === "admin";
+  const isAdmin = isAdminRole(role);
 
   return (
     <>

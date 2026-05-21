@@ -19,6 +19,13 @@ const defaultCheckOutDate = addBookingDays(defaultCheckInDate, 7);
 
 const accounts = [
   {
+    username: "superadmin",
+    password: "superadmin123",
+    role: "superadmin",
+    checkInDate: null,
+    checkOutDate: null,
+  },
+  {
     username: "admin",
     password: "admin123",
     role: "admin",

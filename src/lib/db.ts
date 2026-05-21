@@ -2,6 +2,9 @@ import { DatabaseSync } from "node:sqlite";
 import { mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { addBookingDays, formatBookingDate } from "./booking-dates";
+import type { UserRole } from "./roles";
+
+export type { UserRole } from "./roles";
 
 const DB_PATH = join(process.cwd(), "data", "sunoki.db");
 
@@ -16,7 +19,7 @@ db.exec(`
     id             INTEGER PRIMARY KEY,
     username       TEXT UNIQUE NOT NULL,
     password       TEXT NOT NULL,
-    role           TEXT NOT NULL CHECK (role IN ('admin','guest')),
+    role           TEXT NOT NULL CHECK (role IN ('superadmin','admin','guest')),
     check_in_date  TEXT,
     check_out_date TEXT,
     created_at     TEXT NOT NULL DEFAULT (datetime('now'))
@@ -77,6 +80,8 @@ if (!userColumnNames.has("check_out_date")) {
   db.exec("ALTER TABLE users ADD COLUMN check_out_date TEXT;");
 }
 
+ensureUsersRoleConstraint();
+
 const defaultCheckInDate = formatBookingDate(new Date());
 const defaultCheckOutDate = addBookingDays(defaultCheckInDate, 7);
 
@@ -90,10 +95,70 @@ db.prepare(
   `,
 ).run(defaultCheckInDate, defaultCheckOutDate);
 
+function ensureUsersRoleConstraint(): void {
+  const row = db
+    .prepare(
+      "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'users'",
+    )
+    .get() as { sql: string } | undefined;
+
+  if (!row || row.sql.includes("'superadmin'")) return;
+
+  db.exec("PRAGMA foreign_keys = OFF;");
+  let inTransaction = false;
+
+  try {
+    db.exec("BEGIN IMMEDIATE");
+    inTransaction = true;
+
+    db.exec("ALTER TABLE users RENAME TO users_old;");
+    db.exec(`
+      CREATE TABLE users (
+        id             INTEGER PRIMARY KEY,
+        username       TEXT UNIQUE NOT NULL,
+        password       TEXT NOT NULL,
+        role           TEXT NOT NULL CHECK (role IN ('superadmin','admin','guest')),
+        check_in_date  TEXT,
+        check_out_date TEXT,
+        created_at     TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+    `);
+    db.exec(`
+      INSERT INTO users (
+        id,
+        username,
+        password,
+        role,
+        check_in_date,
+        check_out_date,
+        created_at
+      )
+      SELECT
+        id,
+        username,
+        password,
+        role,
+        check_in_date,
+        check_out_date,
+        created_at
+      FROM users_old;
+    `);
+    db.exec("DROP TABLE users_old;");
+
+    db.exec("COMMIT");
+    inTransaction = false;
+  } catch (error) {
+    if (inTransaction) db.exec("ROLLBACK");
+    throw error;
+  } finally {
+    db.exec("PRAGMA foreign_keys = ON;");
+  }
+}
+
 export type User = {
   id: number;
   username: string;
-  role: "admin" | "guest";
+  role: UserRole;
   checkInDate: string | null;
   checkOutDate: string | null;
 };

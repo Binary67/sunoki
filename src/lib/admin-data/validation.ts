@@ -1,5 +1,6 @@
 import { isBookingDate, isWithinBookingDateRange } from "../booking-dates";
 import { db } from "../db";
+import type { UserRole } from "../roles";
 import type { AdminRowValue, EditableTableName } from "./definitions";
 
 type ParsedValues =
@@ -7,7 +8,7 @@ type ParsedValues =
   | { ok: false; message: string };
 
 type BookingUserRow = {
-  role: "admin" | "guest";
+  role: UserRole;
   checkInDate: string | null;
   checkOutDate: string | null;
 };
@@ -24,7 +25,11 @@ export function parseFormValues(
       if (!password.ok) return password;
       const role = readRequiredText(formData, "role", "Role");
       if (!role.ok) return role;
-      if (role.value !== "admin" && role.value !== "guest") {
+      if (
+        role.value !== "superadmin" &&
+        role.value !== "admin" &&
+        role.value !== "guest"
+      ) {
         return { ok: false, message: "Choose a valid role." };
       }
       const checkInDate = readOptionalText(formData, "check_in_date");

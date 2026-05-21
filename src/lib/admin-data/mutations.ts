@@ -2,11 +2,14 @@ import { db, type User } from "../db";
 import { insertAuditLog } from "./audit";
 import {
   getAdminTableDefinition,
+  type AdminRow,
+  type AdminRowValue,
   type AdminMutationResult,
   type EditableTableName,
 } from "./definitions";
 import { selectRowById } from "./queries";
 import { parseFormValues } from "./validation";
+import type { UserRole } from "../roles";
 
 type InsertResult = {
   lastInsertRowid: number | bigint;
@@ -20,6 +23,8 @@ export function createAdminRow(
   const table = getAdminTableDefinition(tableName);
   const parsed = parseFormValues(tableName, formData);
   if (!parsed.ok) return { ok: false, message: parsed.message };
+  const createError = validateUserCreate(actor, tableName, parsed.values);
+  if (createError) return createError;
 
   try {
     runTransaction(() => {
@@ -62,6 +67,7 @@ export function updateAdminRow(
   if (!parsed.ok) return { ok: false, message: parsed.message };
 
   let found = true;
+  let permissionError: AdminMutationResult | null = null;
 
   try {
     runTransaction(() => {
@@ -70,6 +76,14 @@ export function updateAdminRow(
         found = false;
         return;
       }
+
+      permissionError = validateUserUpdate(
+        actor,
+        tableName,
+        before,
+        parsed.values,
+      );
+      if (permissionError) return;
 
       const columns = Object.keys(parsed.values);
       db.prepare(
@@ -86,6 +100,7 @@ export function updateAdminRow(
     });
 
     if (!found) return { ok: false, message: "Row not found." };
+    if (permissionError) return permissionError;
     return { ok: true, message: "Row updated." };
   } catch {
     return {
@@ -106,6 +121,7 @@ export function deleteAdminRow(
   }
 
   let found = true;
+  let permissionError: AdminMutationResult | null = null;
 
   try {
     runTransaction(() => {
@@ -115,11 +131,15 @@ export function deleteAdminRow(
         return;
       }
 
+      permissionError = validateUserDelete(actor, tableName, before);
+      if (permissionError) return;
+
       db.prepare(`DELETE FROM ${table.name} WHERE id = ?`).run(rowId);
       insertAuditLog(actor, "delete", table.name, rowId, before, null);
     });
 
     if (!found) return { ok: false, message: "Row not found." };
+    if (permissionError) return permissionError;
     return { ok: true, message: "Row deleted." };
   } catch {
     return {
@@ -127,6 +147,87 @@ export function deleteAdminRow(
       message: "Unable to delete row. Check related records.",
     };
   }
+}
+
+function validateUserCreate(
+  actor: User,
+  tableName: EditableTableName,
+  values: Record<string, AdminRowValue>,
+): AdminMutationResult | null {
+  if (tableName !== "users") return null;
+  const role = getUserRole(values.role);
+  if (!role) return { ok: false, message: "Choose a valid role." };
+  if (role !== "guest" && actor.role !== "superadmin") {
+    return { ok: false, message: "Only super admins can manage admin users." };
+  }
+  return null;
+}
+
+function validateUserUpdate(
+  actor: User,
+  tableName: EditableTableName,
+  before: AdminRow,
+  values: Record<string, AdminRowValue>,
+): AdminMutationResult | null {
+  if (tableName !== "users") return null;
+
+  const beforeRole = getUserRole(before.role);
+  const afterRole = getUserRole(values.role);
+  if (!beforeRole || !afterRole) {
+    return { ok: false, message: "Choose a valid role." };
+  }
+
+  if (
+    actor.role !== "superadmin" &&
+    (beforeRole !== "guest" || afterRole !== "guest")
+  ) {
+    return { ok: false, message: "Only super admins can manage admin users." };
+  }
+
+  if (
+    beforeRole === "superadmin" &&
+    afterRole !== "superadmin" &&
+    getSuperAdminCount() <= 1
+  ) {
+    return { ok: false, message: "At least one super admin must remain." };
+  }
+
+  return null;
+}
+
+function validateUserDelete(
+  actor: User,
+  tableName: EditableTableName,
+  before: AdminRow,
+): AdminMutationResult | null {
+  if (tableName !== "users") return null;
+
+  const role = getUserRole(before.role);
+  if (!role) return { ok: false, message: "Choose a valid role." };
+
+  if (role !== "guest" && actor.role !== "superadmin") {
+    return { ok: false, message: "Only super admins can manage admin users." };
+  }
+
+  if (role === "superadmin" && getSuperAdminCount() <= 1) {
+    return { ok: false, message: "At least one super admin must remain." };
+  }
+
+  return null;
+}
+
+function getUserRole(value: AdminRowValue): UserRole | null {
+  if (value === "superadmin" || value === "admin" || value === "guest") {
+    return value;
+  }
+  return null;
+}
+
+function getSuperAdminCount(): number {
+  const row = db
+    .prepare("SELECT COUNT(*) AS count FROM users WHERE role = 'superadmin'")
+    .get() as { count: number };
+  return Number(row.count);
 }
 
 function runTransaction(fn: () => void): void {

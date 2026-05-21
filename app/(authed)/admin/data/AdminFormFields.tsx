@@ -7,27 +7,29 @@ import type {
   AdminSelectOptions,
   EditableTableName,
 } from "@/src/lib/admin-data/definitions";
+import type { UserRole } from "@/src/lib/roles";
 import AdminDateField from "./AdminDateField";
 
 const USER_STAY_DATE_FIELDS = new Set(["check_in_date", "check_out_date"]);
 
 export default function AdminFormFields({
   columns,
+  fixedUserRole,
   formId,
   options,
   row,
   tableName,
 }: {
   columns: AdminColumnDefinition[];
+  fixedUserRole?: UserRole;
   formId: string;
   options: AdminSelectOptions;
   row?: AdminRow;
   tableName: EditableTableName;
 }) {
-  const initialRole = getFieldValue(
-    columns.find((column) => column.name === "role"),
-    row,
-  );
+  const initialRole =
+    fixedUserRole ??
+    getFieldValue(columns.find((column) => column.name === "role"), row);
   const [selectedRole, setSelectedRole] = useState(initialRole);
   const [stayDatesCleared, setStayDatesCleared] = useState(
     tableName === "users" && initialRole !== "guest",

@@ -19,6 +19,7 @@ const AUDIT_PATH = "/admin/audit-log";
 export async function createAdminRowAction(formData: FormData): Promise<void> {
   const tableName = getTableName(formData);
   if (!tableName) redirectWithMessage(null, "error", "Choose a valid table.");
+  const createMode = getCreateMode(formData);
 
   const user = await requireAdminUser();
   const result = createAdminRow(user, tableName, formData);
@@ -26,7 +27,13 @@ export async function createAdminRowAction(formData: FormData): Promise<void> {
     revalidatePath(DATA_PATH);
     revalidatePath(AUDIT_PATH);
   }
-  redirectWithMessage(tableName, result.ok ? "success" : "error", result.message);
+  redirectWithMessage(
+    tableName,
+    result.ok ? "success" : "error",
+    result.message,
+    undefined,
+    createMode,
+  );
 }
 
 export async function updateAdminRowAction(formData: FormData): Promise<void> {
@@ -72,14 +79,23 @@ function getRowId(formData: FormData): number {
   return typeof raw === "string" ? Number(raw) : NaN;
 }
 
+function getCreateMode(formData: FormData): "guest" | "admin" | null {
+  const raw = formData.get("createMode");
+  return raw === "guest" || raw === "admin" ? raw : null;
+}
+
 function redirectWithMessage(
   tableName: EditableTableName | null,
   tone: "error" | "success",
   message: string,
   editId?: number,
+  createMode?: "guest" | "admin" | null,
 ): never {
   const params = new URLSearchParams();
   if (tableName) params.set("table", tableName);
+  if (tableName === "users" && createMode) {
+    params.set("create", createMode);
+  }
   if (editId && Number.isInteger(editId) && editId > 0) {
     params.set("edit", String(editId));
   }

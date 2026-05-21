@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import type { UserRole } from "@/src/lib/roles";
 import Header from "./Header";
 import Sidebar from "./Sidebar";
 
@@ -9,7 +10,7 @@ export default function LayoutShell({
   user,
   children,
 }: {
-  role: "admin" | "guest";
+  role: UserRole;
   user: { username: string };
   children: React.ReactNode;
 }) {

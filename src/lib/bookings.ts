@@ -1,5 +1,6 @@
 import { db } from "./db";
 import { isBookingDate, isWithinBookingDateRange } from "./booking-dates";
+import type { UserRole } from "./roles";
 
 export type FacilitySlotAvailability = {
   id: number;
@@ -39,7 +40,7 @@ type SlotRow = {
 };
 
 type BookingUserRow = {
-  role: "admin" | "guest";
+  role: UserRole;
   checkInDate: string | null;
   checkOutDate: string | null;
 };

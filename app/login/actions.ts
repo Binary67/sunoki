@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { getUserByUsername, setSessionCookie } from "@/src/lib/auth";
+import { isAdminRole } from "@/src/lib/roles";
 
 export type LoginState = { error?: string };
 
@@ -22,5 +23,5 @@ export async function loginAction(
   }
 
   await setSessionCookie(user.id);
-  redirect(user.role === "admin" ? "/" : "/booking/karaoke");
+  redirect(isAdminRole(user.role) ? "/" : "/booking/karaoke");
 }

@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/src/lib/auth";
 import { getUpcomingBookings } from "@/src/lib/bookings";
+import { isAdminRole } from "@/src/lib/roles";
 
 function formatBookingDate(value: string) {
   const [year, month, day] = value.split("-").map(Number);
@@ -26,7 +27,7 @@ function formatTimeRange(startTime: string, durationMinutes: number) {
 export default async function Dashboard() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
-  if (user.role !== "admin") redirect("/booking/karaoke");
+  if (!isAdminRole(user.role)) redirect("/booking/karaoke");
 
   const bookings = getUpcomingBookings();
 
