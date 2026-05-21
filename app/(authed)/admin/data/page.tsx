@@ -372,6 +372,12 @@ function formatCellValue(
   options: AdminSelectOptions,
 ): string {
   const value = row[column.name];
+  if (
+    (column.name === "check_in_date" || column.name === "check_out_date") &&
+    (value === null || value === undefined)
+  ) {
+    return "-";
+  }
   if (value === null || value === undefined) return "";
   if (column.optionsKey) {
     const option = options[column.optionsKey].find(
