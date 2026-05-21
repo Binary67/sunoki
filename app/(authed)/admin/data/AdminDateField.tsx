@@ -225,7 +225,7 @@ export default function AdminDateField({
             <button
               type="button"
               onClick={() => selectDate(new Date())}
-              className="rounded-full bg-surface px-3 py-1.5 text-xs font-medium text-ink/70 hover:bg-black/10"
+              className="rounded-full px-3 py-1.5 text-xs font-medium text-brand outline-none transition-colors hover:bg-brand/10 focus-visible:ring-2 focus-visible:ring-brand/20"
             >
               Current Date
             </button>
