@@ -307,8 +307,6 @@ function getSingularLabel(tableName: EditableTableName): string {
   switch (tableName) {
     case "users":
       return "User";
-    case "facilities":
-      return "Facility";
     case "facility_time_slots":
       return "Time Slot";
     case "facility_bookings":

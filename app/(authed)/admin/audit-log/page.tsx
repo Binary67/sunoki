@@ -5,9 +5,9 @@ import {
   getAdminTableLabel,
   getAuditLogs,
   isAuditOperation,
-  isEditableTableName,
+  isAuditTableName,
   type AuditOperation,
-  type EditableTableName,
+  type AuditTableName,
 } from "@/src/lib/admin-data";
 
 type PageProps = {
@@ -172,8 +172,8 @@ function getSingleValue(value: string | string[] | undefined): string | undefine
   return Array.isArray(value) ? value[0] : value;
 }
 
-function getTableFilter(value: string | undefined): EditableTableName | undefined {
-  return value && isEditableTableName(value) ? value : undefined;
+function getTableFilter(value: string | undefined): AuditTableName | undefined {
+  return value && isAuditTableName(value) ? value : undefined;
 }
 
 function getOperationFilter(value: string | undefined): AuditOperation | undefined {

@@ -3,12 +3,20 @@ import { isBookingDate } from "./bookings";
 
 export const EDITABLE_TABLE_NAMES = [
   "users",
-  "facilities",
   "facility_time_slots",
   "facility_bookings",
 ] as const;
 
 export type EditableTableName = (typeof EDITABLE_TABLE_NAMES)[number];
+
+const AUDIT_TABLE_NAMES = [
+  "users",
+  "facilities",
+  "facility_time_slots",
+  "facility_bookings",
+] as const;
+
+export type AuditTableName = (typeof AUDIT_TABLE_NAMES)[number];
 
 export const AUDIT_OPERATIONS = ["insert", "update", "delete"] as const;
 
@@ -60,17 +68,24 @@ export type AuditLog = {
   actorUserId: number;
   actorUsername: string;
   operation: AuditOperation;
-  tableName: EditableTableName;
+  tableName: AuditTableName;
   rowId: number;
   beforeJson: string | null;
   afterJson: string | null;
   createdAt: string;
 };
 
+const TABLE_LABELS: Record<AuditTableName, string> = {
+  users: "Users",
+  facilities: "Facilities",
+  facility_time_slots: "Time Slots",
+  facility_bookings: "Bookings",
+};
+
 const ADMIN_TABLES: Record<EditableTableName, AdminTableDefinition> = {
   users: {
     name: "users",
-    label: "Users",
+    label: TABLE_LABELS.users,
     columns: [
       { name: "id", label: "ID", readOnly: true },
       { name: "username", label: "Username", input: "text", required: true },
@@ -85,18 +100,9 @@ const ADMIN_TABLES: Record<EditableTableName, AdminTableDefinition> = {
       { name: "created_at", label: "Created", readOnly: true },
     ],
   },
-  facilities: {
-    name: "facilities",
-    label: "Facilities",
-    columns: [
-      { name: "id", label: "ID", readOnly: true },
-      { name: "slug", label: "Slug", input: "text", required: true },
-      { name: "name", label: "Name", input: "text", required: true },
-    ],
-  },
   facility_time_slots: {
     name: "facility_time_slots",
-    label: "Time Slots",
+    label: TABLE_LABELS.facility_time_slots,
     columns: [
       { name: "id", label: "ID", readOnly: true },
       {
@@ -140,7 +146,7 @@ const ADMIN_TABLES: Record<EditableTableName, AdminTableDefinition> = {
   },
   facility_bookings: {
     name: "facility_bookings",
-    label: "Bookings",
+    label: TABLE_LABELS.facility_bookings,
     columns: [
       { name: "id", label: "ID", readOnly: true },
       {
@@ -201,7 +207,7 @@ type AuditLogRow = {
   actorUserId: number;
   actorUsername: string;
   operation: AuditOperation;
-  tableName: EditableTableName;
+  tableName: AuditTableName;
   rowId: number;
   beforeJson: string | null;
   afterJson: string | null;
@@ -212,6 +218,10 @@ export function isEditableTableName(
   value: string,
 ): value is EditableTableName {
   return (EDITABLE_TABLE_NAMES as readonly string[]).includes(value);
+}
+
+export function isAuditTableName(value: string): value is AuditTableName {
+  return (AUDIT_TABLE_NAMES as readonly string[]).includes(value);
 }
 
 export function isAuditOperation(value: string): value is AuditOperation {
@@ -228,8 +238,8 @@ export function getAdminTableDefinition(
   return ADMIN_TABLES[tableName];
 }
 
-export function getAdminTableLabel(tableName: EditableTableName): string {
-  return ADMIN_TABLES[tableName].label;
+export function getAdminTableLabel(tableName: AuditTableName): string {
+  return TABLE_LABELS[tableName];
 }
 
 export function getAdminTableView(
@@ -423,7 +433,7 @@ export function deleteAdminRow(
 }
 
 export function getAuditLogs(filters: {
-  tableName?: EditableTableName;
+  tableName?: AuditTableName;
   operation?: AuditOperation;
 }): AuditLog[] {
   const conditions: string[] = [];
@@ -557,13 +567,6 @@ function parseFormValues(
           role: role.value,
         },
       };
-    }
-    case "facilities": {
-      const slug = readRequiredText(formData, "slug", "Slug");
-      if (!slug.ok) return slug;
-      const name = readRequiredText(formData, "name", "Name");
-      if (!name.ok) return name;
-      return { ok: true, values: { slug: slug.value, name: name.value } };
     }
     case "facility_time_slots": {
       const facilityId = readPositiveInteger(formData, "facility_id", "Facility");
