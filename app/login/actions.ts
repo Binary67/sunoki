@@ -22,5 +22,5 @@ export async function loginAction(
   }
 
   await setSessionCookie(user.id);
-  redirect("/booking/karaoke");
+  redirect(user.role === "admin" ? "/" : "/booking/karaoke");
 }

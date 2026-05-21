@@ -206,47 +206,51 @@ export default function Sidebar({
             </>
           )}
 
-          <button
-            type="button"
-            onClick={() => setBookingOpen((v) => !v)}
-            aria-expanded={bookingOpen}
-            className="flex items-center gap-3 px-3 py-2.5 rounded-md text-sm text-ink/70 hover:text-ink"
-          >
-            <BookingIcon className="size-4" />
-            <span className="flex-1 text-left">Booking</span>
-            <ChevronIcon
-              className={`size-3.5 text-ink/40 transition-transform ${
-                bookingOpen ? "rotate-90" : ""
-              }`}
-            />
-          </button>
+          {!isAdmin && (
+            <>
+              <button
+                type="button"
+                onClick={() => setBookingOpen((v) => !v)}
+                aria-expanded={bookingOpen}
+                className="flex items-center gap-3 px-3 py-2.5 rounded-md text-sm text-ink/70 hover:text-ink"
+              >
+                <BookingIcon className="size-4" />
+                <span className="flex-1 text-left">Booking</span>
+                <ChevronIcon
+                  className={`size-3.5 text-ink/40 transition-transform ${
+                    bookingOpen ? "rotate-90" : ""
+                  }`}
+                />
+              </button>
 
-          {bookingOpen && (
-            <div className="mt-1 ml-5 pl-3 border-l border-black/10 flex flex-col">
-              {bookingChildren.map(({ label, href, Icon }) => {
-                const active = pathname === href;
-                return (
-                  <Link
-                    key={href}
-                    href={href}
-                    className={`relative flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors duration-200 ${
-                      active
-                        ? "text-brand font-medium bg-surface"
-                        : "text-ink/70 hover:text-ink"
-                    }`}
-                  >
-                    <span
-                      aria-hidden="true"
-                      className={`absolute -left-[13px] top-1.5 bottom-1.5 w-0.5 rounded-r bg-brand transition-opacity duration-200 ${
-                        active ? "opacity-100" : "opacity-0"
-                      }`}
-                    />
-                    <Icon className="size-4" />
-                    <span>{label}</span>
-                  </Link>
-                );
-              })}
-            </div>
+              {bookingOpen && (
+                <div className="mt-1 ml-5 pl-3 border-l border-black/10 flex flex-col">
+                  {bookingChildren.map(({ label, href, Icon }) => {
+                    const active = pathname === href;
+                    return (
+                      <Link
+                        key={href}
+                        href={href}
+                        className={`relative flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors duration-200 ${
+                          active
+                            ? "text-brand font-medium bg-surface"
+                            : "text-ink/70 hover:text-ink"
+                        }`}
+                      >
+                        <span
+                          aria-hidden="true"
+                          className={`absolute -left-[13px] top-1.5 bottom-1.5 w-0.5 rounded-r bg-brand transition-opacity duration-200 ${
+                            active ? "opacity-100" : "opacity-0"
+                          }`}
+                        />
+                        <Icon className="size-4" />
+                        <span>{label}</span>
+                      </Link>
+                    );
+                  })}
+                </div>
+              )}
+            </>
           )}
         </nav>
 
