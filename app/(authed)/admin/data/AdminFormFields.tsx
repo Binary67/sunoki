@@ -135,6 +135,7 @@ function AdminField({
           type={column.input ?? "text"}
           required={required}
           min={column.min}
+          maxLength={column.maxLength}
           defaultValue={value}
           className={baseClasses}
         />

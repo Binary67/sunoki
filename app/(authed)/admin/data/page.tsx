@@ -5,6 +5,7 @@ import {
   getAdminTableLabel,
   getDefaultAdminTableName,
   isEditableTableName,
+  isUpdateOnlyAdminTable,
   type AdminColumnDefinition,
   type AdminRow,
   type AdminSelectOptions,
@@ -34,6 +35,7 @@ export default async function AdminDataPage({ searchParams }: PageProps) {
   const actor = await requireAdminUser();
   const query = await searchParams;
   const selectedTable = getSelectedTable(getSingleValue(query.table));
+  const updateOnly = isUpdateOnlyAdminTable(selectedTable);
   const canManageAdminUsers = actor.role === "superadmin";
   const createMode = getUserCreateMode(
     getSingleValue(query.create),
@@ -118,61 +120,63 @@ export default async function AdminDataPage({ searchParams }: PageProps) {
         </div>
       )}
 
-      <section className="mb-7 rounded-lg border border-black/5 bg-surface px-4 py-5 sm:px-5">
-        <div className="mb-4">
-          <h2 className="text-base font-semibold text-ink">
-            Create {getCreateLabel(selectedTable, createMode)}
-          </h2>
-          <p className="mt-1 text-xs leading-5 text-ink/55">
-            IDs and timestamp defaults are assigned by SQLite.
-          </p>
-        </div>
-        {selectedTable === "users" && canManageAdminUsers && (
-          <nav className="mb-4 flex flex-wrap gap-2">
-            {(["guest", "admin"] as const).map((mode) => {
-              const active = mode === createMode;
-              return (
-                <Link
-                  key={mode}
-                  href={`/admin/data?table=users&create=${mode}`}
-                  className={`rounded-md px-3 py-2 text-sm transition-colors ${
-                    active
-                      ? "bg-brand text-white"
-                      : "bg-white text-ink/70 hover:text-ink"
-                  }`}
-                >
-                  Create {mode === "guest" ? "Guest" : "Admin"}
-                </Link>
-              );
-            })}
-          </nav>
-        )}
-        <form action={createAdminRowAction}>
-          <input type="hidden" name="tableName" value={selectedTable} />
-          {selectedTable === "users" && (
-            <input type="hidden" name="createMode" value={createMode} />
-          )}
-          {createFixedRole && (
-            <input type="hidden" name="role" value={createFixedRole} />
-          )}
-          <AdminFormFields
-            key={`create-${selectedTable}-${createMode}`}
-            columns={createColumns}
-            fixedUserRole={createFixedRole}
-            formId="create"
-            options={createOptions}
-            tableName={selectedTable}
-          />
-          <div className="mt-5 flex justify-end">
-            <button
-              type="submit"
-              className="rounded-md bg-brand px-4 py-2 text-sm font-medium text-white hover:bg-brand/90"
-            >
-              Create Row
-            </button>
+      {!updateOnly && (
+        <section className="mb-7 rounded-lg border border-black/5 bg-surface px-4 py-5 sm:px-5">
+          <div className="mb-4">
+            <h2 className="text-base font-semibold text-ink">
+              Create {getCreateLabel(selectedTable, createMode)}
+            </h2>
+            <p className="mt-1 text-xs leading-5 text-ink/55">
+              IDs and timestamp defaults are assigned by SQLite.
+            </p>
           </div>
-        </form>
-      </section>
+          {selectedTable === "users" && canManageAdminUsers && (
+            <nav className="mb-4 flex flex-wrap gap-2">
+              {(["guest", "admin"] as const).map((mode) => {
+                const active = mode === createMode;
+                return (
+                  <Link
+                    key={mode}
+                    href={`/admin/data?table=users&create=${mode}`}
+                    className={`rounded-md px-3 py-2 text-sm transition-colors ${
+                      active
+                        ? "bg-brand text-white"
+                        : "bg-white text-ink/70 hover:text-ink"
+                    }`}
+                  >
+                    Create {mode === "guest" ? "Guest" : "Admin"}
+                  </Link>
+                );
+              })}
+            </nav>
+          )}
+          <form action={createAdminRowAction}>
+            <input type="hidden" name="tableName" value={selectedTable} />
+            {selectedTable === "users" && (
+              <input type="hidden" name="createMode" value={createMode} />
+            )}
+            {createFixedRole && (
+              <input type="hidden" name="role" value={createFixedRole} />
+            )}
+            <AdminFormFields
+              key={`create-${selectedTable}-${createMode}`}
+              columns={createColumns}
+              fixedUserRole={createFixedRole}
+              formId="create"
+              options={createOptions}
+              tableName={selectedTable}
+            />
+            <div className="mt-5 flex justify-end">
+              <button
+                type="submit"
+                className="rounded-md bg-brand px-4 py-2 text-sm font-medium text-white hover:bg-brand/90"
+              >
+                Create Row
+              </button>
+            </div>
+          </form>
+        </section>
+      )}
 
       {editId && (
         <section className="mb-7 rounded-lg border border-brand/20 px-4 py-5 sm:px-5">
@@ -278,11 +282,13 @@ export default async function AdminDataPage({ searchParams }: PageProps) {
                           >
                             Edit
                           </Link>
-                          <DeleteRowForm
-                            tableName={selectedTable}
-                            rowId={rowId}
-                            label={`${view.table.label} row #${rowId}`}
-                          />
+                          {!updateOnly && (
+                            <DeleteRowForm
+                              tableName={selectedTable}
+                              rowId={rowId}
+                              label={`${view.table.label} row #${rowId}`}
+                            />
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -311,6 +317,8 @@ function getSingularLabel(tableName: EditableTableName): string {
   switch (tableName) {
     case "users":
       return "User";
+    case "facilities":
+      return "Facility Content";
     case "facility_time_slots":
       return "Time Slot";
     case "facility_bookings":

@@ -1,5 +1,6 @@
 export const EDITABLE_TABLE_NAMES = [
   "users",
+  "facilities",
   "facility_time_slots",
   "facility_bookings",
 ] as const;
@@ -27,6 +28,7 @@ export type AdminColumnDefinition = {
   readOnly?: boolean;
   required?: boolean;
   min?: number;
+  maxLength?: number;
   defaultValue?: string;
 };
 
@@ -34,6 +36,7 @@ export type AdminTableDefinition = {
   name: EditableTableName;
   label: string;
   columns: AdminColumnDefinition[];
+  mutationMode?: "update-only";
 };
 
 export type AdminSelectOption = {
@@ -58,10 +61,12 @@ export type AdminMutationResult =
 
 const TABLE_LABELS: Record<AuditTableName, string> = {
   users: "Users",
-  facilities: "Facilities",
+  facilities: "Facility Content",
   facility_time_slots: "Time Slots",
   facility_bookings: "Bookings",
 };
+
+export const FACILITY_TAGLINE_MAX_LENGTH = 40;
 
 const ADMIN_TABLES: Record<EditableTableName, AdminTableDefinition> = {
   users: {
@@ -89,6 +94,34 @@ const ADMIN_TABLES: Record<EditableTableName, AdminTableDefinition> = {
         input: "date",
       },
       { name: "created_at", label: "Created", readOnly: true },
+    ],
+  },
+  facilities: {
+    name: "facilities",
+    label: TABLE_LABELS.facilities,
+    mutationMode: "update-only",
+    columns: [
+      { name: "id", label: "ID", readOnly: true },
+      { name: "slug", label: "Slug", readOnly: true },
+      { name: "name", label: "Name", readOnly: true },
+      {
+        name: "tagline_1",
+        label: "Tagline 1",
+        input: "text",
+        maxLength: FACILITY_TAGLINE_MAX_LENGTH,
+      },
+      {
+        name: "tagline_2",
+        label: "Tagline 2",
+        input: "text",
+        maxLength: FACILITY_TAGLINE_MAX_LENGTH,
+      },
+      {
+        name: "tagline_3",
+        label: "Tagline 3",
+        input: "text",
+        maxLength: FACILITY_TAGLINE_MAX_LENGTH,
+      },
     ],
   },
   facility_time_slots: {
@@ -183,6 +216,10 @@ export function getAdminTableDefinition(
   tableName: EditableTableName,
 ): AdminTableDefinition {
   return ADMIN_TABLES[tableName];
+}
+
+export function isUpdateOnlyAdminTable(tableName: EditableTableName): boolean {
+  return ADMIN_TABLES[tableName].mutationMode === "update-only";
 }
 
 export function getAdminTableLabel(tableName: AuditTableName): string {

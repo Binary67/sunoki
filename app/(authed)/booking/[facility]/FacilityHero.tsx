@@ -1,6 +1,12 @@
 import type { Facility } from "./facility-content";
 
-export default function FacilityHero({ facility }: { facility: Facility }) {
+export default function FacilityHero({
+  facility,
+  taglines,
+}: {
+  facility: Facility;
+  taglines: string[];
+}) {
   return (
     <main className="px-4 sm:px-6 lg:px-10 py-6 sm:py-8 min-w-0">
       <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight">{facility.title}</h1>
@@ -26,12 +32,12 @@ export default function FacilityHero({ facility }: { facility: Facility }) {
           </div>
         </div>
         <div className="absolute left-4 bottom-4 flex flex-wrap gap-2">
-          {facility.tags.map((tag) => (
+          {taglines.map((tagline, index) => (
             <span
-              key={tag}
-              className="rounded-full bg-white/95 backdrop-blur px-3 py-1 text-[10px] font-medium tracking-wider text-ink"
+              key={`${tagline}-${index}`}
+              className="rounded-full bg-white/95 backdrop-blur px-3 py-1 text-[10px] font-medium uppercase tracking-wider text-ink"
             >
-              {tag}
+              {tagline}
             </span>
           ))}
         </div>

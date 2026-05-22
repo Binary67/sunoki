@@ -60,10 +60,26 @@ for (const {
 }
 
 const facilities = [
-  { slug: "karaoke", name: "Karaoke Lounge" },
-  { slug: "gym", name: "Strength Studio" },
-  { slug: "yoga", name: "Yoga Studio" },
-  { slug: "lounge", name: "Tranquil Lounge" },
+  {
+    slug: "karaoke",
+    name: "Karaoke Lounge",
+    taglines: ["HI-FI AUDIO", "ATMOSPHERE", "MAX 4 PEOPLE"],
+  },
+  {
+    slug: "gym",
+    name: "Strength Studio",
+    taglines: ["FREE WEIGHTS", "CARDIO ZONE", "OPEN 24/7"],
+  },
+  {
+    slug: "yoga",
+    name: "Yoga Studio",
+    taglines: ["HEATED FLOOR", "MAT INCLUDED", "MAX 12 GUESTS"],
+  },
+  {
+    slug: "lounge",
+    name: "Tranquil Lounge",
+    taglines: ["HERBAL BAR", "QUIET HOURS", "MAX 8 GUESTS"],
+  },
 ] as const;
 
 const timeSlots = [
@@ -81,7 +97,16 @@ const timeSlots = [
 ] as const;
 
 const insertFacility = db.prepare(
-  "INSERT OR IGNORE INTO facilities (slug, name) VALUES (?, ?)",
+  `
+    INSERT OR IGNORE INTO facilities (
+      slug,
+      name,
+      tagline_1,
+      tagline_2,
+      tagline_3
+    )
+    VALUES (?, ?, ?, ?, ?)
+  `,
 );
 const getFacility = db.prepare("SELECT id FROM facilities WHERE slug = ?");
 const insertTimeSlot = db.prepare(
@@ -97,7 +122,11 @@ const insertTimeSlot = db.prepare(
 );
 
 for (const facility of facilities) {
-  const result = insertFacility.run(facility.slug, facility.name);
+  const result = insertFacility.run(
+    facility.slug,
+    facility.name,
+    ...facility.taglines,
+  );
   const action = Number(result.changes) === 1 ? "inserted" : "already exists";
   console.log(`${facility.slug} facility: ${action}`);
 

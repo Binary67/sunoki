@@ -34,9 +34,12 @@ db.exec(`
   );
 
   CREATE TABLE IF NOT EXISTS facilities (
-    id   INTEGER PRIMARY KEY,
-    slug TEXT UNIQUE NOT NULL,
-    name TEXT NOT NULL
+    id        INTEGER PRIMARY KEY,
+    slug      TEXT UNIQUE NOT NULL,
+    name      TEXT NOT NULL,
+    tagline_1 TEXT,
+    tagline_2 TEXT,
+    tagline_3 TEXT
   );
 
   CREATE TABLE IF NOT EXISTS facility_time_slots (
@@ -91,6 +94,49 @@ type TableColumnRow = {
   name: string;
 };
 
+const FACILITY_TAGLINE_COLUMNS = [
+  "tagline_1",
+  "tagline_2",
+  "tagline_3",
+] as const;
+
+const DEFAULT_FACILITY_TAGLINES = [
+  {
+    slug: "karaoke",
+    taglines: ["HI-FI AUDIO", "ATMOSPHERE", "MAX 4 PEOPLE"],
+  },
+  {
+    slug: "gym",
+    taglines: ["FREE WEIGHTS", "CARDIO ZONE", "OPEN 24/7"],
+  },
+  {
+    slug: "yoga",
+    taglines: ["HEATED FLOOR", "MAT INCLUDED", "MAX 12 GUESTS"],
+  },
+  {
+    slug: "lounge",
+    taglines: ["HERBAL BAR", "QUIET HOURS", "MAX 8 GUESTS"],
+  },
+] as const;
+
+const facilityColumns = db
+  .prepare("PRAGMA table_info(facilities)")
+  .all() as TableColumnRow[];
+const facilityColumnNames = new Set(facilityColumns.map((column) => column.name));
+const hadFacilityTaglineColumns = FACILITY_TAGLINE_COLUMNS.every((column) =>
+  facilityColumnNames.has(column),
+);
+
+for (const column of FACILITY_TAGLINE_COLUMNS) {
+  if (!facilityColumnNames.has(column)) {
+    db.exec(`ALTER TABLE facilities ADD COLUMN ${column} TEXT;`);
+  }
+}
+
+if (!hadFacilityTaglineColumns) {
+  seedDefaultFacilityTaglines();
+}
+
 const userColumns = db
   .prepare("PRAGMA table_info(users)")
   .all() as TableColumnRow[];
@@ -118,6 +164,22 @@ db.prepare(
       AND (check_in_date IS NULL OR check_out_date IS NULL)
   `,
 ).run(defaultCheckInDate, defaultCheckOutDate);
+
+function seedDefaultFacilityTaglines(): void {
+  const update = db.prepare(
+    `
+      UPDATE facilities
+      SET tagline_1 = COALESCE(tagline_1, ?),
+          tagline_2 = COALESCE(tagline_2, ?),
+          tagline_3 = COALESCE(tagline_3, ?)
+      WHERE slug = ?
+    `,
+  );
+
+  for (const facility of DEFAULT_FACILITY_TAGLINES) {
+    update.run(...facility.taglines, facility.slug);
+  }
+}
 
 function ensureUsersRoleConstraint(): void {
   const row = db

@@ -1,7 +1,11 @@
 import { isBookingDate, isWithinBookingDateRange } from "../booking-dates";
 import { db } from "../db";
 import type { UserRole } from "../roles";
-import type { AdminRowValue, EditableTableName } from "./definitions";
+import {
+  FACILITY_TAGLINE_MAX_LENGTH,
+  type AdminRowValue,
+  type EditableTableName,
+} from "./definitions";
 
 type ParsedValues =
   | { ok: true; values: Record<string, AdminRowValue> }
@@ -64,6 +68,38 @@ export function parseFormValues(
           role: role.value,
           check_in_date: role.value === "guest" ? checkInDate : null,
           check_out_date: role.value === "guest" ? checkOutDate : null,
+        },
+      };
+    }
+    case "facilities": {
+      const tagline1 = readOptionalLimitedText(
+        formData,
+        "tagline_1",
+        "Tagline 1",
+        FACILITY_TAGLINE_MAX_LENGTH,
+      );
+      if (!tagline1.ok) return tagline1;
+      const tagline2 = readOptionalLimitedText(
+        formData,
+        "tagline_2",
+        "Tagline 2",
+        FACILITY_TAGLINE_MAX_LENGTH,
+      );
+      if (!tagline2.ok) return tagline2;
+      const tagline3 = readOptionalLimitedText(
+        formData,
+        "tagline_3",
+        "Tagline 3",
+        FACILITY_TAGLINE_MAX_LENGTH,
+      );
+      if (!tagline3.ok) return tagline3;
+
+      return {
+        ok: true,
+        values: {
+          tagline_1: tagline1.value,
+          tagline_2: tagline2.value,
+          tagline_3: tagline3.value,
         },
       };
     }
@@ -156,6 +192,24 @@ function readOptionalText(formData: FormData, key: string): string | null {
   const raw = formData.get(key);
   const value = typeof raw === "string" ? raw.trim() : "";
   return value || null;
+}
+
+function readOptionalLimitedText(
+  formData: FormData,
+  key: string,
+  label: string,
+  maxLength: number,
+):
+  | { ok: true; value: string | null }
+  | { ok: false; message: string } {
+  const value = readOptionalText(formData, key);
+  if (value && value.length > maxLength) {
+    return {
+      ok: false,
+      message: `${label} must be ${maxLength} characters or fewer.`,
+    };
+  }
+  return { ok: true, value };
 }
 
 function readPositiveInteger(

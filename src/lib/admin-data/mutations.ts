@@ -2,6 +2,7 @@ import { db, type User } from "../db";
 import { insertAuditLog } from "./audit";
 import {
   getAdminTableDefinition,
+  isUpdateOnlyAdminTable,
   type AdminRow,
   type AdminRowValue,
   type AdminMutationResult,
@@ -21,6 +22,10 @@ export function createAdminRow(
   formData: FormData,
 ): AdminMutationResult {
   const table = getAdminTableDefinition(tableName);
+  if (isUpdateOnlyAdminTable(tableName)) {
+    return { ok: false, message: `${table.label} can only be updated.` };
+  }
+
   const parsed = parseFormValues(tableName, formData);
   if (!parsed.ok) return { ok: false, message: parsed.message };
   const createError = validateUserCreate(actor, tableName, parsed.values);
@@ -116,6 +121,10 @@ export function deleteAdminRow(
   rowId: number,
 ): AdminMutationResult {
   const table = getAdminTableDefinition(tableName);
+  if (isUpdateOnlyAdminTable(tableName)) {
+    return { ok: false, message: `${table.label} cannot be deleted.` };
+  }
+
   if (!Number.isInteger(rowId) || rowId <= 0) {
     return { ok: false, message: "Choose a valid row." };
   }

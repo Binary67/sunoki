@@ -16,6 +16,7 @@ export type FacilityAvailability = {
   id: number;
   slug: string;
   name: string;
+  taglines: string[];
   slots: FacilitySlotAvailability[];
 };
 
@@ -23,6 +24,9 @@ type FacilityRow = {
   id: number;
   slug: string;
   name: string;
+  tagline1: string | null;
+  tagline2: string | null;
+  tagline3: string | null;
 };
 
 type SlotAvailabilityRow = {
@@ -62,7 +66,19 @@ export function getFacilityAvailability(
   if (!isBookingDate(bookingDate)) return null;
 
   const facility = db
-    .prepare("SELECT id, slug, name FROM facilities WHERE slug = ?")
+    .prepare(
+      `
+        SELECT
+          id,
+          slug,
+          name,
+          tagline_1 AS tagline1,
+          tagline_2 AS tagline2,
+          tagline_3 AS tagline3
+        FROM facilities
+        WHERE slug = ?
+      `,
+    )
     .get(facilitySlug) as FacilityRow | undefined;
 
   if (!facility) return null;
@@ -89,7 +105,12 @@ export function getFacilityAvailability(
     .all(bookingDate, facility.id) as SlotAvailabilityRow[];
 
   return {
-    ...facility,
+    id: facility.id,
+    slug: facility.slug,
+    name: facility.name,
+    taglines: [facility.tagline1, facility.tagline2, facility.tagline3].filter(
+      (tagline): tagline is string => Boolean(tagline),
+    ),
     slots: rows.map((row) => {
       const bookedPax = Number(row.bookedPax);
       const capacityPax = Number(row.capacityPax);

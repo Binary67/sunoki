@@ -5,7 +5,6 @@ export type Facility = {
   accentColor: string;
   serifName: string;
   sublabel: string;
-  tags: readonly string[];
 };
 
 export const FACILITIES = {
@@ -17,7 +16,6 @@ export const FACILITIES = {
     accentColor: "#d4a574",
     serifName: "Dynasty",
     sublabel: "KARAOKE LOUNGE",
-    tags: ["HI-FI AUDIO", "ATMOSPHERE", "MAX 4 PEOPLE"],
   },
   gym: {
     title: "Pulse of Vitality",
@@ -27,7 +25,6 @@ export const FACILITIES = {
     accentColor: "#7fb3d5",
     serifName: "Apex",
     sublabel: "STRENGTH STUDIO",
-    tags: ["FREE WEIGHTS", "CARDIO ZONE", "OPEN 24/7"],
   },
   yoga: {
     title: "Whispers of Stillness",
@@ -37,7 +34,6 @@ export const FACILITIES = {
     accentColor: "#e8c79b",
     serifName: "Lumina",
     sublabel: "YOGA STUDIO",
-    tags: ["HEATED FLOOR", "MAT INCLUDED", "MAX 12 GUESTS"],
   },
   lounge: {
     title: "Garden of Repose",
@@ -47,7 +43,6 @@ export const FACILITIES = {
     accentColor: "#a8c8a0",
     serifName: "Verdance",
     sublabel: "TRANQUIL LOUNGE",
-    tags: ["HERBAL BAR", "QUIET HOURS", "MAX 8 GUESTS"],
   },
 } as const satisfies Record<string, Facility>;
 

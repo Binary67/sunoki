@@ -12,6 +12,7 @@ import {
   deleteAdminRow,
   updateAdminRow,
 } from "@/src/lib/admin-data/mutations";
+import { getAdminRowForEdit } from "@/src/lib/admin-data/queries";
 
 const DATA_PATH = "/admin/data";
 const AUDIT_PATH = "/admin/audit-log";
@@ -46,6 +47,9 @@ export async function updateAdminRowAction(formData: FormData): Promise<void> {
   if (result.ok) {
     revalidatePath(DATA_PATH);
     revalidatePath(AUDIT_PATH);
+    if (tableName === "facilities") {
+      revalidateFacilityBookingPath(tableName, rowId, user);
+    }
   }
   redirectWithMessage(
     tableName,
@@ -82,6 +86,18 @@ function getRowId(formData: FormData): number {
 function getCreateMode(formData: FormData): "guest" | "admin" | null {
   const raw = formData.get("createMode");
   return raw === "guest" || raw === "admin" ? raw : null;
+}
+
+function revalidateFacilityBookingPath(
+  tableName: EditableTableName,
+  rowId: number,
+  user: Awaited<ReturnType<typeof requireAdminUser>>,
+): void {
+  const row = getAdminRowForEdit(tableName, rowId, user);
+  const slug = row?.slug;
+  if (typeof slug === "string" && slug) {
+    revalidatePath(`/booking/${slug}`);
+  }
 }
 
 function redirectWithMessage(
