@@ -16,6 +16,7 @@ type UserOptionRow = {
 
 type TimeSlotOptionRow = {
   id: number;
+  facilityId: number;
   facilityName: string;
   startTime: string;
   durationMinutes: number;
@@ -34,6 +35,7 @@ export function getAdminSelectOptions(): AdminSelectOptions {
       `
         SELECT
           s.id,
+          s.facility_id AS facilityId,
           f.name AS facilityName,
           s.start_time AS startTime,
           s.duration_minutes AS durationMinutes,
@@ -64,6 +66,7 @@ export function getAdminSelectOptions(): AdminSelectOptions {
       label: `${slot.facilityName} - ${slot.startTime} - ${slot.durationMinutes} min${
         Number(slot.active) === 1 ? "" : " - inactive"
       }`,
+      facilityId: String(slot.facilityId),
     })),
     users: users.map((user) => ({
       value: String(user.id),

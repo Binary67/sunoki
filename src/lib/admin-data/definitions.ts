@@ -42,6 +42,7 @@ export type AdminTableDefinition = {
 export type AdminSelectOption = {
   value: string;
   label: string;
+  facilityId?: string;
 };
 
 export type AdminSelectOptions = Record<
