@@ -71,7 +71,6 @@ export default function PersonalizationForm({
     <form
       ref={formRef}
       action={saveAction}
-      encType="multipart/form-data"
       className="max-w-3xl rounded-lg border border-black/5 bg-surface px-4 py-5 sm:px-5"
     >
       <div className="grid gap-5 md:grid-cols-[1fr_220px]">
