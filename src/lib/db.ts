@@ -2,6 +2,7 @@ import { DatabaseSync } from "node:sqlite";
 import { mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { addBookingDays, formatBookingDate } from "./booking-dates";
+import { DEFAULT_BRANDING_SETTINGS } from "./branding-defaults";
 import type { UserRole } from "./roles";
 
 export type { UserRole } from "./roles";
@@ -15,6 +16,13 @@ export const db = new DatabaseSync(DB_PATH);
 db.exec("PRAGMA foreign_keys = ON;");
 
 db.exec(`
+  CREATE TABLE IF NOT EXISTS branding_settings (
+    id                INTEGER PRIMARY KEY CHECK (id = 1),
+    brand_name        TEXT NOT NULL,
+    brand_description TEXT NOT NULL,
+    icon_data_url     TEXT
+  );
+
   CREATE TABLE IF NOT EXISTS users (
     id             INTEGER PRIMARY KEY,
     username       TEXT UNIQUE NOT NULL,
@@ -62,6 +70,22 @@ db.exec(`
     created_at     TEXT NOT NULL DEFAULT (datetime('now'))
   );
 `);
+
+db.prepare(
+  `
+    INSERT OR IGNORE INTO branding_settings (
+      id,
+      brand_name,
+      brand_description,
+      icon_data_url
+    )
+    VALUES (1, ?, ?, ?)
+  `,
+).run(
+  DEFAULT_BRANDING_SETTINGS.brandName,
+  DEFAULT_BRANDING_SETTINGS.brandDescription,
+  DEFAULT_BRANDING_SETTINGS.iconDataUrl,
+);
 
 type TableColumnRow = {
   name: string;

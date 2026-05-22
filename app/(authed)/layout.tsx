@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import LayoutShell from "../components/LayoutShell";
 import { ToastProvider } from "../components/Toast";
 import { getCurrentUser } from "@/src/lib/auth";
+import { getBrandingSettings } from "@/src/lib/branding";
 
 export default async function AuthedLayout({
   children,
@@ -10,10 +11,11 @@ export default async function AuthedLayout({
 }) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
+  const branding = getBrandingSettings();
 
   return (
     <ToastProvider>
-      <LayoutShell role={user.role} user={user}>
+      <LayoutShell branding={branding} role={user.role} user={user}>
         {children}
       </LayoutShell>
     </ToastProvider>

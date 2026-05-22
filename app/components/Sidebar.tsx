@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { isAdminRole, type UserRole } from "@/src/lib/roles";
+import BrandBlock, { type BrandingSettings } from "./BrandBlock";
 
 type IconProps = { className?: string };
 
@@ -90,10 +91,12 @@ const bookingChildren = [
 ];
 
 export default function Sidebar({
+  branding,
   role,
   mobileOpen,
   onClose,
 }: {
+  branding: BrandingSettings;
   role: UserRole;
   mobileOpen: boolean;
   onClose: () => void;
@@ -130,6 +133,7 @@ export default function Sidebar({
   const dashboardActive = pathname === "/";
   const dataActive = pathname === "/admin/data";
   const auditActive = pathname === "/admin/audit-log";
+  const personalizationActive = pathname === "/admin/personalization";
   const isAdmin = isAdminRole(role);
 
   return (
@@ -147,17 +151,7 @@ export default function Sidebar({
         } fixed inset-y-0 left-0 z-40 w-56 shrink-0 border-r border-black/5 bg-white flex-col px-4 py-6 lg:static`}
       >
         <div className="flex items-start gap-2 px-2">
-          <div className="size-9 shrink-0 rounded-lg bg-brand text-white grid place-items-center font-semibold">
-            N
-          </div>
-          <div className="leading-tight flex-1">
-            <div className="text-[13px] font-semibold text-brand">Natured Tranquility</div>
-            <div className="text-[10px] text-black/50">
-              Wellness Dashboard
-              <br />
-              Facility Management
-            </div>
-          </div>
+          <BrandBlock branding={branding} />
           <button
             type="button"
             onClick={onClose}
@@ -181,6 +175,17 @@ export default function Sidebar({
               >
                 <HomeIcon className="size-4" />
                 <span>Dashboard</span>
+              </Link>
+              <Link
+                href="/admin/personalization"
+                className={`flex items-center gap-3 rounded-md px-3 py-2.5 text-sm transition-colors duration-200 ${
+                  personalizationActive
+                    ? "bg-surface font-medium text-brand"
+                    : "text-ink/70 hover:text-ink"
+                }`}
+              >
+                <SettingsIcon className="size-4" />
+                <span>Personalization</span>
               </Link>
               <Link
                 href="/admin/data"
@@ -254,14 +259,6 @@ export default function Sidebar({
             </>
           )}
         </nav>
-
-        <button
-          type="button"
-          className="mt-auto flex items-center gap-3 px-3 py-2.5 rounded-md text-sm text-ink/70 hover:text-ink"
-        >
-          <SettingsIcon className="size-4" />
-          <span>Settings</span>
-        </button>
       </aside>
     </>
   );

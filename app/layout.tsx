@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { getBrandingSettings } from "@/src/lib/branding";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -12,11 +13,14 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-export const metadata: Metadata = {
-  title: "Natured Tranquility — Facility Booking",
-  description:
-    "Wellness facility management dashboard for booking karaoke, gym, yoga, and lounge sessions.",
-};
+export function generateMetadata(): Metadata {
+  const branding = getBrandingSettings();
+
+  return {
+    title: `${branding.brandName} — Facility Booking`,
+    description: branding.brandDescription.replace(/\s+/g, " "),
+  };
+}
 
 export default function RootLayout({
   children,

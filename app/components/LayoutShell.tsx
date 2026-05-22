@@ -2,14 +2,17 @@
 
 import { useState } from "react";
 import type { UserRole } from "@/src/lib/roles";
+import type { BrandingSettings } from "./BrandBlock";
 import Header from "./Header";
 import Sidebar from "./Sidebar";
 
 export default function LayoutShell({
+  branding,
   role,
   user,
   children,
 }: {
+  branding: BrandingSettings;
   role: UserRole;
   user: { username: string };
   children: React.ReactNode;
@@ -19,6 +22,7 @@ export default function LayoutShell({
   return (
     <div className="flex flex-1 w-full bg-white text-ink">
       <Sidebar
+        branding={branding}
         role={role}
         mobileOpen={mobileOpen}
         onClose={() => setMobileOpen(false)}
