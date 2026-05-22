@@ -16,14 +16,14 @@ export default function BrandBlock({
   return (
     <div className="min-w-0 flex-1">
       {branding.iconDataUrl ? (
-        <div className="mb-2 h-12 w-full overflow-hidden rounded-md bg-surface">
+        <div className="relative mb-2 h-12 w-full overflow-hidden rounded-md bg-surface">
           <Image
             src={branding.iconDataUrl}
             alt=""
-            width={192}
-            height={48}
+            fill
+            sizes="320px"
             unoptimized
-            className="h-full w-full object-contain object-left"
+            className="object-contain object-left"
           />
         </div>
       ) : (
