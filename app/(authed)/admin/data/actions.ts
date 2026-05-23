@@ -17,7 +17,8 @@ import { getAdminRowForEdit } from "@/src/lib/admin-data/queries";
 import { clearSessionCookie, revokeUserSessions } from "@/src/lib/auth";
 import { clearUserLoginLock } from "@/src/lib/login-attempts";
 
-const DATA_PATH = "/admin/data";
+const USERS_DATA_PATH = "/admin/data/users";
+const FACILITIES_DATA_PATH = "/admin/data/facilities";
 const AUDIT_PATH = "/admin/audit-log";
 
 export async function createAdminRowAction(formData: FormData): Promise<void> {
@@ -28,7 +29,7 @@ export async function createAdminRowAction(formData: FormData): Promise<void> {
   const user = await requireAdminUser();
   const result = createAdminRow(user, tableName, formData);
   if (result.ok) {
-    revalidatePath(DATA_PATH);
+    revalidatePath(getDataPath(tableName));
     revalidatePath(AUDIT_PATH);
   }
   redirectWithMessage(
@@ -48,7 +49,7 @@ export async function updateAdminRowAction(formData: FormData): Promise<void> {
   const user = await requireAdminUser();
   const result = updateAdminRow(user, tableName, rowId, formData);
   if (result.ok) {
-    revalidatePath(DATA_PATH);
+    revalidatePath(getDataPath(tableName));
     revalidatePath(AUDIT_PATH);
     if (tableName === "facilities") {
       revalidateFacilityBookingPath(tableName, rowId, user);
@@ -70,7 +71,7 @@ export async function deleteAdminRowAction(formData: FormData): Promise<void> {
   const user = await requireAdminUser();
   const result = deleteAdminRow(user, tableName, rowId);
   if (result.ok) {
-    revalidatePath(DATA_PATH);
+    revalidatePath(getDataPath(tableName));
     revalidatePath(AUDIT_PATH);
   }
   redirectWithMessage(tableName, result.ok ? "success" : "error", result.message);
@@ -90,7 +91,7 @@ export async function revokeUserSessionsAction(formData: FormData): Promise<void
       { active_sessions: result.beforeCount },
       { active_sessions: result.afterCount },
     );
-    revalidatePath(DATA_PATH);
+    revalidatePath(USERS_DATA_PATH);
     revalidatePath(AUDIT_PATH);
 
     if (result.targetUser.id === user.id) {
@@ -99,7 +100,14 @@ export async function revokeUserSessionsAction(formData: FormData): Promise<void
     }
   }
 
-  redirectWithMessage("users", result.ok ? "success" : "error", result.message);
+  redirectWithMessage(
+    "users",
+    result.ok ? "success" : "error",
+    result.message,
+    undefined,
+    undefined,
+    "access",
+  );
 }
 
 export async function clearLoginLockAction(formData: FormData): Promise<void> {
@@ -118,11 +126,18 @@ export async function clearLoginLockAction(formData: FormData): Promise<void> {
         { login_locked_until: result.afterLockedUntil },
       );
     }
-    revalidatePath(DATA_PATH);
+    revalidatePath(USERS_DATA_PATH);
     revalidatePath(AUDIT_PATH);
   }
 
-  redirectWithMessage("users", result.ok ? "success" : "error", result.message);
+  redirectWithMessage(
+    "users",
+    result.ok ? "success" : "error",
+    result.message,
+    undefined,
+    undefined,
+    "access",
+  );
 }
 
 function getTableName(formData: FormData): EditableTableName | null {
@@ -163,9 +178,10 @@ function redirectWithMessage(
   message: string,
   editId?: number,
   createMode?: "guest" | "admin" | null,
+  requestedTab?: string,
 ): never {
   const params = new URLSearchParams();
-  if (tableName) params.set("table", tableName);
+  params.set("tab", getDataTab(tableName, requestedTab));
   if (tableName === "users" && createMode) {
     params.set("create", createMode);
   }
@@ -173,5 +189,29 @@ function redirectWithMessage(
     params.set("edit", String(editId));
   }
   params.set(tone, message);
-  redirect(`${DATA_PATH}?${params.toString()}`);
+  redirect(`${getDataPath(tableName)}?${params.toString()}`);
+}
+
+function getDataPath(tableName: EditableTableName | null): string {
+  return tableName === "users" || tableName === null
+    ? USERS_DATA_PATH
+    : FACILITIES_DATA_PATH;
+}
+
+function getDataTab(
+  tableName: EditableTableName | null,
+  requestedTab: string | undefined,
+): string {
+  if (tableName === "users" || tableName === null) {
+    return requestedTab === "access" ? "access" : "accounts";
+  }
+
+  switch (tableName) {
+    case "facilities":
+      return "content";
+    case "facility_time_slots":
+      return "time-slots";
+    case "facility_bookings":
+      return "bookings";
+  }
 }

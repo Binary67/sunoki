@@ -38,7 +38,7 @@ export default async function AuditLogPage({ searchParams }: PageProps) {
           </p>
         </div>
         <Link
-          href="/admin/data"
+          href="/admin/data/users"
           className="inline-flex h-9 items-center justify-center rounded-md border border-black/10 px-3 text-sm font-medium text-ink/75 hover:bg-surface"
         >
           Back to Data Editor

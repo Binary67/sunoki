@@ -12,7 +12,12 @@ const BREADCRUMB_LABELS: Record<string, string> = {
 
 function getSectionLabel(pathname: string): string {
   if (pathname === "/") return "DASHBOARD";
-  if (pathname === "/admin/data") return "ADMIN / DATA EDITOR";
+  if (pathname === "/admin/data" || pathname === "/admin/data/users") {
+    return "ADMIN / DATA EDITOR / USERS";
+  }
+  if (pathname === "/admin/data/facilities") {
+    return "ADMIN / DATA EDITOR / FACILITIES";
+  }
   if (pathname === "/admin/audit-log") return "ADMIN / AUDIT LOG";
   if (pathname === "/admin/personalization") return "ADMIN / PERSONALIZATION";
 

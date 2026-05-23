@@ -90,6 +90,11 @@ const bookingChildren = [
   { label: "Lounge", href: "/booking/lounge", Icon: LoungeIcon },
 ];
 
+const dataChildren = [
+  { label: "Users", href: "/admin/data/users" },
+  { label: "Facilities", href: "/admin/data/facilities" },
+];
+
 export default function Sidebar({
   branding,
   role,
@@ -103,10 +108,19 @@ export default function Sidebar({
 }) {
   const pathname = usePathname();
   const inBooking = pathname.startsWith("/booking/");
+  const inData = pathname.startsWith("/admin/data");
+  const [dataOpen, setDataOpen] = useState(inData);
+  const [prevInData, setPrevInData] = useState(inData);
   const [bookingOpen, setBookingOpen] = useState(inBooking);
   const [prevInBooking, setPrevInBooking] = useState(inBooking);
   const prevPathname = useRef(pathname);
 
+  if (inData && !prevInData) {
+    setDataOpen(true);
+  }
+  if (inData !== prevInData) {
+    setPrevInData(inData);
+  }
   if (inBooking && !prevInBooking) {
     setBookingOpen(true);
   }
@@ -131,7 +145,7 @@ export default function Sidebar({
   }, [mobileOpen, onClose]);
 
   const dashboardActive = pathname === "/";
-  const dataActive = pathname === "/admin/data";
+  const dataActive = inData;
   const auditActive = pathname === "/admin/audit-log";
   const personalizationActive = pathname === "/admin/personalization";
   const isAdmin = isAdminRole(role);
@@ -187,8 +201,10 @@ export default function Sidebar({
                 <SettingsIcon className="size-4" />
                 <span>Personalization</span>
               </Link>
-              <Link
-                href="/admin/data"
+              <button
+                type="button"
+                onClick={() => setDataOpen((v) => !v)}
+                aria-expanded={dataOpen}
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-md text-sm transition-colors duration-200 ${
                   dataActive
                     ? "text-brand font-medium bg-surface"
@@ -196,8 +212,39 @@ export default function Sidebar({
                 }`}
               >
                 <DatabaseIcon className="size-4" />
-                <span>Data Editor</span>
-              </Link>
+                <span className="flex-1 text-left">Data Editor</span>
+                <ChevronIcon
+                  className={`size-3.5 text-ink/40 transition-transform ${
+                    dataOpen ? "rotate-90" : ""
+                  }`}
+                />
+              </button>
+              {dataOpen && (
+                <div className="mt-1 ml-5 pl-3 border-l border-black/10 flex flex-col">
+                  {dataChildren.map(({ label, href }) => {
+                    const active = pathname === href;
+                    return (
+                      <Link
+                        key={href}
+                        href={href}
+                        className={`relative flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors duration-200 ${
+                          active
+                            ? "text-brand font-medium bg-surface"
+                            : "text-ink/70 hover:text-ink"
+                        }`}
+                      >
+                        <span
+                          aria-hidden="true"
+                          className={`absolute -left-[13px] top-1.5 bottom-1.5 w-0.5 rounded-r bg-brand transition-opacity duration-200 ${
+                            active ? "opacity-100" : "opacity-0"
+                          }`}
+                        />
+                        <span>{label}</span>
+                      </Link>
+                    );
+                  })}
+                </div>
+              )}
               <Link
                 href="/admin/audit-log"
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-md text-sm transition-colors duration-200 ${
