@@ -48,7 +48,14 @@ const FACILITY_TABS: TabLink<FacilitiesTab>[] = [
 export default async function AdminFacilitiesPage({ searchParams }: PageProps) {
   const actor = await requireAdminUser();
   const query = await searchParams;
-  const activeTab = getFacilitiesTab(getSingleValue(query.tab));
+  const canManageTimeSlots = actor.role === "superadmin";
+  const tabs = canManageTimeSlots
+    ? FACILITY_TABS
+    : FACILITY_TABS.filter((tab) => tab.value !== "time-slots");
+  const activeTab = getFacilitiesTab(
+    getSingleValue(query.tab),
+    canManageTimeSlots,
+  );
   const tableName = getFacilitiesTableName(activeTab);
   const editId = getEditId(getSingleValue(query.edit));
   const view = getAdminTableView(tableName, actor);
@@ -58,15 +65,19 @@ export default async function AdminFacilitiesPage({ searchParams }: PageProps) {
     <main className="flex-1 px-4 py-6 sm:px-6 sm:py-8 lg:px-10">
       <DataEditorHeader
         title="Facilities"
-        description="Manage facility content, available time slots, and facility bookings in one focused workspace."
+        description={
+          canManageTimeSlots
+            ? "Manage facility content, available time slots, and facility bookings in one focused workspace."
+            : "Manage facility content and facility bookings in one focused workspace."
+        }
       />
-      <LocalTabNav activeTab={activeTab} tabs={FACILITY_TABS} />
+      <LocalTabNav activeTab={activeTab} tabs={tabs} />
       <StatusMessage
         error={getSingleValue(query.error)}
         success={getSingleValue(query.success)}
       />
       <CreateFormSection
-        canManageAdminUsers={actor.role === "superadmin"}
+        canManageAdminUsers={canManageTimeSlots}
         tableName={tableName}
         view={view}
       />
@@ -91,8 +102,12 @@ export default async function AdminFacilitiesPage({ searchParams }: PageProps) {
   );
 }
 
-function getFacilitiesTab(value: string | undefined): FacilitiesTab {
-  if (value === "time-slots" || value === "bookings") return value;
+function getFacilitiesTab(
+  value: string | undefined,
+  canManageTimeSlots: boolean,
+): FacilitiesTab {
+  if (value === "time-slots" && canManageTimeSlots) return value;
+  if (value === "bookings") return value;
   return "content";
 }
 

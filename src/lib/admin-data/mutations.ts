@@ -25,6 +25,8 @@ export function createAdminRow(
   if (isUpdateOnlyAdminTable(tableName)) {
     return { ok: false, message: `${table.label} can only be updated.` };
   }
+  const timeSlotError = validateTimeSlotMutation(actor, tableName);
+  if (timeSlotError) return timeSlotError;
 
   const parsed = parseFormValues(tableName, formData, "create");
   if (!parsed.ok) return { ok: false, message: parsed.message };
@@ -67,6 +69,8 @@ export function updateAdminRow(
   if (!Number.isInteger(rowId) || rowId <= 0) {
     return { ok: false, message: "Choose a valid row." };
   }
+  const timeSlotError = validateTimeSlotMutation(actor, tableName);
+  if (timeSlotError) return timeSlotError;
 
   const parsed = parseFormValues(tableName, formData, "update");
   if (!parsed.ok) return { ok: false, message: parsed.message };
@@ -124,6 +128,8 @@ export function deleteAdminRow(
   if (isUpdateOnlyAdminTable(tableName)) {
     return { ok: false, message: `${table.label} cannot be deleted.` };
   }
+  const timeSlotError = validateTimeSlotMutation(actor, tableName);
+  if (timeSlotError) return timeSlotError;
 
   if (!Number.isInteger(rowId) || rowId <= 0) {
     return { ok: false, message: "Choose a valid row." };
@@ -214,6 +220,16 @@ function validateUserCreate(
   if (!role) return { ok: false, message: "Choose a valid role." };
   if (role !== "guest" && actor.role !== "superadmin") {
     return { ok: false, message: "Only super admins can manage admin users." };
+  }
+  return null;
+}
+
+function validateTimeSlotMutation(
+  actor: User,
+  tableName: EditableTableName,
+): AdminMutationResult | null {
+  if (tableName === "facility_time_slots" && actor.role !== "superadmin") {
+    return { ok: false, message: "Only super admins can manage time slots." };
   }
   return null;
 }
