@@ -3,6 +3,21 @@ import { db } from "./db";
 
 export type GuestProfileStatus = "not_checked_in" | "checked_in";
 
+export const GUEST_ROOM_LEVELS = ["11", "12", "13"];
+export const GUEST_ROOM_NUMBERS = [
+  "01",
+  "02",
+  "03",
+  "04",
+  "05",
+  "06",
+  "07",
+  "08",
+  "09",
+  "10",
+  "11",
+];
+
 export type GuestProfile = {
   id: number;
   name: string;
@@ -246,11 +261,16 @@ function parseGuestProfileForm(
     return { ok: false, message: "Enter a valid EDD." };
   }
 
+  const roomNumber = readText(formData, "room_number");
+  if (roomNumber && !isGuestRoomNumber(roomNumber)) {
+    return { ok: false, message: "Choose a valid room number." };
+  }
+
   return {
     ok: true,
     data: {
       name,
-      room_number: readText(formData, "room_number"),
+      room_number: roomNumber,
       ic_no: readText(formData, "ic_no"),
       handphone_no: readText(formData, "handphone_no"),
       email: readText(formData, "email"),
@@ -285,6 +305,15 @@ function readText(formData: FormData, key: GuestProfileColumn): string | null {
 
 function isValidGuestProfileId(id: number): boolean {
   return Number.isInteger(id) && id > 0;
+}
+
+function isGuestRoomNumber(value: string): boolean {
+  const [level, roomNumber, extra] = value.split("-");
+  return (
+    extra === undefined &&
+    GUEST_ROOM_LEVELS.includes(level) &&
+    GUEST_ROOM_NUMBERS.includes(roomNumber)
+  );
 }
 
 function hasDuplicateActiveIc(icNo: string | null, excludeId?: number): boolean {

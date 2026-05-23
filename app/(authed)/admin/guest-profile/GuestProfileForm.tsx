@@ -1,6 +1,10 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import type { GuestProfile } from "@/src/lib/guest-profiles";
+import {
+  GUEST_ROOM_LEVELS,
+  GUEST_ROOM_NUMBERS,
+  type GuestProfile,
+} from "@/src/lib/guest-profiles";
 import { GUEST_PROFILE_SECTIONS, type GuestProfileField } from "./fields";
 
 type GuestProfileFormProps = {
@@ -75,6 +79,7 @@ function GuestProfileInput({
   }`;
   const className =
     "mt-1 w-full rounded-md border border-black/10 bg-white px-3 text-sm text-ink outline-none focus:border-brand focus:ring-2 focus:ring-brand/15";
+  const value = profile ? field.value(profile) ?? "" : "";
 
   return (
     <label
@@ -84,12 +89,33 @@ function GuestProfileInput({
       htmlFor={inputId}
     >
       {field.label} {required && <span className="text-red-600">*</span>}
-      {field.multiline ? (
+      {field.name === "room_number" ? (
+        <select
+          id={inputId}
+          name={field.name}
+          defaultValue={value}
+          className={`${className} h-10`}
+        >
+          <option value="">Select room</option>
+          {GUEST_ROOM_LEVELS.map((level) => (
+            <optgroup key={level} label={`Level ${level}`}>
+              {GUEST_ROOM_NUMBERS.map((roomNumber) => {
+                const optionValue = `${level}-${roomNumber}`;
+                return (
+                  <option key={optionValue} value={optionValue}>
+                    Room {optionValue}
+                  </option>
+                );
+              })}
+            </optgroup>
+          ))}
+        </select>
+      ) : field.multiline ? (
         <textarea
           id={inputId}
           name={field.name}
           rows={4}
-          defaultValue={profile ? field.value(profile) ?? "" : ""}
+          defaultValue={value}
           className={`${className} min-h-24 py-2`}
         />
       ) : (
@@ -98,7 +124,7 @@ function GuestProfileInput({
           name={field.name}
           type={date ? "date" : "text"}
           required={required}
-          defaultValue={profile ? field.value(profile) ?? "" : ""}
+          defaultValue={value}
           className={`${className} h-10`}
         />
       )}
