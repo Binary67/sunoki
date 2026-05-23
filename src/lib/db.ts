@@ -95,6 +95,7 @@ db.exec(`
     id               INTEGER PRIMARY KEY,
     guest_profile_id INTEGER NOT NULL REFERENCES guest_profiles(id) ON DELETE CASCADE,
     service_name     TEXT NOT NULL,
+    days             INTEGER CHECK (days IS NULL OR days > 0),
     price_cents      INTEGER NOT NULL CHECK (price_cents >= 0),
     created_at       TEXT NOT NULL DEFAULT (datetime('now'))
   );
@@ -208,6 +209,20 @@ if (!guestProfileColumnNames.has("status")) {
 
 if (!guestProfileColumnNames.has("room_number")) {
   db.exec("ALTER TABLE guest_profiles ADD COLUMN room_number TEXT;");
+}
+
+const guestProfileAddonColumns = db
+  .prepare("PRAGMA table_info(guest_profile_addons)")
+  .all() as TableColumnRow[];
+const guestProfileAddonColumnNames = new Set(
+  guestProfileAddonColumns.map((column) => column.name),
+);
+
+if (!guestProfileAddonColumnNames.has("days")) {
+  db.exec(`
+    ALTER TABLE guest_profile_addons
+    ADD COLUMN days INTEGER CHECK (days IS NULL OR days > 0);
+  `);
 }
 
 db.exec(`

@@ -1,5 +1,6 @@
 import { formatBookingDate, isBookingDate } from "./booking-dates";
 import { db } from "./db";
+import { ADDITIONAL_DAYS_ADDON_NAME } from "./guest-profile-addons";
 
 export type GuestProfileStatus = "not_checked_in" | "checked_in";
 
@@ -52,6 +53,7 @@ export type GuestProfileAddon = {
   id: number;
   guestProfileId: number;
   serviceName: string;
+  days: number | null;
   priceCents: number;
   createdAt: string;
 };
@@ -74,6 +76,7 @@ type GuestProfileMutationResult =
 
 type GuestProfileAddonInput = {
   serviceName: string;
+  days: number | null;
   priceCents: number;
 };
 
@@ -157,14 +160,17 @@ export function listGuestProfileAddons(
           id,
           guest_profile_id AS guestProfileId,
           service_name AS serviceName,
+          days,
           price_cents AS priceCents,
           created_at AS createdAt
         FROM guest_profile_addons
         WHERE guest_profile_id = ?
-        ORDER BY id ASC
+        ORDER BY
+          CASE WHEN service_name = ? THEN 0 ELSE 1 END,
+          id ASC
       `,
     )
-    .all(profileId) as GuestProfileAddon[];
+    .all(profileId, ADDITIONAL_DAYS_ADDON_NAME) as GuestProfileAddon[];
 }
 
 export function formatGuestProfileAddonPrice(priceCents: number): string {
@@ -419,9 +425,48 @@ function parseGuestProfileAddons(
   | { ok: false; message: string } {
   const serviceNames = formData.getAll("addon_service_name");
   const priceAmounts = formData.getAll("addon_price_amount");
+  const additionalDays = readFormValue(formData.get("additional_days"));
+  const additionalDaysPriceAmount = readFormValue(
+    formData.get("additional_days_price_amount"),
+  );
   const addons: GuestProfileAddonInput[] = [];
 
-  for (let index = 0; index < Math.max(serviceNames.length, priceAmounts.length); index += 1) {
+  if (additionalDays || additionalDaysPriceAmount) {
+    if (!additionalDays) {
+      return {
+        ok: false,
+        message: "Additional days of stay is required.",
+      };
+    }
+    if (!additionalDaysPriceAmount) {
+      return {
+        ok: false,
+        message: "Additional days of stay price is required.",
+      };
+    }
+
+    const days = parseAdditionalDays(additionalDays);
+    if (days === null) {
+      return { ok: false, message: "Enter a valid number of additional days." };
+    }
+
+    const priceCents = parseAddonPriceCents(additionalDaysPriceAmount);
+    if (priceCents === null) {
+      return { ok: false, message: "Enter a valid add-on price." };
+    }
+
+    addons.push({
+      serviceName: ADDITIONAL_DAYS_ADDON_NAME,
+      days,
+      priceCents,
+    });
+  }
+
+  for (
+    let index = 0;
+    index < Math.max(serviceNames.length, priceAmounts.length);
+    index += 1
+  ) {
     const serviceName = readFormValue(serviceNames[index] ?? null);
     const priceAmount = readFormValue(priceAmounts[index] ?? null);
     if (!serviceName && !priceAmount) continue;
@@ -437,7 +482,19 @@ function parseGuestProfileAddons(
       return { ok: false, message: "Enter a valid add-on price." };
     }
 
-    addons.push({ serviceName: serviceName.toUpperCase(), priceCents });
+    const normalizedServiceName = serviceName.toUpperCase();
+    if (normalizedServiceName === ADDITIONAL_DAYS_ADDON_NAME) {
+      return {
+        ok: false,
+        message: "Use the fixed additional days row for additional days of stay.",
+      };
+    }
+
+    addons.push({
+      serviceName: normalizedServiceName,
+      days: null,
+      priceCents,
+    });
   }
 
   return { ok: true, data: addons };
@@ -463,6 +520,13 @@ function parseAddonPriceCents(value: string): number | null {
   return Number.isSafeInteger(totalCents) ? totalCents : null;
 }
 
+function parseAdditionalDays(value: string): number | null {
+  if (!/^\d+$/.test(value)) return null;
+
+  const days = Number(value);
+  return Number.isSafeInteger(days) && days > 0 ? days : null;
+}
+
 function insertGuestProfileAddons(
   profileId: number,
   addons: GuestProfileAddonInput[],
@@ -474,14 +538,15 @@ function insertGuestProfileAddons(
       INSERT INTO guest_profile_addons (
         guest_profile_id,
         service_name,
+        days,
         price_cents
       )
-      VALUES (?, ?, ?)
+      VALUES (?, ?, ?, ?)
     `,
   );
 
   for (const addon of addons) {
-    insert.run(profileId, addon.serviceName, addon.priceCents);
+    insert.run(profileId, addon.serviceName, addon.days, addon.priceCents);
   }
 }
 

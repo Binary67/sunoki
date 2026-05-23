@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { ADDITIONAL_DAYS_ADDON_NAME } from "@/src/lib/guest-profile-addons";
 import {
   GUEST_ROOM_LEVELS,
   GUEST_ROOM_NUMBERS,
@@ -87,6 +88,10 @@ function getAddonFormValues(
 ): GuestProfileAddonFormValue[] {
   return addons.map((addon) => ({
     serviceName: addon.serviceName,
+    days:
+      addon.serviceName === ADDITIONAL_DAYS_ADDON_NAME && addon.days
+        ? String(addon.days)
+        : "",
     priceAmount: formatAddonInputPrice(addon.priceCents),
   }));
 }

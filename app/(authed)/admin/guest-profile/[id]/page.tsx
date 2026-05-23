@@ -11,6 +11,7 @@ import {
   type GuestProfileAddon,
   type GuestProfileStatus,
 } from "@/src/lib/guest-profiles";
+import { ADDITIONAL_DAYS_ADDON_NAME } from "@/src/lib/guest-profile-addons";
 import {
   setGuestProfileStatusAction,
   updateGuestProfileAction,
@@ -176,7 +177,11 @@ function GuestProfileAddonSection({
           {addons.map((addon) => (
             <li key={addon.id}>
               <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                <span>{addon.serviceName}</span>
+                <span>
+                  {addon.serviceName}
+                  {addon.serviceName === ADDITIONAL_DAYS_ADDON_NAME &&
+                    addon.days && `: ${addon.days} DAYS`}
+                </span>
                 <span className="font-medium text-ink">
                   {formatGuestProfileAddonPrice(addon.priceCents)}
                 </span>

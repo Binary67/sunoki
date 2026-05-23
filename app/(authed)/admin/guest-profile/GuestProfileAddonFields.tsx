@@ -2,9 +2,11 @@
 
 import type { Dispatch, SetStateAction } from "react";
 import { useMemo, useState } from "react";
+import { ADDITIONAL_DAYS_ADDON_NAME } from "@/src/lib/guest-profile-addons";
 
 export type GuestProfileAddonFormValue = {
   serviceName: string;
+  days: string;
   priceAmount: string;
 };
 
@@ -19,27 +21,87 @@ type AddonRow = GuestProfileAddonFormValue & {
 export default function GuestProfileAddonFields({
   initialAddons,
 }: GuestProfileAddonFieldsProps) {
+  const initialAdditionalDaysAddon = initialAddons.find(
+    (addon) => addon.serviceName === ADDITIONAL_DAYS_ADDON_NAME,
+  );
+  const regularAddons = initialAddons.filter(
+    (addon) => addon.serviceName !== ADDITIONAL_DAYS_ADDON_NAME,
+  );
+  const [additionalDays, setAdditionalDays] = useState(
+    initialAdditionalDaysAddon?.days ?? "",
+  );
+  const [additionalDaysPriceAmount, setAdditionalDaysPriceAmount] = useState(
+    initialAdditionalDaysAddon?.priceAmount ?? "",
+  );
   const [rows, setRows] = useState<AddonRow[]>(() =>
-    initialAddons.length > 0
-      ? initialAddons.map((addon, index) => ({
+    regularAddons.length > 0
+      ? regularAddons.map((addon, index) => ({
           ...addon,
           id: `addon-${index}`,
         }))
       : [createBlankRow("addon-0")],
   );
   const totalCents = useMemo(
-    () =>
-      rows.reduce(
+    () => {
+      const additionalDaysCents =
+        parseAdditionalDays(additionalDays) === null
+          ? 0
+          : parsePriceCents(additionalDaysPriceAmount) ?? 0;
+
+      return rows.reduce(
         (total, row) => total + (parsePriceCents(row.priceAmount) ?? 0),
-        0,
-      ),
-    [rows],
+        additionalDaysCents,
+      );
+    },
+    [additionalDays, additionalDaysPriceAmount, rows],
   );
 
   return (
     <fieldset className="rounded-lg border border-black/5 bg-white px-4 py-4">
       <legend className="px-1 text-sm font-semibold text-ink">Addon</legend>
       <div className="mt-3 grid gap-3">
+        <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_8rem_10rem] md:items-end">
+          <div className="block text-sm font-medium text-ink/75">
+            Services / Sales
+            <div className="mt-1 flex h-10 w-full items-center rounded-md border border-black/10 bg-surface px-3 text-sm font-semibold text-ink">
+              {ADDITIONAL_DAYS_ADDON_NAME}
+            </div>
+          </div>
+          <label
+            className="block text-sm font-medium text-ink/75"
+            htmlFor="additional-days"
+          >
+            Days
+            <input
+              className="mt-1 h-10 w-full rounded-md border border-black/10 bg-white px-3 text-sm text-ink outline-none focus:border-brand focus:ring-2 focus:ring-brand/15"
+              id="additional-days"
+              min="1"
+              name="additional_days"
+              onChange={(event) => setAdditionalDays(event.target.value)}
+              step="1"
+              type="number"
+              value={additionalDays}
+            />
+          </label>
+          <label
+            className="block text-sm font-medium text-ink/75"
+            htmlFor="additional-days-price"
+          >
+            Price (RM)
+            <input
+              className="mt-1 h-10 w-full rounded-md border border-black/10 bg-white px-3 text-sm text-ink outline-none focus:border-brand focus:ring-2 focus:ring-brand/15"
+              id="additional-days-price"
+              min="0"
+              name="additional_days_price_amount"
+              onChange={(event) =>
+                setAdditionalDaysPriceAmount(event.target.value)
+              }
+              step="0.01"
+              type="number"
+              value={additionalDaysPriceAmount}
+            />
+          </label>
+        </div>
         {rows.map((row, index) => {
           const serviceInputId = `${row.id}-service-name`;
           const priceInputId = `${row.id}-price`;
@@ -142,7 +204,7 @@ function updateRow(
 }
 
 function createBlankRow(id: string): AddonRow {
-  return { id, serviceName: "", priceAmount: "" };
+  return { id, serviceName: "", days: "", priceAmount: "" };
 }
 
 function createRowId(): string {
@@ -155,6 +217,13 @@ function parsePriceCents(value: string): number | null {
   const [ringgit, sen = ""] = value.split(".");
   const totalCents = Number(ringgit) * 100 + Number(sen.padEnd(2, "0"));
   return Number.isSafeInteger(totalCents) ? totalCents : null;
+}
+
+function parseAdditionalDays(value: string): number | null {
+  if (!/^\d+$/.test(value)) return null;
+
+  const days = Number(value);
+  return Number.isSafeInteger(days) && days > 0 ? days : null;
 }
 
 function formatPrice(priceCents: number): string {
