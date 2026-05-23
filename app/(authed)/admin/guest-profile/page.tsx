@@ -28,6 +28,7 @@ type PageProps = {
 const STATUS_FILTERS: GuestProfileStatus[] = ["not_checked_in", "checked_in"];
 
 type RoomOverlapWarning = {
+  guestId: number;
   guestName: string;
   throughDate: string;
 };
@@ -188,12 +189,12 @@ function GuestProfileBlock({
 }) {
   const profileHref = `/admin/guest-profile/${profile.id}`;
   const followUpDue = isFollowUpDue(profile, today, followUpThroughDate);
-  const overlapWarning = getRoomOverlapWarning(profile, checkedInProfiles);
+  const overlapWarnings = getRoomOverlapWarnings(profile, checkedInProfiles);
 
   return (
     <article
       className={`group relative rounded-lg border bg-white px-4 py-4 transition-colors hover:bg-surface ${
-        overlapWarning
+        overlapWarnings.length > 0
           ? "border-amber-300 hover:border-amber-400"
           : followUpDue
           ? "border-red-300 hover:border-red-400"
@@ -248,10 +249,26 @@ function GuestProfileBlock({
         <SummaryItem label="Mode of Delivery" value={profile.modeOfDelivery} />
         <SummaryItem label="Type of Package" value={profile.packageType} />
       </dl>
-      {overlapWarning && (
+      {overlapWarnings.length > 0 && (
         <p className="pointer-events-none relative z-10 mt-4 rounded-md bg-amber-50 px-3 py-2 text-sm leading-5 text-amber-800">
-          Room may overlap with {overlapWarning.guestName} until{" "}
-          {overlapWarning.throughDate}.
+          Room may overlap with{" "}
+          {overlapWarnings.map((warning, index) => (
+            <span key={warning.guestId}>
+              {index === 0
+                ? ""
+                : index === overlapWarnings.length - 1
+                  ? " and "
+                  : ", "}
+              <Link
+                className="pointer-events-auto relative z-20 font-semibold underline decoration-amber-500/60 underline-offset-2 hover:text-amber-700 focus:outline-none focus:ring-2 focus:ring-amber-500/30"
+                href={`/admin/guest-profile/${warning.guestId}`}
+              >
+                {warning.guestName}
+              </Link>{" "}
+              until {warning.throughDate}
+            </span>
+          ))}
+          .
         </p>
       )}
     </article>
@@ -362,14 +379,14 @@ function isFollowUpDue(
   );
 }
 
-function getRoomOverlapWarning(
+function getRoomOverlapWarnings(
   profile: GuestProfile,
   checkedInProfiles: GuestProfile[],
-): RoomOverlapWarning | null {
+): RoomOverlapWarning[] {
   const edd = profile.expectedDeliveryDate;
-  if (!profile.roomNumber || !edd || !isBookingDate(edd)) return null;
+  if (!profile.roomNumber || !edd || !isBookingDate(edd)) return [];
 
-  const overlappingGuest = checkedInProfiles.find((checkedInProfile) => {
+  return checkedInProfiles.flatMap((checkedInProfile) => {
     const checkInDate = checkedInProfile.expectedDeliveryDate;
     if (
       checkedInProfile.status !== "checked_in" ||
@@ -378,18 +395,20 @@ function getRoomOverlapWarning(
       !isBookingDate(checkInDate) ||
       isSameGuest(profile, checkedInProfile)
     ) {
-      return false;
+      return [];
     }
 
-    return edd >= checkInDate && edd <= addBookingDays(checkInDate, 30);
+    const throughDate = addBookingDays(checkInDate, 30);
+    if (edd < checkInDate || edd > throughDate) return [];
+
+    return [
+      {
+        guestId: checkedInProfile.id,
+        guestName: checkedInProfile.name,
+        throughDate,
+      },
+    ];
   });
-
-  if (!overlappingGuest?.expectedDeliveryDate) return null;
-
-  return {
-    guestName: overlappingGuest.name,
-    throughDate: addBookingDays(overlappingGuest.expectedDeliveryDate, 30),
-  };
 }
 
 function isSameGuest(a: GuestProfile, b: GuestProfile): boolean {
