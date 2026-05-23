@@ -9,3 +9,13 @@ export async function requireAdminUser(): Promise<User> {
   if (!isAdminRole(user.role)) redirect("/booking/karaoke");
   return user;
 }
+
+export async function requireSuperAdminUser(): Promise<User> {
+  const user = await requireAdminUser();
+  if (user.role !== "superadmin") {
+    redirect(
+      "/admin/data/users?error=Only%20super%20admins%20can%20manage%20backup%20and%20restore.",
+    );
+  }
+  return user;
+}

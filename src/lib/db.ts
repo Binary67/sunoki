@@ -169,6 +169,15 @@ db.exec(`
     last_failed_at    TEXT NOT NULL,
     locked_until      TEXT
   );
+
+  CREATE TABLE IF NOT EXISTS admin_import_drafts (
+    token          TEXT PRIMARY KEY,
+    actor_user_id  INTEGER NOT NULL,
+    actor_username TEXT NOT NULL,
+    payload_json   TEXT NOT NULL,
+    created_at     TEXT NOT NULL DEFAULT (datetime('now')),
+    expires_at     TEXT NOT NULL
+  );
 `);
 
 const defaultCheckInDate = formatBookingDate(new Date());

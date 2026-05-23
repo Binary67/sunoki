@@ -90,9 +90,18 @@ const bookingChildren = [
   { label: "Lounge", href: "/booking/lounge", Icon: LoungeIcon },
 ];
 
-const dataChildren = [
+const dataChildren: {
+  label: string;
+  href: string;
+  superadminOnly?: boolean;
+}[] = [
   { label: "Users", href: "/admin/data/users" },
   { label: "Facilities", href: "/admin/data/facilities" },
+  {
+    label: "Backup & Restore",
+    href: "/admin/data/backup",
+    superadminOnly: true,
+  },
 ];
 
 export default function Sidebar({
@@ -221,28 +230,30 @@ export default function Sidebar({
               </button>
               {dataOpen && (
                 <div className="mt-1 ml-5 pl-3 border-l border-black/10 flex flex-col">
-                  {dataChildren.map(({ label, href }) => {
-                    const active = pathname === href;
-                    return (
-                      <Link
-                        key={href}
-                        href={href}
-                        className={`relative flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors duration-200 ${
-                          active
-                            ? "text-brand font-medium bg-surface"
-                            : "text-ink/70 hover:text-ink"
-                        }`}
-                      >
-                        <span
-                          aria-hidden="true"
-                          className={`absolute -left-[13px] top-1.5 bottom-1.5 w-0.5 rounded-r bg-brand transition-opacity duration-200 ${
-                            active ? "opacity-100" : "opacity-0"
+                  {dataChildren
+                    .filter((item) => !item.superadminOnly || role === "superadmin")
+                    .map(({ label, href }) => {
+                      const active = pathname === href;
+                      return (
+                        <Link
+                          key={href}
+                          href={href}
+                          className={`relative flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors duration-200 ${
+                            active
+                              ? "text-brand font-medium bg-surface"
+                              : "text-ink/70 hover:text-ink"
                           }`}
-                        />
-                        <span>{label}</span>
-                      </Link>
-                    );
-                  })}
+                        >
+                          <span
+                            aria-hidden="true"
+                            className={`absolute -left-[13px] top-1.5 bottom-1.5 w-0.5 rounded-r bg-brand transition-opacity duration-200 ${
+                              active ? "opacity-100" : "opacity-0"
+                            }`}
+                          />
+                          <span>{label}</span>
+                        </Link>
+                      );
+                    })}
                 </div>
               )}
               <Link
