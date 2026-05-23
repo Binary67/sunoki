@@ -61,7 +61,7 @@ export default async function Dashboard({ searchParams }: PageProps) {
 
   return (
     <main className="flex-1 px-4 sm:px-6 lg:px-10 py-6 sm:py-8">
-      <div className="mb-8">
+      <div className="mb-10">
         <h1 className="text-xl sm:text-2xl font-semibold text-ink">Dashboard</h1>
         <p className="mt-1 text-sm text-ink/60">
           Overview of facility activity for the team.
@@ -73,7 +73,7 @@ export default async function Dashboard({ searchParams }: PageProps) {
         unassignedCount={roomOccupancy.unassignedCount}
       />
 
-      <section>
+      <section className="border-t border-black/5 pt-8 sm:pt-9">
         <div className="flex items-baseline justify-between mb-4">
           <h2 className="text-base font-semibold text-ink">
             Upcoming facility sessions
@@ -154,7 +154,7 @@ function RoomOccupancySection({
   ).length;
 
   return (
-    <section className="mb-9">
+    <section className="mb-10">
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h2 className="text-base font-semibold text-ink">Room occupancy</h2>
