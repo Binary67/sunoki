@@ -40,9 +40,9 @@ export default async function GuestProfilePage({ searchParams }: PageProps) {
   const success = getSingleValue(query.success);
   const user = await requireAdminUser();
   const activeStatus = getGuestProfileStatus(getSingleValue(query.status));
-  const profiles = listGuestProfiles(activeStatus);
-  const canDeleteGuestProfiles = user.role === "superadmin";
   const today = formatBookingDate(new Date());
+  const profiles = sortGuestProfilesByEdd(listGuestProfiles(activeStatus), today);
+  const canDeleteGuestProfiles = user.role === "superadmin";
   const followUpThroughDate = addBookingDays(today, 30);
   const checkedInProfiles =
     activeStatus === "checked_in" ? profiles : listGuestProfiles("checked_in");
@@ -378,6 +378,31 @@ function getNewGuestHref(status: GuestProfileStatus): string {
   return status === "checked_in"
     ? "/admin/guest-profile?new=1&status=checked_in"
     : "/admin/guest-profile?new=1";
+}
+
+function sortGuestProfilesByEdd(
+  profiles: GuestProfile[],
+  today: string,
+): GuestProfile[] {
+  return [...profiles].sort((a, b) => {
+    const aEdd = a.expectedDeliveryDate;
+    const bEdd = b.expectedDeliveryDate;
+    const aValid = Boolean(aEdd && isBookingDate(aEdd));
+    const bValid = Boolean(bEdd && isBookingDate(bEdd));
+
+    if (aValid && bValid && aEdd && bEdd) {
+      const aUpcoming = aEdd >= today;
+      const bUpcoming = bEdd >= today;
+
+      if (aUpcoming !== bUpcoming) return aUpcoming ? -1 : 1;
+      if (aEdd !== bEdd) {
+        return aUpcoming ? aEdd.localeCompare(bEdd) : bEdd.localeCompare(aEdd);
+      }
+    }
+
+    if (aValid !== bValid) return aValid ? -1 : 1;
+    return b.id - a.id;
+  });
 }
 
 function isFollowUpDue(
