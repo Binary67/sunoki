@@ -4,6 +4,7 @@ import {
   formatBookingDate,
   isBookingDate,
 } from "@/src/lib/booking-dates";
+import { requireAdminUser } from "@/src/lib/admin-auth";
 import {
   getGuestProfileStatus,
   getGuestProfileStatusLabel,
@@ -31,8 +32,10 @@ export default async function GuestProfilePage({ searchParams }: PageProps) {
   const showForm = getSingleValue(query.new) === "1";
   const error = getSingleValue(query.error);
   const success = getSingleValue(query.success);
+  const user = await requireAdminUser();
   const activeStatus = getGuestProfileStatus(getSingleValue(query.status));
   const profiles = listGuestProfiles(activeStatus);
+  const canDeleteGuestProfiles = user.role === "superadmin";
   const today = formatBookingDate(new Date());
   const followUpThroughDate = addBookingDays(today, 30);
 
@@ -90,6 +93,7 @@ export default async function GuestProfilePage({ searchParams }: PageProps) {
               <GuestProfileBlock
                 key={profile.id}
                 activeStatus={activeStatus}
+                canDeleteGuestProfiles={canDeleteGuestProfiles}
                 followUpThroughDate={followUpThroughDate}
                 profile={profile}
                 today={today}
@@ -161,11 +165,13 @@ function GuestProfileModal({
 
 function GuestProfileBlock({
   activeStatus,
+  canDeleteGuestProfiles,
   followUpThroughDate,
   profile,
   today,
 }: {
   activeStatus: GuestProfileStatus;
+  canDeleteGuestProfiles: boolean;
   followUpThroughDate: string;
   profile: GuestProfile;
   today: string;
@@ -208,24 +214,23 @@ function GuestProfileBlock({
           >
             {getGuestProfileStatusLabel(profile.status)}
           </span>
-          <div className="pointer-events-auto">
-            <GuestProfileDeleteForm
-              iconOnly
-              label={profile.name}
-              profileId={profile.id}
-              status={activeStatus}
-            />
-          </div>
+          {canDeleteGuestProfiles && (
+            <div className="pointer-events-auto">
+              <GuestProfileDeleteForm
+                iconOnly
+                label={profile.name}
+                profileId={profile.id}
+                status={activeStatus}
+              />
+            </div>
+          )}
         </div>
       </div>
       <dl className="pointer-events-none relative z-10 mt-4 grid gap-3 sm:grid-cols-2">
-        <SummaryItem label="Package" value={profile.packageType} />
-        <SummaryItem label="Consultant" value={profile.consultantName} />
-        <SummaryItem
-          label="Medical / Food Notes"
-          value={truncateText(profile.medicalFoodNotes)}
-          wide
-        />
+        <SummaryItem label="IC Number" value={profile.icNo} />
+        <SummaryItem label="Mother Phone Number" value={profile.handphoneNo} />
+        <SummaryItem label="Mode of Delivery" value={profile.modeOfDelivery} />
+        <SummaryItem label="Type of Package" value={profile.packageType} />
       </dl>
     </article>
   );
@@ -333,11 +338,6 @@ function isFollowUpDue(
         edd <= followUpThroughDate,
     )
   );
-}
-
-function truncateText(value: string | null): string | null {
-  if (!value || value.length <= 140) return value;
-  return `${value.slice(0, 137)}...`;
 }
 
 function formatValue(value: string | null | undefined): string {

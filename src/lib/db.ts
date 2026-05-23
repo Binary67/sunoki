@@ -65,6 +65,7 @@ db.exec(`
     id                     INTEGER PRIMARY KEY,
     name                   TEXT NOT NULL,
     status                 TEXT NOT NULL DEFAULT 'not_checked_in' CHECK (status IN ('not_checked_in', 'checked_in')),
+    room_number            TEXT,
     ic_no                  TEXT,
     handphone_no           TEXT,
     email                  TEXT,
@@ -192,6 +193,10 @@ if (!guestProfileColumnNames.has("status")) {
     ADD COLUMN status TEXT NOT NULL DEFAULT 'not_checked_in'
       CHECK (status IN ('not_checked_in', 'checked_in'));
   `);
+}
+
+if (!guestProfileColumnNames.has("room_number")) {
+  db.exec("ALTER TABLE guest_profiles ADD COLUMN room_number TEXT;");
 }
 
 db.exec(`

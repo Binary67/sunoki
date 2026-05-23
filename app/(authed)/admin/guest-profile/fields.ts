@@ -25,6 +25,11 @@ export const GUEST_PROFILE_SECTIONS: GuestProfileSection[] = [
         value: (profile) => profile.name,
       },
       {
+        label: "Room Number",
+        name: "room_number",
+        value: (profile) => profile.roomNumber,
+      },
+      {
         label: "IC No.",
         name: "ic_no",
         value: (profile) => profile.icNo,

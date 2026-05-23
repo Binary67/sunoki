@@ -7,6 +7,7 @@ export type GuestProfile = {
   id: number;
   name: string;
   status: GuestProfileStatus;
+  roomNumber: string | null;
   icNo: string | null;
   handphoneNo: string | null;
   email: string | null;
@@ -50,6 +51,7 @@ type GuestProfileMutationResult =
 
 const GUEST_PROFILE_COLUMNS = [
   "name",
+  "room_number",
   "ic_no",
   "handphone_no",
   "email",
@@ -113,6 +115,13 @@ export function createGuestProfile(
   const values = parseGuestProfileForm(formData);
   if (!values.ok) return values;
 
+  if (hasDuplicateActiveIc(values.data.ic_no)) {
+    return {
+      ok: false,
+      message: "A not checked-in guest with this IC number already exists.",
+    };
+  }
+
   try {
     const result = db
       .prepare(
@@ -140,6 +149,13 @@ export function updateGuestProfile(
 
   const values = parseGuestProfileForm(formData);
   if (!values.ok) return values;
+
+  if (hasDuplicateActiveIc(values.data.ic_no, id)) {
+    return {
+      ok: false,
+      message: "A not checked-in guest with this IC number already exists.",
+    };
+  }
 
   try {
     const result = db
@@ -234,6 +250,7 @@ function parseGuestProfileForm(
     ok: true,
     data: {
       name,
+      room_number: readText(formData, "room_number"),
       ic_no: readText(formData, "ic_no"),
       handphone_no: readText(formData, "handphone_no"),
       email: readText(formData, "email"),
@@ -270,11 +287,33 @@ function isValidGuestProfileId(id: number): boolean {
   return Number.isInteger(id) && id > 0;
 }
 
+function hasDuplicateActiveIc(icNo: string | null, excludeId?: number): boolean {
+  if (!icNo) return false;
+
+  const row = db
+    .prepare(
+      `
+        SELECT id
+        FROM guest_profiles
+        WHERE status = 'not_checked_in'
+          AND ic_no = ?
+          AND (? IS NULL OR id != ?)
+        LIMIT 1
+      `,
+    )
+    .get(icNo, excludeId ?? null, excludeId ?? null) as
+    | { id: number }
+    | undefined;
+
+  return Boolean(row);
+}
+
 function getGuestProfileSelectList(): string {
   return `
     id,
     name,
     status,
+    room_number AS roomNumber,
     ic_no AS icNo,
     handphone_no AS handphoneNo,
     email,

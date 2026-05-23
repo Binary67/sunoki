@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { requireAdminUser } from "@/src/lib/admin-auth";
 import {
   getGuestProfile,
   getGuestProfileStatusLabel,
@@ -29,11 +30,13 @@ export default async function GuestProfileDetailPage({
 }: PageProps) {
   const { id } = await params;
   const query = await searchParams;
+  const user = await requireAdminUser();
   const profile = getGuestProfile(Number(id));
   if (!profile) notFound();
   const showEdit = getSingleValue(query.edit) === "1";
   const error = getSingleValue(query.error);
   const success = getSingleValue(query.success);
+  const canDeleteGuestProfiles = user.role === "superadmin";
 
   return (
     <main className="flex-1 px-4 py-6 sm:px-6 sm:py-8 lg:px-10">
@@ -84,11 +87,13 @@ export default async function GuestProfileDetailPage({
             >
               {showEdit ? "Close Edit" : "Edit"}
             </Link>
-            <GuestProfileDeleteForm
-              label={profile.name}
-              profileId={profile.id}
-              status={profile.status}
-            />
+            {canDeleteGuestProfiles && (
+              <GuestProfileDeleteForm
+                label={profile.name}
+                profileId={profile.id}
+                status={profile.status}
+              />
+            )}
           </div>
         </div>
       </div>

@@ -55,11 +55,19 @@ export async function updateGuestProfileAction(
 export async function deleteGuestProfileAction(
   formData: FormData,
 ): Promise<void> {
-  await requireAdminUser();
+  const user = await requireAdminUser();
 
   const profileId = getProfileId(formData);
   if (!isValidProfileId(profileId)) {
     redirectToGuestProfileList("error", "Choose a valid guest profile.");
+  }
+
+  if (user.role !== "superadmin") {
+    redirectToGuestProfileDetail(
+      profileId,
+      "error",
+      "Only super admins can delete guest profiles.",
+    );
   }
 
   const status = getGuestProfileStatus(readFormText(formData, "status"));
