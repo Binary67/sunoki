@@ -61,6 +61,34 @@ db.exec(`
     UNIQUE (user_id, facility_time_slot_id, booking_date)
   );
 
+  CREATE TABLE IF NOT EXISTS guest_profiles (
+    id                     INTEGER PRIMARY KEY,
+    name                   TEXT NOT NULL,
+    ic_no                  TEXT,
+    handphone_no           TEXT,
+    email                  TEXT,
+    expected_delivery_date TEXT,
+    hospital_of_delivery   TEXT,
+    mode_of_delivery       TEXT,
+    child_count            TEXT,
+    special_note           TEXT,
+    husband_name           TEXT,
+    husband_ic_no          TEXT,
+    husband_handphone_no   TEXT,
+    husband_email          TEXT,
+    address                TEXT,
+    occupation             TEXT,
+    occupation_2           TEXT,
+    package_type           TEXT,
+    package_payable_amount TEXT,
+    deposit_to_pay         TEXT,
+    balance_to_pay         TEXT,
+    package_special_note   TEXT,
+    consultant_name        TEXT,
+    medical_food_notes     TEXT,
+    created_at             TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
   CREATE TABLE IF NOT EXISTS audit_logs (
     id             INTEGER PRIMARY KEY,
     actor_user_id  INTEGER NOT NULL,

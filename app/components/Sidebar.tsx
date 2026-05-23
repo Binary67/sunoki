@@ -30,6 +30,14 @@ const DatabaseIcon = ({ className }: IconProps) => (
   </svg>
 );
 
+const GuestProfileIcon = ({ className }: IconProps) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3h11A2.5 2.5 0 0 1 20 5.5v13a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 18.5z" />
+    <circle cx="10" cy="9" r="2.2" />
+    <path d="M7 15c.7-1.5 1.7-2.2 3-2.2s2.3.7 3 2.2M15 8h2M15 12h2M15 16h2" />
+  </svg>
+);
+
 const LogIcon = ({ className }: IconProps) => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" className={className}>
     <path d="M6 3h9l3 3v15H6z" />
@@ -155,6 +163,7 @@ export default function Sidebar({
 
   const dashboardActive = pathname === "/";
   const dataActive = inData;
+  const guestProfileActive = pathname.startsWith("/admin/guest-profile");
   const auditActive = pathname === "/admin/audit-log";
   const personalizationActive = pathname === "/admin/personalization";
   const isAdmin = isAdminRole(role);
@@ -209,6 +218,17 @@ export default function Sidebar({
               >
                 <SettingsIcon className="size-4" />
                 <span>Personalization</span>
+              </Link>
+              <Link
+                href="/admin/guest-profile"
+                className={`flex items-center gap-3 rounded-md px-3 py-2.5 text-sm transition-colors duration-200 ${
+                  guestProfileActive
+                    ? "bg-surface font-medium text-brand"
+                    : "text-ink/70 hover:text-ink"
+                }`}
+              >
+                <GuestProfileIcon className="size-4" />
+                <span>Guest Profile</span>
               </Link>
               <button
                 type="button"
