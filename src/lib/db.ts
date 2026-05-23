@@ -150,8 +150,6 @@ if (!userColumnNames.has("check_out_date")) {
   db.exec("ALTER TABLE users ADD COLUMN check_out_date TEXT;");
 }
 
-ensureUsersRoleConstraint();
-
 db.exec(`
   CREATE TABLE IF NOT EXISTS sessions (
     id         INTEGER PRIMARY KEY,
@@ -191,66 +189,6 @@ function seedDefaultFacilityTaglines(): void {
 
   for (const facility of DEFAULT_FACILITY_TAGLINES) {
     update.run(...facility.taglines, facility.slug);
-  }
-}
-
-function ensureUsersRoleConstraint(): void {
-  const row = db
-    .prepare(
-      "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'users'",
-    )
-    .get() as { sql: string } | undefined;
-
-  if (!row || row.sql.includes("'superadmin'")) return;
-
-  db.exec("PRAGMA foreign_keys = OFF;");
-  let inTransaction = false;
-
-  try {
-    db.exec("BEGIN IMMEDIATE");
-    inTransaction = true;
-
-    db.exec("ALTER TABLE users RENAME TO users_old;");
-    db.exec(`
-      CREATE TABLE users (
-        id             INTEGER PRIMARY KEY,
-        username       TEXT UNIQUE NOT NULL,
-        password       TEXT NOT NULL,
-        role           TEXT NOT NULL CHECK (role IN ('superadmin','admin','guest')),
-        check_in_date  TEXT,
-        check_out_date TEXT,
-        created_at     TEXT NOT NULL DEFAULT (datetime('now'))
-      );
-    `);
-    db.exec(`
-      INSERT INTO users (
-        id,
-        username,
-        password,
-        role,
-        check_in_date,
-        check_out_date,
-        created_at
-      )
-      SELECT
-        id,
-        username,
-        password,
-        role,
-        check_in_date,
-        check_out_date,
-        created_at
-      FROM users_old;
-    `);
-    db.exec("DROP TABLE users_old;");
-
-    db.exec("COMMIT");
-    inTransaction = false;
-  } catch (error) {
-    if (inTransaction) db.exec("ROLLBACK");
-    throw error;
-  } finally {
-    db.exec("PRAGMA foreign_keys = ON;");
   }
 }
 
