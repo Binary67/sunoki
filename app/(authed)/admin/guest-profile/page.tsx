@@ -96,17 +96,24 @@ export default async function GuestProfilePage({ searchParams }: PageProps) {
               : "No guests waiting for check-in."}
           </div>
         ) : (
-          <div className="grid gap-3 xl:grid-cols-2">
-            {profiles.map((profile) => (
-              <GuestProfileBlock
-                key={profile.id}
-                activeStatus={activeStatus}
-                canDeleteGuestProfiles={canDeleteGuestProfiles}
-                checkedInProfiles={checkedInProfiles}
-                followUpThroughDate={followUpThroughDate}
-                profile={profile}
-                today={today}
-              />
+          <div className="grid items-start gap-3 xl:grid-cols-2">
+            {[0, 1].map((columnIndex) => (
+              <div key={columnIndex} className="contents xl:grid xl:gap-3">
+                {profiles.map((profile, profileIndex) =>
+                  profileIndex % 2 === columnIndex ? (
+                    <GuestProfileBlock
+                      key={profile.id}
+                      activeStatus={activeStatus}
+                      canDeleteGuestProfiles={canDeleteGuestProfiles}
+                      checkedInProfiles={checkedInProfiles}
+                      followUpThroughDate={followUpThroughDate}
+                      listOrder={profileIndex}
+                      profile={profile}
+                      today={today}
+                    />
+                  ) : null,
+                )}
+              </div>
             ))}
           </div>
         )}
@@ -177,6 +184,7 @@ function GuestProfileBlock({
   canDeleteGuestProfiles,
   checkedInProfiles,
   followUpThroughDate,
+  listOrder,
   profile,
   today,
 }: {
@@ -184,6 +192,7 @@ function GuestProfileBlock({
   canDeleteGuestProfiles: boolean;
   checkedInProfiles: GuestProfile[];
   followUpThroughDate: string;
+  listOrder: number;
   profile: GuestProfile;
   today: string;
 }) {
@@ -200,6 +209,7 @@ function GuestProfileBlock({
           ? "border-red-300 hover:border-red-400"
           : "border-black/5 hover:border-brand/30"
       }`}
+      style={{ order: listOrder }}
     >
       <Link
         aria-label={`View ${profile.name}`}
@@ -208,12 +218,9 @@ function GuestProfileBlock({
       />
       <div className="pointer-events-none relative z-10 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
-          <h3 className="text-base font-semibold text-ink group-hover:text-brand">
+          <h3 className="text-base font-semibold text-ink group-hover:text-brand group-focus-within:text-brand">
             {profile.name}
           </h3>
-          <p className="mt-1 text-sm text-ink/60">
-            {formatValue(profile.handphoneNo)}
-          </p>
         </div>
         <div className="flex flex-wrap items-center gap-2 sm:justify-end">
           <span className="w-fit rounded-md border border-violet-200 bg-violet-50 px-2.5 py-1.5 text-xs font-medium text-violet-700">
@@ -243,34 +250,44 @@ function GuestProfileBlock({
           )}
         </div>
       </div>
-      <dl className="pointer-events-none relative z-10 mt-4 grid gap-3 sm:grid-cols-2">
-        <SummaryItem label="IC Number" value={profile.icNo} />
-        <SummaryItem label="Mother Phone Number" value={profile.handphoneNo} />
-        <SummaryItem label="Mode of Delivery" value={profile.modeOfDelivery} />
-        <SummaryItem label="Type of Package" value={profile.packageType} />
-      </dl>
-      {overlapWarnings.length > 0 && (
-        <p className="pointer-events-none relative z-10 mt-4 rounded-md bg-amber-50 px-3 py-2 text-sm leading-5 text-amber-800">
-          Room may overlap with{" "}
-          {overlapWarnings.map((warning, index) => (
-            <span key={warning.guestId}>
-              {index === 0
-                ? ""
-                : index === overlapWarnings.length - 1
-                  ? " and "
-                  : ", "}
-              <Link
-                className="pointer-events-auto relative z-20 font-semibold underline decoration-amber-500/60 underline-offset-2 hover:text-amber-700 focus:outline-none focus:ring-2 focus:ring-amber-500/30"
-                href={`/admin/guest-profile/${warning.guestId}`}
-              >
-                {warning.guestName}
-              </Link>{" "}
-              until {warning.throughDate}
-            </span>
-          ))}
-          .
-        </p>
-      )}
+      <div className="pointer-events-none relative z-10 grid grid-rows-[0fr] opacity-0 transition-[grid-template-rows,margin,opacity] duration-200 group-hover:mt-4 group-hover:grid-rows-[1fr] group-hover:opacity-100 group-focus-within:mt-4 group-focus-within:grid-rows-[1fr] group-focus-within:opacity-100">
+        <div className="min-h-0 overflow-hidden">
+          <dl className="grid gap-3 sm:grid-cols-2">
+            <SummaryItem label="IC Number" value={profile.icNo} />
+            <SummaryItem
+              label="Mother Phone Number"
+              value={profile.handphoneNo}
+            />
+            <SummaryItem
+              label="Mode of Delivery"
+              value={profile.modeOfDelivery}
+            />
+            <SummaryItem label="Type of Package" value={profile.packageType} />
+          </dl>
+          {overlapWarnings.length > 0 && (
+            <p className="mt-4 rounded-md bg-amber-50 px-3 py-2 text-sm leading-5 text-amber-800">
+              Room may overlap with{" "}
+              {overlapWarnings.map((warning, index) => (
+                <span key={warning.guestId}>
+                  {index === 0
+                    ? ""
+                    : index === overlapWarnings.length - 1
+                      ? " and "
+                      : ", "}
+                  <Link
+                    className="pointer-events-auto relative z-20 font-semibold underline decoration-amber-500/60 underline-offset-2 hover:text-amber-700 focus:outline-none focus:ring-2 focus:ring-amber-500/30"
+                    href={`/admin/guest-profile/${warning.guestId}`}
+                  >
+                    {warning.guestName}
+                  </Link>{" "}
+                  until {warning.throughDate}
+                </span>
+              ))}
+              .
+            </p>
+          )}
+        </div>
+      </div>
     </article>
   );
 }

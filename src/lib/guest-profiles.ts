@@ -3,7 +3,7 @@ import { db } from "./db";
 
 export type GuestProfileStatus = "not_checked_in" | "checked_in";
 
-export const GUEST_ROOM_LEVELS = ["11", "12", "13"];
+export const GUEST_ROOM_LEVELS = ["12", "13", "14"];
 export const GUEST_ROOM_NUMBERS = [
   "01",
   "02",
