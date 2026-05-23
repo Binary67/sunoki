@@ -60,9 +60,9 @@ export default function GuestProfileAddonFields({
     <fieldset className="rounded-lg border border-black/5 bg-white px-4 py-4">
       <legend className="px-1 text-sm font-semibold text-ink">Addon</legend>
       <div className="mt-3 grid gap-3">
-        <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_8rem_10rem] md:items-end">
+        <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_8rem_10rem_6.5rem] md:items-end">
           <div className="block text-sm font-medium text-ink/75">
-            Services / Sales
+            Service
             <div className="mt-1 flex h-10 w-full items-center rounded-md border border-black/10 bg-surface px-3 text-sm font-semibold text-ink">
               {ADDITIONAL_DAYS_ADDON_NAME}
             </div>
@@ -101,6 +101,7 @@ export default function GuestProfileAddonFields({
               value={additionalDaysPriceAmount}
             />
           </label>
+          <div className="hidden h-10 md:block" />
         </div>
         {rows.map((row, index) => {
           const serviceInputId = `${row.id}-service-name`;
@@ -108,14 +109,14 @@ export default function GuestProfileAddonFields({
 
           return (
             <div
-              className="grid gap-3 border-t border-black/5 pt-3 first:border-t-0 first:pt-0 md:grid-cols-[minmax(0,1fr)_10rem_auto] md:items-end"
+              className="grid gap-3 border-t border-black/5 pt-3 first:border-t-0 first:pt-0 md:grid-cols-[minmax(0,1fr)_8rem_10rem_6.5rem] md:items-end"
               key={row.id}
             >
               <label
-                className="block text-sm font-medium text-ink/75"
+                className="block text-sm font-medium text-ink/75 md:col-span-2"
                 htmlFor={serviceInputId}
               >
-                Services / Sales
+                Service
                 <input
                   className="mt-1 h-10 w-full rounded-md border border-black/10 bg-white px-3 text-sm text-ink outline-none focus:border-brand focus:ring-2 focus:ring-brand/15"
                   id={serviceInputId}
@@ -151,7 +152,7 @@ export default function GuestProfileAddonFields({
               </label>
               <button
                 aria-label={`Remove addon row ${index + 1}`}
-                className="h-10 rounded-md border border-red-200 px-3 text-sm font-medium text-red-700 hover:bg-red-50"
+                className="h-10 rounded-md border border-red-200 px-3 text-sm font-medium text-red-700 hover:bg-red-50 md:w-full"
                 onClick={() =>
                   setRows((currentRows) =>
                     currentRows.length === 1
