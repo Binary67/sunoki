@@ -88,6 +88,7 @@ db.exec(`
     package_special_note   TEXT,
     consultant_name        TEXT,
     medical_food_notes     TEXT,
+    kitchen_notes          TEXT,
     created_at             TEXT NOT NULL DEFAULT (datetime('now'))
   );
 
@@ -209,6 +210,10 @@ if (!guestProfileColumnNames.has("status")) {
 
 if (!guestProfileColumnNames.has("room_number")) {
   db.exec("ALTER TABLE guest_profiles ADD COLUMN room_number TEXT;");
+}
+
+if (!guestProfileColumnNames.has("kitchen_notes")) {
+  db.exec("ALTER TABLE guest_profiles ADD COLUMN kitchen_notes TEXT;");
 }
 
 const guestProfileAddonColumns = db

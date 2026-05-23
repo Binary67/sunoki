@@ -165,4 +165,15 @@ export const GUEST_PROFILE_SECTIONS: GuestProfileSection[] = [
       },
     ],
   },
+  {
+    title: "Kitchen Notes",
+    fields: [
+      {
+        label: "Kitchen Notes",
+        multiline: true,
+        name: "kitchen_notes",
+        value: (profile) => profile.kitchenNotes,
+      },
+    ],
+  },
 ];

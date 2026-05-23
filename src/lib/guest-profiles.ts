@@ -46,7 +46,15 @@ export type GuestProfile = {
   packageSpecialNote: string | null;
   consultantName: string | null;
   medicalFoodNotes: string | null;
+  kitchenNotes: string | null;
   createdAt: string;
+};
+
+export type GuestKitchenNote = {
+  id: number;
+  name: string;
+  roomNumber: string | null;
+  kitchenNotes: string;
 };
 
 export type GuestProfileAddon = {
@@ -113,6 +121,7 @@ const GUEST_PROFILE_COLUMNS = [
   "package_special_note",
   "consultant_name",
   "medical_food_notes",
+  "kitchen_notes",
 ] as const;
 
 export type GuestProfileColumn = (typeof GUEST_PROFILE_COLUMNS)[number];
@@ -146,6 +155,29 @@ export function getGuestProfile(id: number): GuestProfile | null {
     .get(id) as GuestProfile | undefined;
 
   return row ?? null;
+}
+
+export function listCheckedInGuestKitchenNotes(): GuestKitchenNote[] {
+  return db
+    .prepare(
+      `
+        SELECT
+          id,
+          name,
+          room_number AS roomNumber,
+          kitchen_notes AS kitchenNotes
+        FROM guest_profiles
+        WHERE status = 'checked_in'
+          AND kitchen_notes IS NOT NULL
+          AND TRIM(kitchen_notes) != ''
+        ORDER BY
+          CASE WHEN room_number IS NULL OR room_number = '' THEN 1 ELSE 0 END,
+          room_number ASC,
+          name COLLATE NOCASE ASC,
+          id ASC
+      `,
+    )
+    .all() as GuestKitchenNote[];
 }
 
 export function listGuestProfileAddons(
@@ -414,6 +446,7 @@ function parseGuestProfileForm(
       package_special_note: readText(formData, "package_special_note"),
       consultant_name: readText(formData, "consultant_name"),
       medical_food_notes: readText(formData, "medical_food_notes"),
+      kitchen_notes: readText(formData, "kitchen_notes"),
     },
   };
 }
@@ -630,6 +663,7 @@ function getGuestProfileSelectList(): string {
     package_special_note AS packageSpecialNote,
     consultant_name AS consultantName,
     medical_food_notes AS medicalFoodNotes,
+    kitchen_notes AS kitchenNotes,
     created_at AS createdAt
   `;
 }

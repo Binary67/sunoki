@@ -38,6 +38,13 @@ const GuestProfileIcon = ({ className }: IconProps) => (
   </svg>
 );
 
+const KitchenIcon = ({ className }: IconProps) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="M5 10h14l-1 8.5A2.7 2.7 0 0 1 15.3 21H8.7A2.7 2.7 0 0 1 6 18.5z" />
+    <path d="M8 10V7a4 4 0 0 1 8 0v3M4 10h16M9 3c-.6-.8-1.4-1.2-2.5-1.2M15 3c.6-.8 1.4-1.2 2.5-1.2" />
+  </svg>
+);
+
 const LogIcon = ({ className }: IconProps) => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" className={className}>
     <path d="M6 3h9l3 3v15H6z" />
@@ -164,6 +171,7 @@ export default function Sidebar({
   const dashboardActive = pathname === "/";
   const dataActive = inData;
   const guestProfileActive = pathname.startsWith("/admin/guest-profile");
+  const kitchenActive = pathname === "/admin/kitchen";
   const auditActive = pathname === "/admin/audit-log";
   const personalizationActive = pathname === "/admin/personalization";
   const isAdmin = isAdminRole(role);
@@ -219,6 +227,17 @@ export default function Sidebar({
                 >
                   <GuestProfileIcon className="size-4" />
                   <span>Guest Profile</span>
+                </Link>
+                <Link
+                  href="/admin/kitchen"
+                  className={`flex items-center gap-3 rounded-md px-3 py-2.5 text-sm transition-colors duration-200 ${
+                    kitchenActive
+                      ? "bg-surface font-medium text-brand"
+                      : "text-ink/70 hover:text-ink"
+                  }`}
+                >
+                  <KitchenIcon className="size-4" />
+                  <span>Kitchen</span>
                 </Link>
                 <button
                   type="button"
