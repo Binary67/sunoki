@@ -1,0 +1,107 @@
+import Link from "next/link";
+import type { ReactNode } from "react";
+import type { GuestProfile } from "@/src/lib/guest-profiles";
+import { GUEST_PROFILE_SECTIONS, type GuestProfileField } from "./fields";
+
+type GuestProfileFormProps = {
+  action: (formData: FormData) => Promise<void>;
+  cancelHref: string;
+  notice?: ReactNode;
+  profile?: GuestProfile;
+  submitLabel: string;
+};
+
+export default function GuestProfileForm({
+  action,
+  cancelHref,
+  notice,
+  profile,
+  submitLabel,
+}: GuestProfileFormProps) {
+  return (
+    <form action={action} className="flex min-h-0 flex-1 flex-col">
+      {profile && <input type="hidden" name="profileId" value={profile.id} />}
+      <div className="grid gap-5 overflow-y-auto bg-surface px-4 py-5 sm:px-5">
+        {notice}
+        {GUEST_PROFILE_SECTIONS.map((section) => (
+          <fieldset
+            key={section.title}
+            className="rounded-lg border border-black/5 bg-white px-4 py-4"
+          >
+            <legend className="px-1 text-sm font-semibold text-ink">
+              {section.title}
+            </legend>
+            <div className="mt-3 grid gap-4 md:grid-cols-2">
+              {section.fields.map((field) => (
+                <GuestProfileInput
+                  key={field.name}
+                  field={field}
+                  profile={profile}
+                />
+              ))}
+            </div>
+          </fieldset>
+        ))}
+      </div>
+      <div className="flex justify-end gap-3 border-t border-black/10 bg-white px-4 py-4 sm:px-5">
+        <Link
+          href={cancelHref}
+          className="inline-flex h-10 items-center justify-center rounded-md border border-black/10 px-4 text-sm font-medium text-ink/70 hover:bg-surface"
+        >
+          Cancel
+        </Link>
+        <button
+          type="submit"
+          className="h-10 rounded-md bg-brand px-4 text-sm font-medium text-white hover:bg-brand/90"
+        >
+          {submitLabel}
+        </button>
+      </div>
+    </form>
+  );
+}
+
+function GuestProfileInput({
+  field,
+  profile,
+}: {
+  field: GuestProfileField;
+  profile?: GuestProfile;
+}) {
+  const required = field.name === "name";
+  const date = field.name === "expected_delivery_date";
+  const inputId = `${profile ? `guest-${profile.id}` : "guest-new"}-${
+    field.name
+  }`;
+  const className =
+    "mt-1 w-full rounded-md border border-black/10 bg-white px-3 text-sm text-ink outline-none focus:border-brand focus:ring-2 focus:ring-brand/15";
+
+  return (
+    <label
+      className={`block text-sm font-medium text-ink/75 ${
+        field.multiline ? "md:col-span-2" : ""
+      }`}
+      htmlFor={inputId}
+    >
+      {field.label} {required && <span className="text-red-600">*</span>}
+      {field.multiline ? (
+        <textarea
+          id={inputId}
+          name={field.name}
+          rows={4}
+          defaultValue={profile ? field.value(profile) ?? "" : ""}
+          className={`${className} min-h-24 py-2`}
+        />
+      ) : (
+        <input
+          id={inputId}
+          name={field.name}
+          type={date ? "date" : "text"}
+          required={required}
+          defaultValue={profile ? field.value(profile) ?? "" : ""}
+          className={`${className} h-10`}
+        />
+      )}
+    </label>
+  );
+}

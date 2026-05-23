@@ -64,6 +64,7 @@ db.exec(`
   CREATE TABLE IF NOT EXISTS guest_profiles (
     id                     INTEGER PRIMARY KEY,
     name                   TEXT NOT NULL,
+    status                 TEXT NOT NULL DEFAULT 'not_checked_in' CHECK (status IN ('not_checked_in', 'checked_in')),
     ic_no                  TEXT,
     handphone_no           TEXT,
     email                  TEXT,
@@ -176,6 +177,21 @@ if (!userColumnNames.has("check_in_date")) {
 
 if (!userColumnNames.has("check_out_date")) {
   db.exec("ALTER TABLE users ADD COLUMN check_out_date TEXT;");
+}
+
+const guestProfileColumns = db
+  .prepare("PRAGMA table_info(guest_profiles)")
+  .all() as TableColumnRow[];
+const guestProfileColumnNames = new Set(
+  guestProfileColumns.map((column) => column.name),
+);
+
+if (!guestProfileColumnNames.has("status")) {
+  db.exec(`
+    ALTER TABLE guest_profiles
+    ADD COLUMN status TEXT NOT NULL DEFAULT 'not_checked_in'
+      CHECK (status IN ('not_checked_in', 'checked_in'));
+  `);
 }
 
 db.exec(`

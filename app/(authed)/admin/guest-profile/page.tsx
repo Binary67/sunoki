@@ -1,22 +1,40 @@
 import Link from "next/link";
-import { listGuestProfiles, type GuestProfile } from "@/src/lib/guest-profiles";
+import {
+  addBookingDays,
+  formatBookingDate,
+  isBookingDate,
+} from "@/src/lib/booking-dates";
+import {
+  getGuestProfileStatus,
+  getGuestProfileStatusLabel,
+  listGuestProfiles,
+  type GuestProfile,
+  type GuestProfileStatus,
+} from "@/src/lib/guest-profiles";
 import { createGuestProfileAction } from "./actions";
-import { GUEST_PROFILE_SECTIONS, type GuestProfileField } from "./fields";
+import GuestProfileDeleteForm from "./GuestProfileDeleteForm";
+import GuestProfileForm from "./GuestProfileForm";
 
 type PageProps = {
   searchParams: Promise<{
     error?: string | string[];
     new?: string | string[];
+    status?: string | string[];
     success?: string | string[];
   }>;
 };
+
+const STATUS_FILTERS: GuestProfileStatus[] = ["not_checked_in", "checked_in"];
 
 export default async function GuestProfilePage({ searchParams }: PageProps) {
   const query = await searchParams;
   const showForm = getSingleValue(query.new) === "1";
   const error = getSingleValue(query.error);
   const success = getSingleValue(query.success);
-  const profiles = listGuestProfiles();
+  const activeStatus = getGuestProfileStatus(getSingleValue(query.status));
+  const profiles = listGuestProfiles(activeStatus);
+  const today = formatBookingDate(new Date());
+  const followUpThroughDate = addBookingDays(today, 30);
 
   return (
     <main className="flex-1 px-4 py-6 sm:px-6 sm:py-8 lg:px-10">
@@ -30,7 +48,11 @@ export default async function GuestProfilePage({ searchParams }: PageProps) {
           </p>
         </div>
         <Link
-          href={showForm ? "/admin/guest-profile" : "/admin/guest-profile?new=1"}
+          href={
+            showForm
+              ? getGuestProfileListHref(activeStatus)
+              : getNewGuestHref(activeStatus)
+          }
           className="inline-flex h-9 items-center justify-center rounded-md bg-brand px-3 text-sm font-medium text-white hover:bg-brand/90"
         >
           {showForm ? "Close Form" : "New Guest"}
@@ -39,26 +61,39 @@ export default async function GuestProfilePage({ searchParams }: PageProps) {
 
       {!showForm && <StatusMessage error={error} success={success} />}
 
-      {showForm && <GuestProfileModal error={error} />}
+      {showForm && (
+        <GuestProfileModal activeStatus={activeStatus} error={error} />
+      )}
 
       <section>
-        <div className="mb-4 flex items-baseline justify-between">
-          <h2 className="text-base font-semibold text-ink">
-            Registered Guests
-          </h2>
-          <span className="text-xs text-ink/50">
-            {profiles.length} {profiles.length === 1 ? "guest" : "guests"}
-          </span>
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-base font-semibold text-ink">
+              Registered Guests
+            </h2>
+            <span className="text-xs text-ink/50">
+              {profiles.length} {profiles.length === 1 ? "guest" : "guests"}
+            </span>
+          </div>
+          <GuestProfileStatusSegmentedControl activeStatus={activeStatus} />
         </div>
 
         {profiles.length === 0 ? (
           <div className="rounded-lg border border-black/5 bg-surface px-6 py-10 text-center text-sm text-ink/60">
-            No guest profiles registered.
+            {activeStatus === "checked_in"
+              ? "No checked-in guest profiles."
+              : "No guests waiting for check-in."}
           </div>
         ) : (
           <div className="grid gap-3 xl:grid-cols-2">
             {profiles.map((profile) => (
-              <GuestProfileBlock key={profile.id} profile={profile} />
+              <GuestProfileBlock
+                key={profile.id}
+                activeStatus={activeStatus}
+                followUpThroughDate={followUpThroughDate}
+                profile={profile}
+                today={today}
+              />
             ))}
           </div>
         )}
@@ -67,7 +102,15 @@ export default async function GuestProfilePage({ searchParams }: PageProps) {
   );
 }
 
-function GuestProfileModal({ error }: { error?: string }) {
+function GuestProfileModal({
+  activeStatus,
+  error,
+}: {
+  activeStatus: GuestProfileStatus;
+  error?: string;
+}) {
+  const closeHref = getGuestProfileListHref(activeStatus);
+
   return (
     <div
       aria-labelledby="new-guest-title"
@@ -78,7 +121,7 @@ function GuestProfileModal({ error }: { error?: string }) {
       <Link
         aria-label="Close new guest form"
         className="absolute inset-0"
-        href="/admin/guest-profile"
+        href={closeHref}
         tabIndex={-1}
       />
       <section className="relative z-10 flex min-h-0 w-full max-w-5xl flex-col overflow-hidden rounded-lg bg-white shadow-xl">
@@ -98,107 +141,84 @@ function GuestProfileModal({ error }: { error?: string }) {
           <Link
             aria-label="Close form"
             className="grid size-8 shrink-0 place-items-center rounded-md text-ink/55 hover:bg-surface hover:text-ink"
-            href="/admin/guest-profile"
+            href={closeHref}
           >
             <span aria-hidden="true" className="text-xl leading-none">
               x
             </span>
           </Link>
         </div>
-        <form
+        <GuestProfileForm
           action={createGuestProfileAction}
-          className="flex min-h-0 flex-1 flex-col"
-        >
-          <div className="grid gap-5 overflow-y-auto bg-surface px-4 py-5 sm:px-5">
-            <StatusMessage error={error} />
-            {GUEST_PROFILE_SECTIONS.map((section) => (
-              <fieldset
-                key={section.title}
-                className="rounded-lg border border-black/5 bg-white px-4 py-4"
-              >
-                <legend className="px-1 text-sm font-semibold text-ink">
-                  {section.title}
-                </legend>
-                <div className="mt-3 grid gap-4 md:grid-cols-2">
-                  {section.fields.map((field) => (
-                    <GuestProfileInput key={field.name} field={field} />
-                  ))}
-                </div>
-              </fieldset>
-            ))}
-          </div>
-          <div className="flex justify-end gap-3 border-t border-black/10 bg-white px-4 py-4 sm:px-5">
-            <Link
-              href="/admin/guest-profile"
-              className="inline-flex h-10 items-center justify-center rounded-md border border-black/10 px-4 text-sm font-medium text-ink/70 hover:bg-surface"
-            >
-              Cancel
-            </Link>
-            <button
-              type="submit"
-              className="h-10 rounded-md bg-brand px-4 text-sm font-medium text-white hover:bg-brand/90"
-            >
-              Save Guest
-            </button>
-          </div>
-        </form>
+          cancelHref={closeHref}
+          notice={<StatusMessage error={error} />}
+          submitLabel="Save Guest"
+        />
       </section>
     </div>
   );
 }
 
-function GuestProfileInput({ field }: { field: GuestProfileField }) {
-  const required = field.name === "name";
-  const date = field.name === "expected_delivery_date";
-  const className =
-    "mt-1 w-full rounded-md border border-black/10 bg-white px-3 text-sm text-ink outline-none focus:border-brand focus:ring-2 focus:ring-brand/15";
+function GuestProfileBlock({
+  activeStatus,
+  followUpThroughDate,
+  profile,
+  today,
+}: {
+  activeStatus: GuestProfileStatus;
+  followUpThroughDate: string;
+  profile: GuestProfile;
+  today: string;
+}) {
+  const profileHref = `/admin/guest-profile/${profile.id}`;
+  const followUpDue = isFollowUpDue(profile, today, followUpThroughDate);
 
   return (
-    <label
-      className={`block text-sm font-medium text-ink/75 ${
-        field.multiline ? "md:col-span-2" : ""
+    <article
+      className={`group relative rounded-lg border bg-white px-4 py-4 transition-colors hover:bg-surface ${
+        followUpDue
+          ? "border-red-300 hover:border-red-400"
+          : "border-black/5 hover:border-brand/30"
       }`}
-      htmlFor={`guest-${field.name}`}
     >
-      {field.label} {required && <span className="text-red-600">*</span>}
-      {field.multiline ? (
-        <textarea
-          id={`guest-${field.name}`}
-          name={field.name}
-          rows={4}
-          className={`${className} min-h-24 py-2`}
-        />
-      ) : (
-        <input
-          id={`guest-${field.name}`}
-          name={field.name}
-          type={date ? "date" : "text"}
-          required={required}
-          className={`${className} h-10`}
-        />
-      )}
-    </label>
-  );
-}
-
-function GuestProfileBlock({ profile }: { profile: GuestProfile }) {
-  return (
-    <Link
-      href={`/admin/guest-profile/${profile.id}`}
-      className="block rounded-lg border border-black/5 bg-white px-4 py-4 transition-colors hover:border-brand/30 hover:bg-surface"
-    >
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h3 className="text-base font-semibold text-ink">{profile.name}</h3>
+      <Link
+        aria-label={`View ${profile.name}`}
+        className="absolute inset-0 z-0 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand/20"
+        href={profileHref}
+      />
+      <div className="pointer-events-none relative z-10 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <h3 className="text-base font-semibold text-ink group-hover:text-brand">
+            {profile.name}
+          </h3>
           <p className="mt-1 text-sm text-ink/60">
             {formatValue(profile.handphoneNo)}
           </p>
         </div>
-        <span className="w-fit rounded-md bg-surface px-2.5 py-1.5 text-xs font-medium text-ink/60">
-          EDD {formatValue(profile.expectedDeliveryDate)}
-        </span>
+        <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+          <span className="w-fit rounded-md bg-surface px-2.5 py-1.5 text-xs font-medium text-ink/60">
+            EDD {formatValue(profile.expectedDeliveryDate)}
+          </span>
+          <span
+            className={`w-fit rounded-md px-2.5 py-1.5 text-xs font-medium ${
+              profile.status === "checked_in"
+                ? "bg-emerald-50 text-emerald-700"
+                : "bg-surface text-ink/60"
+            }`}
+          >
+            {getGuestProfileStatusLabel(profile.status)}
+          </span>
+          <div className="pointer-events-auto">
+            <GuestProfileDeleteForm
+              iconOnly
+              label={profile.name}
+              profileId={profile.id}
+              status={activeStatus}
+            />
+          </div>
+        </div>
       </div>
-      <dl className="mt-4 grid gap-3 sm:grid-cols-2">
+      <dl className="pointer-events-none relative z-10 mt-4 grid gap-3 sm:grid-cols-2">
         <SummaryItem label="Package" value={profile.packageType} />
         <SummaryItem label="Consultant" value={profile.consultantName} />
         <SummaryItem
@@ -207,7 +227,34 @@ function GuestProfileBlock({ profile }: { profile: GuestProfile }) {
           wide
         />
       </dl>
-    </Link>
+    </article>
+  );
+}
+
+function GuestProfileStatusSegmentedControl({
+  activeStatus,
+}: {
+  activeStatus: GuestProfileStatus;
+}) {
+  return (
+    <nav
+      aria-label="Guest check-in status"
+      className="inline-flex w-fit rounded-lg bg-surface p-1"
+    >
+      {STATUS_FILTERS.map((status) => (
+        <Link
+          key={status}
+          href={getGuestProfileListHref(status)}
+          className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+            status === activeStatus
+              ? "border border-black/5 bg-white text-ink shadow-sm"
+              : "text-ink/60 hover:text-ink"
+          }`}
+        >
+          {getGuestProfileStatusLabel(status)}
+        </Link>
+      ))}
+    </nav>
   );
 }
 
@@ -257,6 +304,35 @@ function StatusMessage({
 
 function getSingleValue(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value;
+}
+
+function getGuestProfileListHref(status: GuestProfileStatus): string {
+  return status === "checked_in"
+    ? "/admin/guest-profile?status=checked_in"
+    : "/admin/guest-profile";
+}
+
+function getNewGuestHref(status: GuestProfileStatus): string {
+  return status === "checked_in"
+    ? "/admin/guest-profile?new=1&status=checked_in"
+    : "/admin/guest-profile?new=1";
+}
+
+function isFollowUpDue(
+  profile: GuestProfile,
+  today: string,
+  followUpThroughDate: string,
+): boolean {
+  const edd = profile.expectedDeliveryDate;
+  return (
+    profile.status === "not_checked_in" &&
+    Boolean(
+      edd &&
+        isBookingDate(edd) &&
+        edd >= today &&
+        edd <= followUpThroughDate,
+    )
+  );
 }
 
 function truncateText(value: string | null): string | null {

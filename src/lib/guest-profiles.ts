@@ -1,9 +1,12 @@
 import { isBookingDate } from "./booking-dates";
 import { db } from "./db";
 
+export type GuestProfileStatus = "not_checked_in" | "checked_in";
+
 export type GuestProfile = {
   id: number;
   name: string;
+  status: GuestProfileStatus;
   icNo: string | null;
   handphoneNo: string | null;
   email: string | null;
@@ -33,8 +36,16 @@ type InsertResult = {
   lastInsertRowid: number | bigint;
 };
 
+type MutationResult = {
+  changes: number | bigint;
+};
+
 type GuestProfileCreateResult =
   | { ok: true; id: number }
+  | { ok: false; message: string };
+
+type GuestProfileMutationResult =
+  | { ok: true }
   | { ok: false; message: string };
 
 const GUEST_PROFILE_COLUMNS = [
@@ -65,16 +76,19 @@ const GUEST_PROFILE_COLUMNS = [
 
 export type GuestProfileColumn = (typeof GUEST_PROFILE_COLUMNS)[number];
 
-export function listGuestProfiles(): GuestProfile[] {
+export function listGuestProfiles(
+  status: GuestProfileStatus = "not_checked_in",
+): GuestProfile[] {
   return db
     .prepare(
       `
         SELECT ${getGuestProfileSelectList()}
         FROM guest_profiles
+        WHERE status = ?
         ORDER BY datetime(created_at) DESC, id DESC
       `,
     )
-    .all() as GuestProfile[];
+    .all(status) as GuestProfile[];
 }
 
 export function getGuestProfile(id: number): GuestProfile | null {
@@ -114,6 +128,93 @@ export function createGuestProfile(
   } catch {
     return { ok: false, message: "Unable to save guest profile." };
   }
+}
+
+export function updateGuestProfile(
+  id: number,
+  formData: FormData,
+): GuestProfileMutationResult {
+  if (!isValidGuestProfileId(id)) {
+    return { ok: false, message: "Choose a valid guest profile." };
+  }
+
+  const values = parseGuestProfileForm(formData);
+  if (!values.ok) return values;
+
+  try {
+    const result = db
+      .prepare(
+        `
+          UPDATE guest_profiles
+          SET ${GUEST_PROFILE_COLUMNS.map((column) => `${column} = ?`).join(
+            ", ",
+          )}
+          WHERE id = ?
+        `,
+      )
+      .run(
+        ...GUEST_PROFILE_COLUMNS.map((column) => values.data[column]),
+        id,
+      ) as MutationResult;
+
+    if (Number(result.changes) === 0) {
+      return { ok: false, message: "Guest profile not found." };
+    }
+
+    return { ok: true };
+  } catch {
+    return { ok: false, message: "Unable to update guest profile." };
+  }
+}
+
+export function deleteGuestProfile(id: number): GuestProfileMutationResult {
+  if (!isValidGuestProfileId(id)) {
+    return { ok: false, message: "Choose a valid guest profile." };
+  }
+
+  try {
+    const result = db
+      .prepare("DELETE FROM guest_profiles WHERE id = ?")
+      .run(id) as MutationResult;
+
+    if (Number(result.changes) === 0) {
+      return { ok: false, message: "Guest profile not found." };
+    }
+
+    return { ok: true };
+  } catch {
+    return { ok: false, message: "Unable to delete guest profile." };
+  }
+}
+
+export function checkInGuestProfile(id: number): GuestProfileMutationResult {
+  if (!isValidGuestProfileId(id)) {
+    return { ok: false, message: "Choose a valid guest profile." };
+  }
+
+  try {
+    const result = db
+      .prepare("UPDATE guest_profiles SET status = 'checked_in' WHERE id = ?")
+      .run(id) as MutationResult;
+
+    if (Number(result.changes) === 0) {
+      return { ok: false, message: "Guest profile not found." };
+    }
+
+    return { ok: true };
+  } catch {
+    return { ok: false, message: "Unable to check in guest profile." };
+  }
+}
+
+export function getGuestProfileStatus(value?: string): GuestProfileStatus {
+  return value === "checked_in" ? "checked_in" : "not_checked_in";
+}
+
+export function getGuestProfileStatusLabel(
+  status: GuestProfileStatus,
+): string {
+  return status === "checked_in" ? "Checked In" : "Not Checked In";
 }
 
 function parseGuestProfileForm(
@@ -165,10 +266,15 @@ function readText(formData: FormData, key: GuestProfileColumn): string | null {
   return value || null;
 }
 
+function isValidGuestProfileId(id: number): boolean {
+  return Number.isInteger(id) && id > 0;
+}
+
 function getGuestProfileSelectList(): string {
   return `
     id,
     name,
+    status,
     ic_no AS icNo,
     handphone_no AS handphoneNo,
     email,
