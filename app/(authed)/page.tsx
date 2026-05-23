@@ -2,10 +2,13 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { GUEST_PROFILE_SECTIONS, type GuestProfileField } from "./admin/guest-profile/fields";
 import { getCurrentUser } from "@/src/lib/auth";
+import { addBookingDays, isBookingDate } from "@/src/lib/booking-dates";
 import { getUpcomingBookings } from "@/src/lib/bookings";
+import { ADDITIONAL_DAYS_ADDON_NAME } from "@/src/lib/guest-profile-addons";
 import {
   GUEST_ROOM_LEVELS,
   GUEST_ROOM_NUMBERS,
+  listGuestProfileAddons,
   listGuestProfiles,
   type GuestProfile,
 } from "@/src/lib/guest-profiles";
@@ -23,6 +26,12 @@ const GUEST_ROOM_SET = new Set(
   ),
 );
 const TOTAL_GUEST_ROOMS = GUEST_ROOM_SET.size;
+const BASE_STAY_DAYS = 27;
+
+type RoomOccupancyGuest = {
+  checkoutDate: string | null;
+  profile: GuestProfile;
+};
 
 function formatBookingDate(value: string) {
   const [year, month, day] = value.split("-").map(Number);
@@ -145,7 +154,7 @@ function RoomOccupancySection({
   occupancyByRoom,
   unassignedCount,
 }: {
-  occupancyByRoom: Map<string, GuestProfile[]>;
+  occupancyByRoom: Map<string, RoomOccupancyGuest[]>;
   unassignedCount: number;
 }) {
   const occupiedRoomCount = occupancyByRoom.size;
@@ -230,12 +239,13 @@ function RoomTile({
   guests,
   roomNumber,
 }: {
-  guests?: GuestProfile[];
+  guests?: RoomOccupancyGuest[];
   roomNumber: string;
 }) {
   const guestCount = guests?.length ?? 0;
   const occupied = guestCount > 0;
   const conflict = guestCount > 1;
+  const primaryGuest = guests?.[0];
   const stateText = conflict
     ? `${guestCount} guests`
     : occupied
@@ -251,9 +261,24 @@ function RoomTile({
     : occupied
     ? "border-emerald-200 bg-emerald-50 text-emerald-900 hover:border-emerald-300 hover:bg-emerald-100"
     : "border-black/5 bg-surface text-ink/55";
+  const guestName = primaryGuest
+    ? conflict
+      ? `${primaryGuest.profile.name} + ${guestCount - 1} more`
+      : primaryGuest.profile.name
+    : "";
   const content = (
     <>
       <span className="font-semibold text-ink">{roomNumber}</span>
+      {primaryGuest && (
+        <>
+          <span className="mt-1 block truncate text-[11px] font-medium text-ink/80">
+            {guestName}
+          </span>
+          <span className="mt-0.5 block truncate text-[10px] font-medium text-ink/55">
+            Checkout {formatValue(primaryGuest.checkoutDate)}
+          </span>
+        </>
+      )}
       <span className="mt-1 flex items-center gap-1 text-[11px] font-medium">
         <span
           aria-hidden="true"
@@ -268,7 +293,7 @@ function RoomTile({
     return (
       <div
         aria-label={`Room ${roomNumber} available`}
-        className={`min-h-14 rounded-md border px-2 py-2 text-left transition-colors ${stateClass}`}
+        className={`min-h-[5.75rem] rounded-md border px-2 py-2 text-left transition-colors ${stateClass}`}
       >
         {content}
       </div>
@@ -277,8 +302,8 @@ function RoomTile({
 
   return (
     <Link
-      aria-label={`View room ${roomNumber} ${conflict ? "conflict" : "guest"}`}
-      className={`min-h-14 rounded-md border px-2 py-2 text-left transition-colors focus:outline-none focus:ring-2 focus:ring-brand/20 ${stateClass}`}
+      aria-label={`View room ${roomNumber} ${conflict ? "conflict" : primaryGuest?.profile.name}`}
+      className={`min-h-[5.75rem] rounded-md border px-2 py-2 text-left transition-colors focus:outline-none focus:ring-2 focus:ring-brand/20 ${stateClass}`}
       href={`/?room=${encodeURIComponent(roomNumber)}`}
     >
       {content}
@@ -290,7 +315,7 @@ function RoomOccupancyModal({
   guests,
   roomNumber,
 }: {
-  guests: GuestProfile[];
+  guests: RoomOccupancyGuest[];
   roomNumber: string;
 }) {
   const conflict = guests.length > 1;
@@ -343,20 +368,23 @@ function RoomOccupancyModal({
           <div className="grid gap-4">
             {guests.map((guest) => (
               <article
-                key={guest.id}
+                key={guest.profile.id}
                 className="rounded-lg border border-black/5 bg-white px-4 py-5 sm:px-5"
               >
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div>
                     <h3 className="text-base font-semibold text-ink">
-                      {guest.name}
+                      {guest.profile.name}
                     </h3>
                     <p className="mt-1 text-sm text-ink/60">
-                      EDD {formatValue(guest.expectedDeliveryDate)}
+                      EDD {formatValue(guest.profile.expectedDeliveryDate)}
+                    </p>
+                    <p className="mt-1 text-sm text-ink/60">
+                      Checkout {formatValue(guest.checkoutDate)}
                     </p>
                   </div>
                   <Link
-                    href={`/admin/guest-profile/${guest.id}`}
+                    href={`/admin/guest-profile/${guest.profile.id}`}
                     className="inline-flex h-9 w-fit items-center rounded-md border border-black/10 px-3 text-sm font-medium text-ink/70 hover:bg-surface"
                   >
                     Open full profile
@@ -377,7 +405,7 @@ function RoomOccupancyModal({
                           <GuestProfileDetailItem
                             key={field.name}
                             field={field}
-                            profile={guest}
+                            profile={guest.profile}
                           />
                         ))}
                       </dl>
@@ -413,10 +441,10 @@ function GuestProfileDetailItem({
 }
 
 function getRoomOccupancy(profiles: GuestProfile[]): {
-  rooms: Map<string, GuestProfile[]>;
+  rooms: Map<string, RoomOccupancyGuest[]>;
   unassignedCount: number;
 } {
-  const rooms = new Map<string, GuestProfile[]>();
+  const rooms = new Map<string, RoomOccupancyGuest[]>();
   let unassignedCount = 0;
 
   for (const profile of profiles) {
@@ -426,11 +454,26 @@ function getRoomOccupancy(profiles: GuestProfile[]): {
     }
 
     const guests = rooms.get(profile.roomNumber) ?? [];
-    guests.push(profile);
+    guests.push({
+      checkoutDate: getCheckoutDate(profile),
+      profile,
+    });
     rooms.set(profile.roomNumber, guests);
   }
 
   return { rooms, unassignedCount };
+}
+
+function getCheckoutDate(profile: GuestProfile): string | null {
+  const edd = profile.expectedDeliveryDate;
+  if (!edd || !isBookingDate(edd)) return null;
+
+  const additionalDays =
+    listGuestProfileAddons(profile.id).find(
+      (addon) => addon.serviceName === ADDITIONAL_DAYS_ADDON_NAME,
+    )?.days ?? 0;
+
+  return addBookingDays(edd, BASE_STAY_DAYS + additionalDays);
 }
 
 function getSingleValue(value: string | string[] | undefined): string | undefined {
