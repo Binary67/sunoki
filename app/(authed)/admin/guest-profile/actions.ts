@@ -4,10 +4,10 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireAdminUser } from "@/src/lib/admin-auth";
 import {
-  checkInGuestProfile,
   createGuestProfile,
   deleteGuestProfile,
   getGuestProfileStatus,
+  setGuestProfileStatus,
   type GuestProfileStatus,
   updateGuestProfile,
 } from "@/src/lib/guest-profiles";
@@ -81,7 +81,7 @@ export async function deleteGuestProfileAction(
   redirectToGuestProfileDetail(profileId, "error", result.message);
 }
 
-export async function checkInGuestProfileAction(
+export async function setGuestProfileStatusAction(
   formData: FormData,
 ): Promise<void> {
   await requireAdminUser();
@@ -91,7 +91,16 @@ export async function checkInGuestProfileAction(
     redirectToGuestProfileList("error", "Choose a valid guest profile.");
   }
 
-  const result = checkInGuestProfile(profileId);
+  const status = readFormText(formData, "targetStatus");
+  if (status !== "checked_in" && status !== "not_checked_in") {
+    redirectToGuestProfileDetail(
+      profileId,
+      "error",
+      "Choose a valid check-in status.",
+    );
+  }
+
+  const result = setGuestProfileStatus(profileId, status);
   if (result.ok) {
     revalidatePath(GUEST_PROFILE_PATH);
     revalidatePath(`${GUEST_PROFILE_PATH}/${profileId}`);
@@ -100,7 +109,11 @@ export async function checkInGuestProfileAction(
   redirectToGuestProfileDetail(
     profileId,
     result.ok ? "success" : "error",
-    result.ok ? "Guest checked in" : result.message,
+    result.ok
+      ? status === "checked_in"
+        ? "Guest checked in"
+        : "Guest check-in undone"
+      : result.message,
   );
 }
 

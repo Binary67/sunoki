@@ -218,23 +218,31 @@ export function deleteGuestProfile(id: number): GuestProfileMutationResult {
   }
 }
 
-export function checkInGuestProfile(id: number): GuestProfileMutationResult {
+export function setGuestProfileStatus(
+  id: number,
+  status: GuestProfileStatus,
+): GuestProfileMutationResult {
   if (!isValidGuestProfileId(id)) {
     return { ok: false, message: "Choose a valid guest profile." };
   }
 
   try {
-    const checkInDate = formatBookingDate(new Date());
-    const result = db
-      .prepare(
-        `
-          UPDATE guest_profiles
-          SET status = 'checked_in',
-              expected_delivery_date = ?
-          WHERE id = ?
-        `,
-      )
-      .run(checkInDate, id) as MutationResult;
+    if (status === "not_checked_in") {
+      const profile = getGuestProfile(id);
+      if (!profile) return { ok: false, message: "Guest profile not found." };
+
+      if (hasDuplicateActiveIc(profile.icNo, id)) {
+        return {
+          ok: false,
+          message: "A not checked-in guest with this IC number already exists.",
+        };
+      }
+    }
+
+    const result =
+      status === "checked_in"
+        ? checkInGuestProfile(id)
+        : undoGuestProfileCheckIn(id);
 
     if (Number(result.changes) === 0) {
       return { ok: false, message: "Guest profile not found." };
@@ -242,8 +250,39 @@ export function checkInGuestProfile(id: number): GuestProfileMutationResult {
 
     return { ok: true };
   } catch {
-    return { ok: false, message: "Unable to check in guest profile." };
+    return {
+      ok: false,
+      message:
+        status === "checked_in"
+          ? "Unable to check in guest profile."
+          : "Unable to undo guest check-in.",
+    };
   }
+}
+
+function checkInGuestProfile(id: number): MutationResult {
+  return db
+    .prepare(
+      `
+        UPDATE guest_profiles
+        SET status = 'checked_in',
+            expected_delivery_date = ?
+        WHERE id = ?
+      `,
+    )
+    .run(formatBookingDate(new Date()), id) as MutationResult;
+}
+
+function undoGuestProfileCheckIn(id: number): MutationResult {
+  return db
+    .prepare(
+      `
+        UPDATE guest_profiles
+        SET status = 'not_checked_in'
+        WHERE id = ?
+      `,
+    )
+    .run(id) as MutationResult;
 }
 
 export function getGuestProfileStatus(value?: string): GuestProfileStatus {

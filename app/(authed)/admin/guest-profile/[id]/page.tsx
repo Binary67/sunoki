@@ -8,7 +8,7 @@ import {
   type GuestProfileStatus,
 } from "@/src/lib/guest-profiles";
 import {
-  checkInGuestProfileAction,
+  setGuestProfileStatusAction,
   updateGuestProfileAction,
 } from "../actions";
 import { GUEST_PROFILE_SECTIONS, type GuestProfileField } from "../fields";
@@ -60,21 +60,37 @@ export default async function GuestProfileDetailPage({
             <span className="w-fit rounded-md bg-surface px-3 py-2 text-sm font-medium text-ink/65">
               EDD {formatValue(profile.expectedDeliveryDate)}
             </span>
-            {profile.status === "checked_in" ? (
-              <span className="w-fit rounded-md bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700">
-                {getGuestProfileStatusLabel(profile.status)}
-              </span>
-            ) : (
-              <form action={checkInGuestProfileAction}>
-                <input type="hidden" name="profileId" value={profile.id} />
-                <button
-                  type="submit"
-                  className="h-10 rounded-md bg-brand px-4 text-sm font-medium text-white hover:bg-brand/90"
-                >
-                  Check In
-                </button>
-              </form>
-            )}
+            <span
+              className={`w-fit rounded-md px-3 py-2 text-sm font-medium ${
+                profile.status === "checked_in"
+                  ? "bg-emerald-50 text-emerald-700"
+                  : "bg-surface text-ink/65"
+              }`}
+            >
+              {getGuestProfileStatusLabel(profile.status)}
+            </span>
+            <form action={setGuestProfileStatusAction}>
+              <input type="hidden" name="profileId" value={profile.id} />
+              <input
+                type="hidden"
+                name="targetStatus"
+                value={
+                  profile.status === "checked_in"
+                    ? "not_checked_in"
+                    : "checked_in"
+                }
+              />
+              <button
+                type="submit"
+                className={
+                  profile.status === "checked_in"
+                    ? "h-10 rounded-md border border-red-200 px-4 text-sm font-medium text-red-700 hover:bg-red-50"
+                    : "h-10 rounded-md bg-brand px-4 text-sm font-medium text-white hover:bg-brand/90"
+                }
+              >
+                {profile.status === "checked_in" ? "Undo Check-In" : "Check In"}
+              </button>
+            </form>
           </div>
           <div className="flex flex-wrap items-center gap-2 sm:justify-end">
             <Link
