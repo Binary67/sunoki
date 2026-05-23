@@ -20,16 +20,18 @@ export default function LayoutShell({
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
-    <div className="flex flex-1 w-full bg-white text-ink">
+    <div className="flex h-screen w-full overflow-hidden bg-white text-ink">
       <Sidebar
         branding={branding}
         role={role}
         mobileOpen={mobileOpen}
         onClose={() => setMobileOpen(false)}
       />
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex min-h-0 flex-1 flex-col min-w-0">
         <Header user={user} onMenuClick={() => setMobileOpen(true)} />
-        {children}
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+          {children}
+        </div>
       </div>
     </div>
   );

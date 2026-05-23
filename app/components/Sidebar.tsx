@@ -194,99 +194,103 @@ export default function Sidebar({
           </button>
         </div>
 
-        <nav className="mt-6 flex flex-col">
+        <nav className="mt-6 flex min-h-0 flex-1 flex-col">
           {isAdmin && (
             <>
-              <Link
-                href="/"
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-md text-sm transition-colors duration-200 ${
-                  dashboardActive
-                    ? "text-brand font-medium bg-surface"
-                    : "text-ink/70 hover:text-ink"
-                }`}
-              >
-                <HomeIcon className="size-4" />
-                <span>Dashboard</span>
-              </Link>
-              <Link
-                href="/admin/personalization"
-                className={`flex items-center gap-3 rounded-md px-3 py-2.5 text-sm transition-colors duration-200 ${
-                  personalizationActive
-                    ? "bg-surface font-medium text-brand"
-                    : "text-ink/70 hover:text-ink"
-                }`}
-              >
-                <SettingsIcon className="size-4" />
-                <span>Personalization</span>
-              </Link>
-              <Link
-                href="/admin/guest-profile"
-                className={`flex items-center gap-3 rounded-md px-3 py-2.5 text-sm transition-colors duration-200 ${
-                  guestProfileActive
-                    ? "bg-surface font-medium text-brand"
-                    : "text-ink/70 hover:text-ink"
-                }`}
-              >
-                <GuestProfileIcon className="size-4" />
-                <span>Guest Profile</span>
-              </Link>
-              <button
-                type="button"
-                onClick={() => setDataOpen((v) => !v)}
-                aria-expanded={dataOpen}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-md text-sm transition-colors duration-200 ${
-                  dataActive
-                    ? "text-brand font-medium bg-surface"
-                    : "text-ink/70 hover:text-ink"
-                }`}
-              >
-                <DatabaseIcon className="size-4" />
-                <span className="flex-1 text-left">Data Editor</span>
-                <ChevronIcon
-                  className={`size-3.5 text-ink/40 transition-transform ${
-                    dataOpen ? "rotate-90" : ""
+              <div className="flex flex-col">
+                <Link
+                  href="/"
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-md text-sm transition-colors duration-200 ${
+                    dashboardActive
+                      ? "text-brand font-medium bg-surface"
+                      : "text-ink/70 hover:text-ink"
                   }`}
-                />
-              </button>
-              {dataOpen && (
-                <div className="mt-1 ml-5 pl-3 border-l border-black/10 flex flex-col">
-                  {dataChildren
-                    .filter((item) => !item.superadminOnly || role === "superadmin")
-                    .map(({ label, href }) => {
-                      const active = pathname === href;
-                      return (
-                        <Link
-                          key={href}
-                          href={href}
-                          className={`relative flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors duration-200 ${
-                            active
-                              ? "text-brand font-medium bg-surface"
-                              : "text-ink/70 hover:text-ink"
-                          }`}
-                        >
-                          <span
-                            aria-hidden="true"
-                            className={`absolute -left-[13px] top-1.5 bottom-1.5 w-0.5 rounded-r bg-brand transition-opacity duration-200 ${
-                              active ? "opacity-100" : "opacity-0"
+                >
+                  <HomeIcon className="size-4" />
+                  <span>Dashboard</span>
+                </Link>
+                <Link
+                  href="/admin/guest-profile"
+                  className={`flex items-center gap-3 rounded-md px-3 py-2.5 text-sm transition-colors duration-200 ${
+                    guestProfileActive
+                      ? "bg-surface font-medium text-brand"
+                      : "text-ink/70 hover:text-ink"
+                  }`}
+                >
+                  <GuestProfileIcon className="size-4" />
+                  <span>Guest Profile</span>
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => setDataOpen((v) => !v)}
+                  aria-expanded={dataOpen}
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-md text-sm transition-colors duration-200 ${
+                    dataActive
+                      ? "text-brand font-medium bg-surface"
+                      : "text-ink/70 hover:text-ink"
+                  }`}
+                >
+                  <DatabaseIcon className="size-4" />
+                  <span className="flex-1 text-left">Data Editor</span>
+                  <ChevronIcon
+                    className={`size-3.5 text-ink/40 transition-transform ${
+                      dataOpen ? "rotate-90" : ""
+                    }`}
+                  />
+                </button>
+                {dataOpen && (
+                  <div className="mt-1 ml-5 pl-3 border-l border-black/10 flex flex-col">
+                    {dataChildren
+                      .filter((item) => !item.superadminOnly || role === "superadmin")
+                      .map(({ label, href }) => {
+                        const active = pathname === href;
+                        return (
+                          <Link
+                            key={href}
+                            href={href}
+                            className={`relative flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors duration-200 ${
+                              active
+                                ? "text-brand font-medium bg-surface"
+                                : "text-ink/70 hover:text-ink"
                             }`}
-                          />
-                          <span>{label}</span>
-                        </Link>
-                      );
-                    })}
-                </div>
-              )}
-              <Link
-                href="/admin/audit-log"
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-md text-sm transition-colors duration-200 ${
-                  auditActive
-                    ? "text-brand font-medium bg-surface"
-                    : "text-ink/70 hover:text-ink"
-                }`}
-              >
-                <LogIcon className="size-4" />
-                <span>Audit Log</span>
-              </Link>
+                          >
+                            <span
+                              aria-hidden="true"
+                              className={`absolute -left-[13px] top-1.5 bottom-1.5 w-0.5 rounded-r bg-brand transition-opacity duration-200 ${
+                                active ? "opacity-100" : "opacity-0"
+                              }`}
+                            />
+                            <span>{label}</span>
+                          </Link>
+                        );
+                      })}
+                  </div>
+                )}
+                <Link
+                  href="/admin/audit-log"
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-md text-sm transition-colors duration-200 ${
+                    auditActive
+                      ? "text-brand font-medium bg-surface"
+                      : "text-ink/70 hover:text-ink"
+                  }`}
+                >
+                  <LogIcon className="size-4" />
+                  <span>Audit Log</span>
+                </Link>
+              </div>
+              <div className="mt-auto pt-6">
+                <Link
+                  href="/admin/personalization"
+                  className={`flex items-center gap-3 rounded-md px-3 py-2.5 text-sm transition-colors duration-200 ${
+                    personalizationActive
+                      ? "bg-surface font-medium text-brand"
+                      : "text-ink/70 hover:text-ink"
+                  }`}
+                >
+                  <SettingsIcon className="size-4" />
+                  <span>Personalization</span>
+                </Link>
+              </div>
             </>
           )}
 
