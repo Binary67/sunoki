@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { requireAdminUser } from "@/src/lib/admin-auth";
+import { getActiveLoginLock } from "@/src/lib/login-attempts";
 import {
   EDITABLE_TABLE_NAMES,
   getAdminTableLabel,
@@ -17,6 +18,7 @@ import {
 } from "@/src/lib/admin-data/queries";
 import AdminFormFields from "./AdminFormFields";
 import { createAdminRowAction, updateAdminRowAction } from "./actions";
+import ClearLoginLockForm from "./ClearLoginLockForm";
 import DeleteRowForm from "./DeleteRowForm";
 import RevokeSessionsForm from "./RevokeSessionsForm";
 
@@ -263,6 +265,14 @@ export default async function AdminDataPage({ searchParams }: PageProps) {
               <tbody>
                 {view.rows.map((row) => {
                   const rowId = Number(row.id);
+                  const canManageAccess =
+                    selectedTable === "users" &&
+                    canManageUserAccess(actor.role, row);
+                  const username =
+                    typeof row.username === "string" ? row.username : "";
+                  const activeLoginLock = canManageAccess
+                    ? getActiveLoginLock(username)
+                    : null;
                   return (
                     <tr key={rowId} className="border-t border-black/5">
                       {view.table.columns.map((column) => (
@@ -276,20 +286,30 @@ export default async function AdminDataPage({ searchParams }: PageProps) {
                         </td>
                       ))}
                       <td className="px-4 py-3">
-                        <div className="flex items-center justify-end gap-2">
+                        <div className="flex flex-wrap items-center justify-end gap-2">
                           <Link
                             href={`/admin/data?table=${selectedTable}&edit=${rowId}`}
                             className="rounded-md border border-black/10 px-2.5 py-1.5 text-xs font-medium text-ink/70 hover:bg-surface"
                           >
                             Edit
                           </Link>
-                          {selectedTable === "users" &&
-                            canRevokeSessions(actor.role, row) && (
-                              <RevokeSessionsForm
+                          {activeLoginLock && (
+                            <>
+                              <span className="rounded-md bg-red-50 px-2.5 py-1.5 text-xs font-medium text-red-700">
+                                Locked until {activeLoginLock.lockedUntil}
+                              </span>
+                              <ClearLoginLockForm
                                 userId={rowId}
                                 label={getUserLabel(row, rowId)}
                               />
-                            )}
+                            </>
+                          )}
+                          {canManageAccess && (
+                            <RevokeSessionsForm
+                              userId={rowId}
+                              label={getUserLabel(row, rowId)}
+                            />
+                          )}
                           {!updateOnly && (
                             <DeleteRowForm
                               tableName={selectedTable}
@@ -382,7 +402,7 @@ function getEditId(value: string | undefined): number | null {
   return Number.isInteger(id) && id > 0 ? id : null;
 }
 
-function canRevokeSessions(actorRole: string, row: AdminRow): boolean {
+function canManageUserAccess(actorRole: string, row: AdminRow): boolean {
   const role = row.role;
   return (
     typeof role === "string" &&

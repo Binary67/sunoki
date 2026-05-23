@@ -2,6 +2,13 @@
 
 import { redirect } from "next/navigation";
 import { getUserByUsername, setSessionCookie } from "@/src/lib/auth";
+import {
+  clearLoginAttempts,
+  getActiveLoginLock,
+  INVALID_LOGIN_MESSAGE,
+  LOGIN_LOCKED_MESSAGE,
+  recordFailedLogin,
+} from "@/src/lib/login-attempts";
 import { isAdminRole } from "@/src/lib/roles";
 
 export type LoginState = { error?: string; submissionId?: number };
@@ -18,11 +25,20 @@ export async function loginAction(
     return { error: "Enter a username and password.", submissionId };
   }
 
-  const user = getUserByUsername(username);
-  if (!user || user.password !== password) {
-    return { error: "Invalid username or password.", submissionId };
+  if (getActiveLoginLock(username)) {
+    return { error: LOGIN_LOCKED_MESSAGE, submissionId };
   }
 
+  const user = getUserByUsername(username);
+  if (!user || user.password !== password) {
+    const attempt = recordFailedLogin(username);
+    return {
+      error: attempt.locked ? LOGIN_LOCKED_MESSAGE : INVALID_LOGIN_MESSAGE,
+      submissionId,
+    };
+  }
+
+  clearLoginAttempts(username);
   const session = await setSessionCookie(user);
   if (!session.ok) return { error: session.message, submissionId };
 

@@ -15,6 +15,7 @@ import {
 } from "@/src/lib/admin-data/mutations";
 import { getAdminRowForEdit } from "@/src/lib/admin-data/queries";
 import { clearSessionCookie, revokeUserSessions } from "@/src/lib/auth";
+import { clearUserLoginLock } from "@/src/lib/login-attempts";
 
 const DATA_PATH = "/admin/data";
 const AUDIT_PATH = "/admin/audit-log";
@@ -96,6 +97,29 @@ export async function revokeUserSessionsAction(formData: FormData): Promise<void
       await clearSessionCookie();
       redirect("/login");
     }
+  }
+
+  redirectWithMessage("users", result.ok ? "success" : "error", result.message);
+}
+
+export async function clearLoginLockAction(formData: FormData): Promise<void> {
+  const targetUserId = getUserId(formData);
+  const user = await requireAdminUser();
+  const result = clearUserLoginLock(user, targetUserId);
+
+  if (result.ok) {
+    if (result.beforeLockedUntil) {
+      insertAuditLog(
+        user,
+        "update",
+        "users",
+        result.targetUser.id,
+        { login_locked_until: result.beforeLockedUntil },
+        { login_locked_until: result.afterLockedUntil },
+      );
+    }
+    revalidatePath(DATA_PATH);
+    revalidatePath(AUDIT_PATH);
   }
 
   redirectWithMessage("users", result.ok ? "success" : "error", result.message);

@@ -161,6 +161,14 @@ db.exec(`
   );
 
   CREATE INDEX IF NOT EXISTS sessions_user_id_idx ON sessions(user_id);
+
+  CREATE TABLE IF NOT EXISTS login_attempts (
+    attempt_key       TEXT PRIMARY KEY,
+    failed_count      INTEGER NOT NULL CHECK (failed_count > 0),
+    window_started_at TEXT NOT NULL,
+    last_failed_at    TEXT NOT NULL,
+    locked_until      TEXT
+  );
 `);
 
 const defaultCheckInDate = formatBookingDate(new Date());
