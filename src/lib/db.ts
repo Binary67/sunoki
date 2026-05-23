@@ -152,6 +152,19 @@ if (!userColumnNames.has("check_out_date")) {
 
 ensureUsersRoleConstraint();
 
+db.exec(`
+  CREATE TABLE IF NOT EXISTS sessions (
+    id         INTEGER PRIMARY KEY,
+    user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    token_hash TEXT UNIQUE NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    expires_at TEXT NOT NULL,
+    revoked_at TEXT
+  );
+
+  CREATE INDEX IF NOT EXISTS sessions_user_id_idx ON sessions(user_id);
+`);
+
 const defaultCheckInDate = formatBookingDate(new Date());
 const defaultCheckOutDate = addBookingDays(defaultCheckInDate, 7);
 

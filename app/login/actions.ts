@@ -22,6 +22,8 @@ export async function loginAction(
     return { error: "Invalid username or password." };
   }
 
-  await setSessionCookie(user.id);
+  const session = await setSessionCookie(user);
+  if (!session.ok) return { error: session.message };
+
   redirect(isAdminRole(user.role) ? "/" : "/booking/karaoke");
 }

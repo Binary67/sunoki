@@ -1,9 +1,9 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { clearSessionCookie } from "@/src/lib/auth";
+import { revokeCurrentSession } from "@/src/lib/auth";
 
 export async function logoutAction(): Promise<void> {
-  await clearSessionCookie();
+  await revokeCurrentSession();
   redirect("/login");
 }

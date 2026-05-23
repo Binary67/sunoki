@@ -18,6 +18,7 @@ import {
 import AdminFormFields from "./AdminFormFields";
 import { createAdminRowAction, updateAdminRowAction } from "./actions";
 import DeleteRowForm from "./DeleteRowForm";
+import RevokeSessionsForm from "./RevokeSessionsForm";
 
 type UserCreateMode = "guest" | "admin";
 
@@ -282,6 +283,13 @@ export default async function AdminDataPage({ searchParams }: PageProps) {
                           >
                             Edit
                           </Link>
+                          {selectedTable === "users" &&
+                            canRevokeSessions(actor.role, row) && (
+                              <RevokeSessionsForm
+                                userId={rowId}
+                                label={getUserLabel(row, rowId)}
+                              />
+                            )}
                           {!updateOnly && (
                             <DeleteRowForm
                               tableName={selectedTable}
@@ -372,6 +380,19 @@ function getEditId(value: string | undefined): number | null {
   if (!value) return null;
   const id = Number(value);
   return Number.isInteger(id) && id > 0 ? id : null;
+}
+
+function canRevokeSessions(actorRole: string, row: AdminRow): boolean {
+  const role = row.role;
+  return (
+    typeof role === "string" &&
+    (actorRole === "superadmin" || role === "guest")
+  );
+}
+
+function getUserLabel(row: AdminRow, rowId: number): string {
+  const username = row.username;
+  return typeof username === "string" && username ? username : `user #${rowId}`;
 }
 
 function formatCellValue(

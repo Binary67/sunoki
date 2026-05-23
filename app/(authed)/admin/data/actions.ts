@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireAdminUser } from "@/src/lib/admin-auth";
+import { insertAuditLog } from "@/src/lib/admin-data/audit";
 import {
   isEditableTableName,
   type EditableTableName,
@@ -13,6 +14,7 @@ import {
   updateAdminRow,
 } from "@/src/lib/admin-data/mutations";
 import { getAdminRowForEdit } from "@/src/lib/admin-data/queries";
+import { clearSessionCookie, revokeUserSessions } from "@/src/lib/auth";
 
 const DATA_PATH = "/admin/data";
 const AUDIT_PATH = "/admin/audit-log";
@@ -73,6 +75,32 @@ export async function deleteAdminRowAction(formData: FormData): Promise<void> {
   redirectWithMessage(tableName, result.ok ? "success" : "error", result.message);
 }
 
+export async function revokeUserSessionsAction(formData: FormData): Promise<void> {
+  const targetUserId = getUserId(formData);
+  const user = await requireAdminUser();
+  const result = revokeUserSessions(user, targetUserId);
+
+  if (result.ok) {
+    insertAuditLog(
+      user,
+      "update",
+      "users",
+      result.targetUser.id,
+      { active_sessions: result.beforeCount },
+      { active_sessions: result.afterCount },
+    );
+    revalidatePath(DATA_PATH);
+    revalidatePath(AUDIT_PATH);
+
+    if (result.targetUser.id === user.id) {
+      await clearSessionCookie();
+      redirect("/login");
+    }
+  }
+
+  redirectWithMessage("users", result.ok ? "success" : "error", result.message);
+}
+
 function getTableName(formData: FormData): EditableTableName | null {
   const raw = formData.get("tableName");
   return typeof raw === "string" && isEditableTableName(raw) ? raw : null;
@@ -80,6 +108,11 @@ function getTableName(formData: FormData): EditableTableName | null {
 
 function getRowId(formData: FormData): number {
   const raw = formData.get("rowId");
+  return typeof raw === "string" ? Number(raw) : NaN;
+}
+
+function getUserId(formData: FormData): number {
+  const raw = formData.get("userId");
   return typeof raw === "string" ? Number(raw) : NaN;
 }
 
