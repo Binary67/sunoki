@@ -12,6 +12,7 @@ import {
   createAdminRow,
   deleteAdminRow,
   updateAdminRow,
+  updateUserPassword,
 } from "@/src/lib/admin-data/mutations";
 import { getAdminRowForEdit } from "@/src/lib/admin-data/queries";
 import { clearSessionCookie, revokeUserSessions } from "@/src/lib/auth";
@@ -60,6 +61,29 @@ export async function updateAdminRowAction(formData: FormData): Promise<void> {
     result.ok ? "success" : "error",
     result.message,
     result.ok ? undefined : rowId,
+  );
+}
+
+export async function updateUserPasswordAction(
+  formData: FormData,
+): Promise<void> {
+  const userId = getUserId(formData);
+  const user = await requireAdminUser();
+  const result = updateUserPassword(user, userId, formData);
+
+  if (result.ok) {
+    revalidatePath(USERS_DATA_PATH);
+    revalidatePath(AUDIT_PATH);
+  }
+
+  redirectWithMessage(
+    "users",
+    result.ok ? "success" : "error",
+    result.message,
+    undefined,
+    undefined,
+    "accounts",
+    result.ok ? undefined : userId,
   );
 }
 
@@ -179,6 +203,7 @@ function redirectWithMessage(
   editId?: number,
   createMode?: "guest" | "admin" | null,
   requestedTab?: string,
+  passwordId?: number,
 ): never {
   const params = new URLSearchParams();
   params.set("tab", getDataTab(tableName, requestedTab));
@@ -187,6 +212,9 @@ function redirectWithMessage(
   }
   if (editId && Number.isInteger(editId) && editId > 0) {
     params.set("edit", String(editId));
+  }
+  if (passwordId && Number.isInteger(passwordId) && passwordId > 0) {
+    params.set("password", String(passwordId));
   }
   params.set(tone, message);
   redirect(`${getDataPath(tableName)}?${params.toString()}`);

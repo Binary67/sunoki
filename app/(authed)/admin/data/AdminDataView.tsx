@@ -10,7 +10,11 @@ import {
 } from "@/src/lib/admin-data/definitions";
 import type { User } from "@/src/lib/db";
 import AdminFormFields from "./AdminFormFields";
-import { createAdminRowAction, updateAdminRowAction } from "./actions";
+import {
+  createAdminRowAction,
+  updateAdminRowAction,
+  updateUserPasswordAction,
+} from "./actions";
 import ClearLoginLockForm from "./ClearLoginLockForm";
 import DeleteRowForm from "./DeleteRowForm";
 import RevokeSessionsForm from "./RevokeSessionsForm";
@@ -202,8 +206,12 @@ export function EditFormSection({
 
   const editableColumns = getEditableColumns(view);
   const editColumns =
-    tableName === "users" && actor.role !== "superadmin"
-      ? editableColumns.filter((column) => column.name !== "role")
+    tableName === "users"
+      ? editableColumns.filter(
+          (column) =>
+            column.name !== "password" &&
+            (actor.role === "superadmin" || column.name !== "role"),
+        )
       : editableColumns;
   const editFixedRole =
     tableName === "users" && actor.role !== "superadmin" ? "guest" : undefined;
@@ -255,6 +263,73 @@ export function EditFormSection({
         </>
       ) : (
         <div className="text-sm text-red-700">Row #{editId} not found.</div>
+      )}
+    </section>
+  );
+}
+
+export function SetPasswordFormSection({
+  cancelHref,
+  passwordId,
+  passwordRow,
+}: {
+  cancelHref: string;
+  passwordId: number | null;
+  passwordRow: AdminRow | null;
+}) {
+  if (!passwordId) return null;
+
+  return (
+    <section className="mb-7 rounded-lg border border-brand/20 px-4 py-5 sm:px-5">
+      {passwordRow ? (
+        <>
+          <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="text-base font-semibold text-ink">
+                Set New Password
+              </h2>
+              <p className="mt-1 text-xs leading-5 text-ink/55">
+                Update the password for {getUserLabel(passwordRow, passwordId)}.
+                The current password is not shown.
+              </p>
+            </div>
+            <Link
+              href={cancelHref}
+              className="text-sm font-medium text-brand hover:underline"
+            >
+              Cancel
+            </Link>
+          </div>
+          <form action={updateUserPasswordAction}>
+            <input type="hidden" name="userId" value={passwordId} />
+            <label
+              htmlFor={`password-${passwordId}`}
+              className="block text-sm font-medium text-ink/75"
+            >
+              New Password <span className="text-red-600">*</span>
+              <input
+                id={`password-${passwordId}`}
+                name="password"
+                type="password"
+                required
+                autoComplete="new-password"
+                className="mt-1 h-10 w-full rounded-md border border-black/10 bg-white px-3 text-sm text-ink outline-none focus:border-brand focus:ring-2 focus:ring-brand/15 sm:max-w-md"
+              />
+            </label>
+            <div className="mt-5 flex justify-end">
+              <button
+                type="submit"
+                className="rounded-md bg-brand px-4 py-2 text-sm font-medium text-white hover:bg-brand/90"
+              >
+                Save New Password
+              </button>
+            </div>
+          </form>
+        </>
+      ) : (
+        <div className="text-sm text-red-700">
+          User #{passwordId} not found.
+        </div>
       )}
     </section>
   );
@@ -322,9 +397,20 @@ export function AdminTableSection({
                         key={column.name}
                         className="max-w-[260px] px-4 py-3 text-ink/80"
                       >
-                        <span className="block truncate">
-                          {formatCellValue(column, row, view.selectOptions)}
-                        </span>
+                        {tableName === "users" &&
+                        actionMode === "records" &&
+                        column.name === "password" ? (
+                          <Link
+                            href={`/admin/data/users?tab=accounts&password=${rowId}`}
+                            className="inline-flex rounded-md border border-black/10 px-2.5 py-1.5 text-xs font-medium text-ink/70 hover:bg-surface"
+                          >
+                            Set New Password
+                          </Link>
+                        ) : (
+                          <span className="block truncate">
+                            {formatCellValue(column, row, view.selectOptions)}
+                          </span>
+                        )}
                       </td>
                     ))}
                     <td className="px-4 py-3">
