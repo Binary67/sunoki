@@ -390,6 +390,8 @@ function sortGuestProfilesByEdd(
     const aValid = Boolean(aEdd && isBookingDate(aEdd));
     const bValid = Boolean(bEdd && isBookingDate(bEdd));
 
+    if (aValid !== bValid) return aValid ? 1 : -1;
+
     if (aValid && bValid && aEdd && bEdd) {
       const aUpcoming = aEdd >= today;
       const bUpcoming = bEdd >= today;
@@ -400,7 +402,6 @@ function sortGuestProfilesByEdd(
       }
     }
 
-    if (aValid !== bValid) return aValid ? -1 : 1;
     return b.id - a.id;
   });
 }
