@@ -91,6 +91,17 @@ db.exec(`
     created_at             TEXT NOT NULL DEFAULT (datetime('now'))
   );
 
+  CREATE TABLE IF NOT EXISTS guest_profile_addons (
+    id               INTEGER PRIMARY KEY,
+    guest_profile_id INTEGER NOT NULL REFERENCES guest_profiles(id) ON DELETE CASCADE,
+    service_name     TEXT NOT NULL,
+    price_cents      INTEGER NOT NULL CHECK (price_cents >= 0),
+    created_at       TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
+  CREATE INDEX IF NOT EXISTS guest_profile_addons_guest_profile_id_idx
+    ON guest_profile_addons(guest_profile_id);
+
   CREATE TABLE IF NOT EXISTS audit_logs (
     id             INTEGER PRIMARY KEY,
     actor_user_id  INTEGER NOT NULL,

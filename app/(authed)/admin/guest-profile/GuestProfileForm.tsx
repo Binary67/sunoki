@@ -3,12 +3,17 @@ import type { ReactNode } from "react";
 import {
   GUEST_ROOM_LEVELS,
   GUEST_ROOM_NUMBERS,
+  type GuestProfileAddon,
   type GuestProfile,
 } from "@/src/lib/guest-profiles";
+import GuestProfileAddonFields, {
+  type GuestProfileAddonFormValue,
+} from "./GuestProfileAddonFields";
 import { GUEST_PROFILE_SECTIONS, type GuestProfileField } from "./fields";
 
 type GuestProfileFormProps = {
   action: (formData: FormData) => Promise<void>;
+  addons?: GuestProfileAddon[];
   cancelHref: string;
   notice?: ReactNode;
   profile?: GuestProfile;
@@ -17,6 +22,7 @@ type GuestProfileFormProps = {
 
 export default function GuestProfileForm({
   action,
+  addons = [],
   cancelHref,
   notice,
   profile,
@@ -46,6 +52,7 @@ export default function GuestProfileForm({
             </div>
           </fieldset>
         ))}
+        <GuestProfileAddonFields initialAddons={getAddonFormValues(addons)} />
       </div>
       <div className="flex justify-end gap-3 border-t border-black/10 bg-white px-4 py-4 sm:px-5">
         <Link
@@ -63,6 +70,21 @@ export default function GuestProfileForm({
       </div>
     </form>
   );
+}
+
+function getAddonFormValues(
+  addons: GuestProfileAddon[],
+): GuestProfileAddonFormValue[] {
+  return addons.map((addon) => ({
+    serviceName: addon.serviceName,
+    priceAmount: formatAddonInputPrice(addon.priceCents),
+  }));
+}
+
+function formatAddonInputPrice(priceCents: number): string {
+  const whole = Math.floor(priceCents / 100);
+  const fraction = String(priceCents % 100).padStart(2, "0");
+  return `${whole}.${fraction}`;
 }
 
 function GuestProfileInput({

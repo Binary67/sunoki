@@ -48,6 +48,14 @@ export type GuestProfile = {
   createdAt: string;
 };
 
+export type GuestProfileAddon = {
+  id: number;
+  guestProfileId: number;
+  serviceName: string;
+  priceCents: number;
+  createdAt: string;
+};
+
 type InsertResult = {
   lastInsertRowid: number | bigint;
 };
@@ -62,6 +70,19 @@ type GuestProfileCreateResult =
 
 type GuestProfileMutationResult =
   | { ok: true }
+  | { ok: false; message: string };
+
+type GuestProfileAddonInput = {
+  serviceName: string;
+  priceCents: number;
+};
+
+type ParsedGuestProfileForm =
+  | {
+      ok: true;
+      addons: GuestProfileAddonInput[];
+      data: Record<GuestProfileColumn, string | null>;
+    }
   | { ok: false; message: string };
 
 const GUEST_PROFILE_COLUMNS = [
@@ -124,6 +145,40 @@ export function getGuestProfile(id: number): GuestProfile | null {
   return row ?? null;
 }
 
+export function listGuestProfileAddons(
+  profileId: number,
+): GuestProfileAddon[] {
+  if (!isValidGuestProfileId(profileId)) return [];
+
+  return db
+    .prepare(
+      `
+        SELECT
+          id,
+          guest_profile_id AS guestProfileId,
+          service_name AS serviceName,
+          price_cents AS priceCents,
+          created_at AS createdAt
+        FROM guest_profile_addons
+        WHERE guest_profile_id = ?
+        ORDER BY id ASC
+      `,
+    )
+    .all(profileId) as GuestProfileAddon[];
+}
+
+export function formatGuestProfileAddonPrice(priceCents: number): string {
+  const whole = Math.floor(priceCents / 100).toLocaleString("en-MY");
+  const fraction = String(priceCents % 100).padStart(2, "0");
+  return `RM ${whole}.${fraction}`;
+}
+
+export function getGuestProfileAddonTotalCents(
+  addons: GuestProfileAddon[],
+): number {
+  return addons.reduce((total, addon) => total + addon.priceCents, 0);
+}
+
 export function createGuestProfile(
   formData: FormData,
 ): GuestProfileCreateResult {
@@ -138,6 +193,7 @@ export function createGuestProfile(
   }
 
   try {
+    db.exec("BEGIN");
     const result = db
       .prepare(
         `
@@ -147,9 +203,13 @@ export function createGuestProfile(
       )
       .run(...GUEST_PROFILE_COLUMNS.map((column) => values.data[column])) as
       InsertResult;
+    const profileId = Number(result.lastInsertRowid);
+    insertGuestProfileAddons(profileId, values.addons);
+    db.exec("COMMIT");
 
-    return { ok: true, id: Number(result.lastInsertRowid) };
+    return { ok: true, id: profileId };
   } catch {
+    rollbackGuestProfileTransaction();
     return { ok: false, message: "Unable to save guest profile." };
   }
 }
@@ -173,6 +233,7 @@ export function updateGuestProfile(
   }
 
   try {
+    db.exec("BEGIN");
     const result = db
       .prepare(
         `
@@ -189,11 +250,16 @@ export function updateGuestProfile(
       ) as MutationResult;
 
     if (Number(result.changes) === 0) {
+      rollbackGuestProfileTransaction();
       return { ok: false, message: "Guest profile not found." };
     }
 
+    replaceGuestProfileAddons(id, values.addons);
+    db.exec("COMMIT");
+
     return { ok: true };
   } catch {
+    rollbackGuestProfileTransaction();
     return { ok: false, message: "Unable to update guest profile." };
   }
 }
@@ -297,9 +363,7 @@ export function getGuestProfileStatusLabel(
 
 function parseGuestProfileForm(
   formData: FormData,
-):
-  | { ok: true; data: Record<GuestProfileColumn, string | null> }
-  | { ok: false; message: string } {
+): ParsedGuestProfileForm {
   const name = readText(formData, "name");
   if (!name) return { ok: false, message: "Name is required." };
 
@@ -313,8 +377,12 @@ function parseGuestProfileForm(
     return { ok: false, message: "Choose a valid room number." };
   }
 
+  const addons = parseGuestProfileAddons(formData);
+  if (!addons.ok) return addons;
+
   return {
     ok: true,
+    addons: addons.data,
     data: {
       name,
       room_number: roomNumber,
@@ -344,10 +412,95 @@ function parseGuestProfileForm(
   };
 }
 
+function parseGuestProfileAddons(
+  formData: FormData,
+):
+  | { ok: true; data: GuestProfileAddonInput[] }
+  | { ok: false; message: string } {
+  const serviceNames = formData.getAll("addon_service_name");
+  const priceAmounts = formData.getAll("addon_price_amount");
+  const addons: GuestProfileAddonInput[] = [];
+
+  for (let index = 0; index < Math.max(serviceNames.length, priceAmounts.length); index += 1) {
+    const serviceName = readFormValue(serviceNames[index] ?? null);
+    const priceAmount = readFormValue(priceAmounts[index] ?? null);
+    if (!serviceName && !priceAmount) continue;
+    if (!serviceName) {
+      return { ok: false, message: "Add-on service name is required." };
+    }
+    if (!priceAmount) {
+      return { ok: false, message: "Add-on price is required." };
+    }
+
+    const priceCents = parseAddonPriceCents(priceAmount);
+    if (priceCents === null) {
+      return { ok: false, message: "Enter a valid add-on price." };
+    }
+
+    addons.push({ serviceName: serviceName.toUpperCase(), priceCents });
+  }
+
+  return { ok: true, data: addons };
+}
+
 function readText(formData: FormData, key: GuestProfileColumn): string | null {
-  const raw = formData.get(key);
-  const value = typeof raw === "string" ? raw.trim() : "";
-  return value || null;
+  return readFormValue(formData.get(key));
+}
+
+function readFormValue(value: FormDataEntryValue | null): string | null {
+  const text = typeof value === "string" ? value.trim() : "";
+  return text || null;
+}
+
+function parseAddonPriceCents(value: string): number | null {
+  if (!/^\d+(\.\d{1,2})?$/.test(value)) return null;
+
+  const [ringgit, sen = ""] = value.split(".");
+  const ringgitAmount = Number(ringgit);
+  const senAmount = Number(sen.padEnd(2, "0"));
+  const totalCents = ringgitAmount * 100 + senAmount;
+
+  return Number.isSafeInteger(totalCents) ? totalCents : null;
+}
+
+function insertGuestProfileAddons(
+  profileId: number,
+  addons: GuestProfileAddonInput[],
+): void {
+  if (addons.length === 0) return;
+
+  const insert = db.prepare(
+    `
+      INSERT INTO guest_profile_addons (
+        guest_profile_id,
+        service_name,
+        price_cents
+      )
+      VALUES (?, ?, ?)
+    `,
+  );
+
+  for (const addon of addons) {
+    insert.run(profileId, addon.serviceName, addon.priceCents);
+  }
+}
+
+function replaceGuestProfileAddons(
+  profileId: number,
+  addons: GuestProfileAddonInput[],
+): void {
+  db.prepare("DELETE FROM guest_profile_addons WHERE guest_profile_id = ?").run(
+    profileId,
+  );
+  insertGuestProfileAddons(profileId, addons);
+}
+
+function rollbackGuestProfileTransaction(): void {
+  try {
+    db.exec("ROLLBACK");
+  } catch {
+    // The transaction may already be closed if SQLite rejected BEGIN.
+  }
 }
 
 function isValidGuestProfileId(id: number): boolean {

@@ -2,9 +2,13 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireAdminUser } from "@/src/lib/admin-auth";
 import {
+  formatGuestProfileAddonPrice,
+  getGuestProfileAddonTotalCents,
   getGuestProfile,
   getGuestProfileStatusLabel,
+  listGuestProfileAddons,
   type GuestProfile,
+  type GuestProfileAddon,
   type GuestProfileStatus,
 } from "@/src/lib/guest-profiles";
 import {
@@ -33,6 +37,7 @@ export default async function GuestProfileDetailPage({
   const user = await requireAdminUser();
   const profile = getGuestProfile(Number(id));
   if (!profile) notFound();
+  const addons = listGuestProfileAddons(profile.id);
   const showEdit = getSingleValue(query.edit) === "1";
   const error = getSingleValue(query.error);
   const success = getSingleValue(query.success);
@@ -120,6 +125,7 @@ export default async function GuestProfileDetailPage({
         <section className="overflow-hidden rounded-lg border border-brand/20 bg-white">
           <GuestProfileForm
             action={updateGuestProfileAction}
+            addons={addons}
             cancelHref={`/admin/guest-profile/${profile.id}`}
             profile={profile}
             submitLabel="Save Changes"
@@ -146,9 +152,46 @@ export default async function GuestProfileDetailPage({
               </dl>
             </section>
           ))}
+          <GuestProfileAddonSection addons={addons} />
         </div>
       )}
     </main>
+  );
+}
+
+function GuestProfileAddonSection({
+  addons,
+}: {
+  addons: GuestProfileAddon[];
+}) {
+  const totalCents = getGuestProfileAddonTotalCents(addons);
+
+  return (
+    <section className="rounded-lg border border-black/5 bg-white px-4 py-5 sm:px-5">
+      <h2 className="text-base font-semibold text-ink">Addon</h2>
+      {addons.length === 0 ? (
+        <p className="mt-4 text-sm leading-6 text-ink/60">-</p>
+      ) : (
+        <ul className="mt-4 list-disc space-y-2 pl-5 text-sm leading-6 text-ink/80">
+          {addons.map((addon) => (
+            <li key={addon.id}>
+              <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                <span>{addon.serviceName}</span>
+                <span className="font-medium text-ink">
+                  {formatGuestProfileAddonPrice(addon.priceCents)}
+                </span>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+      <div className="mt-4 flex items-center justify-between gap-4 border-t border-black/10 pt-4 text-sm">
+        <span className="font-medium text-ink/65">Total Addon</span>
+        <span className="font-semibold text-ink">
+          {formatGuestProfileAddonPrice(totalCents)}
+        </span>
+      </div>
+    </section>
   );
 }
 
