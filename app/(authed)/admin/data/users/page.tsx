@@ -12,6 +12,7 @@ import {
   getSingleValue,
   getUserCreateMode,
   LocalTabNav,
+  SetPasswordFormSection,
   StatusMessage,
   type TabLink,
 } from "../AdminDataView";
@@ -23,6 +24,7 @@ type PageProps = {
     create?: string | string[];
     edit?: string | string[];
     error?: string | string[];
+    password?: string | string[];
     success?: string | string[];
     tab?: string | string[];
   }>;
@@ -52,8 +54,13 @@ export default async function AdminUsersPage({ searchParams }: PageProps) {
   );
   const editId =
     activeTab === "accounts" ? getEditId(getSingleValue(query.edit)) : null;
+  const passwordId =
+    activeTab === "accounts" ? getEditId(getSingleValue(query.password)) : null;
   const view = getAdminTableView("users", actor);
   const editRow = editId ? getAdminRowForEdit("users", editId, actor) : null;
+  const passwordRow = passwordId
+    ? getAdminRowForEdit("users", passwordId, actor)
+    : null;
 
   return (
     <main className="flex-1 px-4 py-6 sm:px-6 sm:py-8 lg:px-10">
@@ -82,6 +89,11 @@ export default async function AdminUsersPage({ searchParams }: PageProps) {
             editRow={editRow}
             tableName="users"
             view={view}
+          />
+          <SetPasswordFormSection
+            cancelHref="/admin/data/users?tab=accounts"
+            passwordId={passwordId}
+            passwordRow={passwordRow}
           />
           <AdminTableSection
             actionMode="records"

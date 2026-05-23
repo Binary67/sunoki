@@ -26,7 +26,7 @@ export function createAdminRow(
     return { ok: false, message: `${table.label} can only be updated.` };
   }
 
-  const parsed = parseFormValues(tableName, formData);
+  const parsed = parseFormValues(tableName, formData, "create");
   if (!parsed.ok) return { ok: false, message: parsed.message };
   const createError = validateUserCreate(actor, tableName, parsed.values);
   if (createError) return createError;
@@ -68,7 +68,7 @@ export function updateAdminRow(
     return { ok: false, message: "Choose a valid row." };
   }
 
-  const parsed = parseFormValues(tableName, formData);
+  const parsed = parseFormValues(tableName, formData, "update");
   if (!parsed.ok) return { ok: false, message: parsed.message };
 
   let found = true;
@@ -158,6 +158,52 @@ export function deleteAdminRow(
   }
 }
 
+export function updateUserPassword(
+  actor: User,
+  rowId: number,
+  formData: FormData,
+): AdminMutationResult {
+  if (!Number.isInteger(rowId) || rowId <= 0) {
+    return { ok: false, message: "Choose a valid user." };
+  }
+
+  const rawPassword = formData.get("password");
+  const password = typeof rawPassword === "string" ? rawPassword : "";
+  if (!password) return { ok: false, message: "Password is required." };
+
+  const table = getAdminTableDefinition("users");
+  let found = true;
+  let permissionError: AdminMutationResult | null = null;
+
+  try {
+    runTransaction(() => {
+      const before = selectRowById(table, rowId);
+      if (!before) {
+        found = false;
+        return;
+      }
+
+      permissionError = validateUserPasswordUpdate(actor, before);
+      if (permissionError) return;
+
+      db.prepare("UPDATE users SET password = ? WHERE id = ?").run(
+        password,
+        rowId,
+      );
+
+      const after = selectRowById(table, rowId);
+      if (!after) throw new Error("Updated user could not be loaded.");
+      insertAuditLog(actor, "update", "users", rowId, before, after);
+    });
+
+    if (!found) return { ok: false, message: "User not found." };
+    if (permissionError) return permissionError;
+    return { ok: true, message: "Password updated." };
+  } catch {
+    return { ok: false, message: "Unable to update password." };
+  }
+}
+
 function validateUserCreate(
   actor: User,
   tableName: EditableTableName,
@@ -220,6 +266,20 @@ function validateUserDelete(
 
   if (role === "superadmin" && getSuperAdminCount() <= 1) {
     return { ok: false, message: "At least one super admin must remain." };
+  }
+
+  return null;
+}
+
+function validateUserPasswordUpdate(
+  actor: User,
+  before: AdminRow,
+): AdminMutationResult | null {
+  const role = getUserRole(before.role);
+  if (!role) return { ok: false, message: "Choose a valid role." };
+
+  if (role !== "guest" && actor.role !== "superadmin") {
+    return { ok: false, message: "Only super admins can manage admin users." };
   }
 
   return null;

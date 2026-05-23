@@ -141,8 +141,16 @@ export default async function AuditLogPage({ searchParams }: PageProps) {
                           View JSON
                         </summary>
                         <div className="mt-3 grid gap-3 lg:grid-cols-2">
-                          <JsonBlock title="Before" json={log.beforeJson} />
-                          <JsonBlock title="After" json={log.afterJson} />
+                          <JsonBlock
+                            title="Before"
+                            json={log.beforeJson}
+                            tableName={log.tableName}
+                          />
+                          <JsonBlock
+                            title="After"
+                            json={log.afterJson}
+                            tableName={log.tableName}
+                          />
                         </div>
                       </details>
                     </td>
@@ -157,14 +165,22 @@ export default async function AuditLogPage({ searchParams }: PageProps) {
   );
 }
 
-function JsonBlock({ title, json }: { title: string; json: string | null }) {
+function JsonBlock({
+  json,
+  tableName,
+  title,
+}: {
+  json: string | null;
+  tableName: AuditTableName;
+  title: string;
+}) {
   return (
     <div>
       <div className="mb-1 text-xs font-semibold uppercase tracking-[0.14em] text-ink/45">
         {title}
       </div>
       <pre className="max-h-72 overflow-auto rounded-md bg-ink px-3 py-2 text-xs leading-5 text-white">
-        {formatJson(json)}
+        {formatJson(json, tableName)}
       </pre>
     </div>
   );
@@ -182,10 +198,24 @@ function getOperationFilter(value: string | undefined): AuditOperation | undefin
   return value && isAuditOperation(value) ? value : undefined;
 }
 
-function formatJson(value: string | null): string {
+function formatJson(value: string | null, tableName: AuditTableName): string {
   if (!value) return "null";
   try {
-    return JSON.stringify(JSON.parse(value), null, 2);
+    const parsed = JSON.parse(value) as unknown;
+    if (
+      tableName === "users" &&
+      parsed &&
+      typeof parsed === "object" &&
+      !Array.isArray(parsed) &&
+      "password" in parsed
+    ) {
+      return JSON.stringify(
+        { ...(parsed as Record<string, unknown>), password: "[hidden]" },
+        null,
+        2,
+      );
+    }
+    return JSON.stringify(parsed, null, 2);
   } catch {
     return value;
   }

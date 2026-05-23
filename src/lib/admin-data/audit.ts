@@ -112,7 +112,15 @@ export function insertAuditLog(
     operation,
     tableName,
     rowId,
-    before ? JSON.stringify(before) : null,
-    after ? JSON.stringify(after) : null,
+    before ? JSON.stringify(maskSensitiveValues(tableName, before)) : null,
+    after ? JSON.stringify(maskSensitiveValues(tableName, after)) : null,
   );
+}
+
+function maskSensitiveValues(
+  tableName: EditableTableName,
+  row: AdminRow,
+): AdminRow {
+  if (tableName !== "users" || !("password" in row)) return row;
+  return { ...row, password: "[hidden]" };
 }

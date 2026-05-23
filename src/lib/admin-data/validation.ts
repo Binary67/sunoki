@@ -20,13 +20,17 @@ type BookingUserRow = {
 export function parseFormValues(
   tableName: EditableTableName,
   formData: FormData,
+  mode: "create" | "update" = "create",
 ): ParsedValues {
   switch (tableName) {
     case "users": {
       const username = readRequiredText(formData, "username", "Username");
       if (!username.ok) return username;
-      const password = readRequiredText(formData, "password", "Password", false);
-      if (!password.ok) return password;
+      const password =
+        mode === "create"
+          ? readRequiredText(formData, "password", "Password", false)
+          : null;
+      if (password && !password.ok) return password;
       const role = readRequiredText(formData, "role", "Role");
       if (!role.ok) return role;
       if (
@@ -60,15 +64,18 @@ export function parseFormValues(
         }
       }
 
+      const values: Record<string, AdminRowValue> = {
+        username: username.value,
+        role: role.value,
+        check_in_date: role.value === "guest" ? checkInDate : null,
+        check_out_date: role.value === "guest" ? checkOutDate : null,
+      };
+
+      if (password) values.password = password.value;
+
       return {
         ok: true,
-        values: {
-          username: username.value,
-          password: password.value,
-          role: role.value,
-          check_in_date: role.value === "guest" ? checkInDate : null,
-          check_out_date: role.value === "guest" ? checkOutDate : null,
-        },
+        values,
       };
     }
     case "facilities": {

@@ -23,7 +23,7 @@ export type AdminRow = Record<string, AdminRowValue>;
 export type AdminColumnDefinition = {
   name: string;
   label: string;
-  input?: "text" | "number" | "select" | "date" | "time";
+  input?: "text" | "password" | "number" | "select" | "date" | "time";
   optionsKey?: "active" | "facilities" | "roles" | "timeSlots" | "users";
   readOnly?: boolean;
   required?: boolean;
@@ -76,7 +76,7 @@ const ADMIN_TABLES: Record<EditableTableName, AdminTableDefinition> = {
     columns: [
       { name: "id", label: "ID", readOnly: true },
       { name: "username", label: "Username", input: "text", required: true },
-      { name: "password", label: "Password", input: "text", required: true },
+      { name: "password", label: "Password", input: "password", required: true },
       {
         name: "role",
         label: "Role",
