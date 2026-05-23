@@ -170,6 +170,7 @@ function GuestProfileModal({
         </div>
         <GuestProfileForm
           action={createGuestProfileAction}
+          allowImport
           cancelHref={closeHref}
           notice={<StatusMessage error={error} />}
           submitLabel="Save Guest"

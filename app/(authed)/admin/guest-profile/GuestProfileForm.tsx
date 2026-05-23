@@ -9,11 +9,13 @@ import {
 import GuestProfileAddonFields, {
   type GuestProfileAddonFormValue,
 } from "./GuestProfileAddonFields";
+import GuestProfileImportButton from "./GuestProfileImportButton";
 import { GUEST_PROFILE_SECTIONS, type GuestProfileField } from "./fields";
 
 type GuestProfileFormProps = {
   action: (formData: FormData) => Promise<void>;
   addons?: GuestProfileAddon[];
+  allowImport?: boolean;
   cancelHref: string;
   notice?: ReactNode;
   profile?: GuestProfile;
@@ -23,6 +25,7 @@ type GuestProfileFormProps = {
 export default function GuestProfileForm({
   action,
   addons = [],
+  allowImport = false,
   cancelHref,
   notice,
   profile,
@@ -54,19 +57,26 @@ export default function GuestProfileForm({
         ))}
         <GuestProfileAddonFields initialAddons={getAddonFormValues(addons)} />
       </div>
-      <div className="flex justify-end gap-3 border-t border-black/10 bg-white px-4 py-4 sm:px-5">
-        <Link
-          href={cancelHref}
-          className="inline-flex h-10 items-center justify-center rounded-md border border-black/10 px-4 text-sm font-medium text-ink/70 hover:bg-surface"
-        >
-          Cancel
-        </Link>
-        <button
-          type="submit"
-          className="h-10 rounded-md bg-brand px-4 text-sm font-medium text-white hover:bg-brand/90"
-        >
-          {submitLabel}
-        </button>
+      <div
+        className={`flex flex-col gap-3 border-t border-black/10 bg-white px-4 py-4 sm:flex-row sm:items-center sm:px-5 ${
+          allowImport ? "sm:justify-between" : "sm:justify-end"
+        }`}
+      >
+        {allowImport && <GuestProfileImportButton />}
+        <div className="flex justify-end gap-3">
+          <Link
+            href={cancelHref}
+            className="inline-flex h-10 items-center justify-center rounded-md border border-black/10 px-4 text-sm font-medium text-ink/70 hover:bg-surface"
+          >
+            Cancel
+          </Link>
+          <button
+            type="submit"
+            className="h-10 rounded-md bg-brand px-4 text-sm font-medium text-white hover:bg-brand/90"
+          >
+            {submitLabel}
+          </button>
+        </div>
       </div>
     </form>
   );
