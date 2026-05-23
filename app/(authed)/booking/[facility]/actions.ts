@@ -2,7 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/src/lib/auth";
-import { createFacilityBooking } from "@/src/lib/bookings";
+import {
+  cancelFacilityBooking,
+  createFacilityBooking,
+} from "@/src/lib/bookings";
 
 export type BookingActionSuccess = {
   startTime: string;
@@ -41,7 +44,45 @@ export async function reserveFacilitySlotAction(
 
   revalidatePath(`/booking/${facilitySlug}`);
   return {
-    success: { startTime: result.startTime, bookingDate, facilitySlug },
+    success: {
+      startTime: result.startTime,
+      bookingDate,
+      facilitySlug,
+    },
+    submissionId,
+  };
+}
+
+export async function cancelFacilityBookingAction(
+  prev: BookingActionState,
+  formData: FormData,
+): Promise<BookingActionState> {
+  const submissionId = (prev.submissionId ?? 0) + 1;
+  const user = await getCurrentUser();
+  if (!user) {
+    return { error: "Sign in before cancelling a booking.", submissionId };
+  }
+
+  const facilitySlug = String(formData.get("facility") ?? "");
+  const bookingDate = String(formData.get("bookingDate") ?? "");
+  const timeSlotId = Number(formData.get("timeSlotId"));
+
+  const result = cancelFacilityBooking({
+    actor: user,
+    facilitySlug,
+    bookingDate,
+    timeSlotId,
+  });
+
+  if (!result.ok) return { error: result.error, submissionId };
+
+  revalidatePath(`/booking/${facilitySlug}`);
+  return {
+    success: {
+      startTime: result.startTime,
+      bookingDate,
+      facilitySlug,
+    },
     submissionId,
   };
 }

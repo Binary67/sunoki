@@ -1,4 +1,5 @@
-import { db } from "./db";
+import { insertAuditLog } from "./admin-data/audit";
+import { db, type User } from "./db";
 import { isBookingDate, isWithinBookingDateRange } from "./booking-dates";
 import type { UserRole } from "./roles";
 
@@ -10,6 +11,7 @@ export type FacilitySlotAvailability = {
   bookedPax: number;
   paxLeft: number;
   isAvailable: boolean;
+  currentUserBookingId: number | null;
 };
 
 export type FacilityAvailability = {
@@ -35,6 +37,7 @@ type SlotAvailabilityRow = {
   durationMinutes: number;
   capacityPax: number;
   bookedPax: number;
+  currentUserBookingId: number | null;
 };
 
 type SlotRow = {
@@ -53,6 +56,15 @@ type CountRow = {
   bookedPax: number;
 };
 
+type CancelBookingRow = {
+  id: number;
+  userId: number;
+  facilityTimeSlotId: number;
+  bookingDate: string;
+  createdAt: string;
+  startTime: string;
+};
+
 function hasSlotStarted(bookingDate: string, startTime: string, now = new Date()) {
   const [year, month, day] = bookingDate.split("-").map(Number);
   const [hour, minute] = startTime.split(":").map(Number);
@@ -62,8 +74,9 @@ function hasSlotStarted(bookingDate: string, startTime: string, now = new Date()
 export function getFacilityAvailability(
   facilitySlug: string,
   bookingDate: string,
+  currentUserId: number,
 ): FacilityAvailability | null {
-  if (!isBookingDate(bookingDate)) return null;
+  if (!isBookingDate(bookingDate) || !Number.isInteger(currentUserId)) return null;
 
   const facility = db
     .prepare(
@@ -91,7 +104,8 @@ export function getFacilityAvailability(
           s.start_time AS startTime,
           s.duration_minutes AS durationMinutes,
           s.capacity_pax AS capacityPax,
-          COUNT(b.id) AS bookedPax
+          COUNT(b.id) AS bookedPax,
+          MAX(CASE WHEN b.user_id = ? THEN b.id ELSE NULL END) AS currentUserBookingId
         FROM facility_time_slots s
         LEFT JOIN facility_bookings b
           ON b.facility_time_slot_id = s.id
@@ -102,7 +116,7 @@ export function getFacilityAvailability(
         ORDER BY s.start_time
       `,
     )
-    .all(bookingDate, facility.id) as SlotAvailabilityRow[];
+    .all(currentUserId, bookingDate, facility.id) as SlotAvailabilityRow[];
 
   return {
     id: facility.id,
@@ -123,6 +137,10 @@ export function getFacilityAvailability(
         bookedPax,
         paxLeft,
         isAvailable: paxLeft > 0,
+        currentUserBookingId:
+          row.currentUserBookingId === null
+            ? null
+            : Number(row.currentUserBookingId),
       };
     }),
   };
@@ -357,5 +375,96 @@ export function createFacilityBooking({
   } catch {
     if (inTransaction) db.exec("ROLLBACK");
     return { ok: false, error: "Unable to reserve this time slot." };
+  }
+}
+
+export type CancelFacilityBookingInput = {
+  actor: User;
+  facilitySlug: string;
+  bookingDate: string;
+  timeSlotId: number;
+};
+
+export type CancelFacilityBookingResult =
+  | { ok: true; startTime: string }
+  | { ok: false; error: string };
+
+export function cancelFacilityBooking({
+  actor,
+  facilitySlug,
+  bookingDate,
+  timeSlotId,
+}: CancelFacilityBookingInput): CancelFacilityBookingResult {
+  if (!isBookingDate(bookingDate) || !Number.isInteger(timeSlotId)) {
+    return { ok: false, error: "Choose a valid booking to cancel." };
+  }
+
+  let inTransaction = false;
+
+  try {
+    db.exec("BEGIN IMMEDIATE");
+    inTransaction = true;
+
+    const booking = db
+      .prepare(
+        `
+          SELECT
+            b.id,
+            b.user_id AS userId,
+            b.facility_time_slot_id AS facilityTimeSlotId,
+            b.booking_date AS bookingDate,
+            b.created_at AS createdAt,
+            s.start_time AS startTime
+          FROM facility_bookings b
+          JOIN facility_time_slots s ON s.id = b.facility_time_slot_id
+          JOIN facilities f ON f.id = s.facility_id
+          WHERE b.user_id = ?
+            AND b.facility_time_slot_id = ?
+            AND b.booking_date = ?
+            AND f.slug = ?
+        `,
+      )
+      .get(actor.id, timeSlotId, bookingDate, facilitySlug) as
+      | CancelBookingRow
+      | undefined;
+
+    if (!booking) {
+      db.exec("ROLLBACK");
+      inTransaction = false;
+      return { ok: false, error: "Unable to cancel this booking." };
+    }
+
+    if (hasSlotStarted(booking.bookingDate, booking.startTime)) {
+      db.exec("ROLLBACK");
+      inTransaction = false;
+      return {
+        ok: false,
+        error: "This booking can no longer be cancelled.",
+      };
+    }
+
+    const before = {
+      id: Number(booking.id),
+      user_id: Number(booking.userId),
+      facility_time_slot_id: Number(booking.facilityTimeSlotId),
+      booking_date: booking.bookingDate,
+      created_at: booking.createdAt,
+    };
+
+    db.prepare(
+      `
+        DELETE FROM facility_bookings
+        WHERE id = ?
+          AND user_id = ?
+      `,
+    ).run(booking.id, actor.id);
+    insertAuditLog(actor, "delete", "facility_bookings", booking.id, before, null);
+
+    db.exec("COMMIT");
+    inTransaction = false;
+    return { ok: true, startTime: booking.startTime };
+  } catch {
+    if (inTransaction) db.exec("ROLLBACK");
+    return { ok: false, error: "Unable to cancel this booking." };
   }
 }

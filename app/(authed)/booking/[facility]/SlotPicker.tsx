@@ -10,6 +10,7 @@ import {
 } from "@/src/lib/booking-dates";
 import { useToast } from "@/app/components/Toast";
 import {
+  cancelFacilityBookingAction,
   reserveFacilitySlotAction,
   type BookingActionState,
 } from "./actions";
@@ -63,6 +64,13 @@ function hasSlotStarted(
   );
 }
 
+function formatDateLabel(value: string) {
+  const date = parseBookingDate(value);
+  return `${WEEKDAY_NAMES[date.getDay()]}, ${
+    MONTH_NAMES[date.getMonth()]
+  } ${ordinal(date.getDate())}`;
+}
+
 export default function SlotPicker({
   facilitySlug,
   selectedDateValue,
@@ -81,46 +89,81 @@ export default function SlotPicker({
   const [expandedPeriods, setExpandedPeriods] = useState<
     Record<SlotPeriod, boolean>
   >({ morning: false, afternoon: false, evening: false });
-  const [state, rawFormAction, pending] = useActionState(
+  const [reserveState, rawReserveFormAction, reservePending] = useActionState(
     reserveFacilitySlotAction,
     initialActionState,
   );
-  const lastNotifiedSubmissionId = useRef<number | undefined>(undefined);
+  const [cancelState, rawCancelFormAction, cancelPending] = useActionState(
+    cancelFacilityBookingAction,
+    initialActionState,
+  );
+  const lastNotifiedReserveSubmissionId = useRef<number | undefined>(undefined);
+  const lastNotifiedCancelSubmissionId = useRef<number | undefined>(undefined);
+  const pending = reservePending || cancelPending;
 
-  const formAction = (formData: FormData) => {
+  const reserveFormAction = (formData: FormData) => {
     setSelectedSlot(null);
-    rawFormAction(formData);
+    rawReserveFormAction(formData);
+  };
+
+  const cancelFormAction = (formData: FormData) => {
+    setSelectedSlot(null);
+    rawCancelFormAction(formData);
   };
 
   useEffect(() => {
-    if (state.submissionId === undefined) return;
-    if (lastNotifiedSubmissionId.current === state.submissionId) return;
-    lastNotifiedSubmissionId.current = state.submissionId;
+    if (reserveState.submissionId === undefined) return;
+    if (lastNotifiedReserveSubmissionId.current === reserveState.submissionId) {
+      return;
+    }
+    lastNotifiedReserveSubmissionId.current = reserveState.submissionId;
 
-    if (state.success) {
-      const date = parseBookingDate(state.success.bookingDate);
-      const dateLabel = `${WEEKDAY_NAMES[date.getDay()]}, ${
-        MONTH_NAMES[date.getMonth()]
-      } ${ordinal(date.getDate())}`;
+    if (reserveState.success) {
       showToast({
         tone: "success",
         title: "Reservation confirmed",
-        description: `${dateLabel} at ${state.success.startTime}`,
+        description: `${formatDateLabel(reserveState.success.bookingDate)} at ${
+          reserveState.success.startTime
+        }`,
       });
-    } else if (state.error) {
+    } else if (reserveState.error) {
       showToast({
         tone: "error",
         title: "Couldn't reserve",
-        description: state.error,
+        description: reserveState.error,
       });
     }
-  }, [state, showToast]);
+  }, [reserveState, showToast]);
 
-  const selectedDate = parseBookingDate(selectedDateValue);
-  const selectedDateLabel = `${WEEKDAY_NAMES[selectedDate.getDay()]}, ${
-    MONTH_NAMES[selectedDate.getMonth()]
-  } ${ordinal(selectedDate.getDate())}`;
+  useEffect(() => {
+    if (cancelState.submissionId === undefined) return;
+    if (lastNotifiedCancelSubmissionId.current === cancelState.submissionId) {
+      return;
+    }
+    lastNotifiedCancelSubmissionId.current = cancelState.submissionId;
+
+    if (cancelState.success) {
+      showToast({
+        tone: "success",
+        title: "Booking cancelled",
+        description: `${formatDateLabel(cancelState.success.bookingDate)} at ${
+          cancelState.success.startTime
+        }`,
+      });
+    } else if (cancelState.error) {
+      showToast({
+        tone: "error",
+        title: "Couldn't cancel",
+        description: cancelState.error,
+      });
+    }
+  }, [cancelState, showToast]);
+
+  const selectedDateLabel = formatDateLabel(selectedDateValue);
   const selectedSlotRecord = slots.find((slot) => slot.id === selectedSlot);
+  const canReserveSelectedSlot =
+    selectedSlotRecord?.isAvailable === true &&
+    selectedSlotRecord.currentUserBookingId === null;
   const slotsByPeriod = bucketSlotsByPeriod(slots);
 
   return (
@@ -181,14 +224,20 @@ export default function SlotPicker({
                       currentDateValue,
                       currentTimeValue,
                     );
-                    const unavailable = !slot.isAvailable || started;
+                    const bookedByCurrentUser =
+                      slot.currentUserBookingId !== null;
+                    const fullForOthers =
+                      !slot.isAvailable && !bookedByCurrentUser;
+                    const unavailable = fullForOthers || started;
                     const selected = selectedSlot === slot.id;
                     return (
                       <li
                         key={slot.id}
-                        className={`flex items-center justify-between rounded-xl px-4 py-3 transition-colors ${
+                        className={`flex flex-col gap-3 rounded-xl px-4 py-3 transition-colors sm:flex-row sm:items-center sm:justify-between ${
                           unavailable
                             ? "bg-surface/60 opacity-50 grayscale"
+                            : bookedByCurrentUser
+                              ? "bg-surface ring-1 ring-brand/60"
                             : selected
                               ? "bg-surface ring-1 ring-brand"
                               : "bg-surface"
@@ -197,9 +246,11 @@ export default function SlotPicker({
                         <div className="flex items-center gap-3">
                           <span
                             aria-hidden="true"
-                            className={`size-2.5 rounded-full ${slotBulletClass(
-                              unavailable ? 0 : slot.paxLeft,
-                            )}`}
+                            className={`size-2.5 rounded-full ${
+                              bookedByCurrentUser && !started
+                                ? "bg-brand"
+                                : slotBulletClass(unavailable ? 0 : slot.paxLeft)
+                            }`}
                           />
                           <div>
                             <div
@@ -218,40 +269,81 @@ export default function SlotPicker({
                             </div>
                           </div>
                         </div>
-                        <div className="flex items-center gap-4">
+                        <div className="flex items-center justify-between gap-3 sm:justify-end sm:gap-4">
                           <span
                             className={`text-xs font-medium ${
-                              unavailable ? "text-red-600/80" : "text-ink/55"
+                              bookedByCurrentUser && !started
+                                ? "text-brand"
+                                : unavailable
+                                  ? "text-red-600/80"
+                                  : "text-ink/55"
                             }`}
                           >
-                            {unavailable
+                            {bookedByCurrentUser
+                              ? "Booked"
+                              : unavailable
                               ? started
                                 ? "Closed"
                                 : "Not available"
                               : `${slot.paxLeft} of ${slot.capacityPax} pax left`}
                           </span>
-                          <button
-                            type="button"
-                            disabled={unavailable || pending}
-                            onClick={() => setSelectedSlot(slot.id)}
-                            className={`text-sm font-medium ${
-                              unavailable
-                                ? "text-ink/30 cursor-not-allowed"
-                                : pending
-                                  ? "text-ink/40 cursor-not-allowed"
-                                  : selected
-                                    ? "text-brand"
-                                    : "text-brand hover:underline"
-                            }`}
-                          >
-                            {unavailable
-                              ? started
-                                ? "Closed"
-                                : "Full"
-                              : selected
-                                ? "Selected"
-                                : "Select"}
-                          </button>
+                          {bookedByCurrentUser ? (
+                            <form action={cancelFormAction}>
+                              <input
+                                type="hidden"
+                                name="facility"
+                                value={facilitySlug}
+                              />
+                              <input
+                                type="hidden"
+                                name="bookingDate"
+                                value={selectedDateValue}
+                              />
+                              <input
+                                type="hidden"
+                                name="timeSlotId"
+                                value={slot.id}
+                              />
+                              <button
+                                type="submit"
+                                disabled={started || pending}
+                                className={`text-sm font-medium ${
+                                  started || pending
+                                    ? "text-ink/30 cursor-not-allowed"
+                                    : "text-red-600 hover:underline"
+                                }`}
+                              >
+                                {started
+                                  ? "Closed"
+                                  : cancelPending
+                                    ? "Cancelling..."
+                                    : "Cancel booking"}
+                              </button>
+                            </form>
+                          ) : (
+                            <button
+                              type="button"
+                              disabled={unavailable || pending}
+                              onClick={() => setSelectedSlot(slot.id)}
+                              className={`text-sm font-medium ${
+                                unavailable
+                                  ? "text-ink/30 cursor-not-allowed"
+                                  : pending
+                                    ? "text-ink/40 cursor-not-allowed"
+                                    : selected
+                                      ? "text-brand"
+                                      : "text-brand hover:underline"
+                              }`}
+                            >
+                              {unavailable
+                                ? started
+                                  ? "Closed"
+                                  : "Full"
+                                : selected
+                                  ? "Selected"
+                                  : "Select"}
+                            </button>
+                          )}
                         </div>
                       </li>
                     );
@@ -263,21 +355,21 @@ export default function SlotPicker({
         })}
       </div>
 
-      <form action={formAction} className="mt-6">
+      <form action={reserveFormAction} className="mt-6">
         <input type="hidden" name="facility" value={facilitySlug} />
         <input type="hidden" name="bookingDate" value={selectedDateValue} />
         <input type="hidden" name="timeSlotId" value={selectedSlot ?? ""} />
 
         <button
           type="submit"
-          disabled={!selectedSlotRecord?.isAvailable || pending}
+          disabled={!canReserveSelectedSlot || pending}
           className={`w-full rounded-full px-6 py-2.5 text-sm font-medium transition-colors ${
-            !selectedSlotRecord?.isAvailable || pending
+            !canReserveSelectedSlot || pending
               ? "bg-surface text-ink/40 cursor-not-allowed"
               : "bg-brand text-white hover:bg-brand/90"
           }`}
         >
-          {pending ? "Reserving..." : "Reserve Now"}
+          {reservePending ? "Reserving..." : "Reserve Now"}
         </button>
       </form>
     </div>

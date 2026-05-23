@@ -83,7 +83,7 @@ export default async function FacilityPage({
     bookingWindow,
     minBookableDate,
   );
-  const availability = getFacilityAvailability(facility, selectedDate);
+  const availability = getFacilityAvailability(facility, selectedDate, user.id);
 
   if (!availability) notFound();
 
