@@ -27,6 +27,11 @@ type PageProps = {
 
 const STATUS_FILTERS: GuestProfileStatus[] = ["not_checked_in", "checked_in"];
 
+type RoomOverlapWarning = {
+  guestName: string;
+  throughDate: string;
+};
+
 export default async function GuestProfilePage({ searchParams }: PageProps) {
   const query = await searchParams;
   const showForm = getSingleValue(query.new) === "1";
@@ -38,6 +43,8 @@ export default async function GuestProfilePage({ searchParams }: PageProps) {
   const canDeleteGuestProfiles = user.role === "superadmin";
   const today = formatBookingDate(new Date());
   const followUpThroughDate = addBookingDays(today, 30);
+  const checkedInProfiles =
+    activeStatus === "checked_in" ? profiles : listGuestProfiles("checked_in");
 
   return (
     <main className="flex-1 px-4 py-6 sm:px-6 sm:py-8 lg:px-10">
@@ -94,6 +101,7 @@ export default async function GuestProfilePage({ searchParams }: PageProps) {
                 key={profile.id}
                 activeStatus={activeStatus}
                 canDeleteGuestProfiles={canDeleteGuestProfiles}
+                checkedInProfiles={checkedInProfiles}
                 followUpThroughDate={followUpThroughDate}
                 profile={profile}
                 today={today}
@@ -166,23 +174,28 @@ function GuestProfileModal({
 function GuestProfileBlock({
   activeStatus,
   canDeleteGuestProfiles,
+  checkedInProfiles,
   followUpThroughDate,
   profile,
   today,
 }: {
   activeStatus: GuestProfileStatus;
   canDeleteGuestProfiles: boolean;
+  checkedInProfiles: GuestProfile[];
   followUpThroughDate: string;
   profile: GuestProfile;
   today: string;
 }) {
   const profileHref = `/admin/guest-profile/${profile.id}`;
   const followUpDue = isFollowUpDue(profile, today, followUpThroughDate);
+  const overlapWarning = getRoomOverlapWarning(profile, checkedInProfiles);
 
   return (
     <article
       className={`group relative rounded-lg border bg-white px-4 py-4 transition-colors hover:bg-surface ${
-        followUpDue
+        overlapWarning
+          ? "border-amber-300 hover:border-amber-400"
+          : followUpDue
           ? "border-red-300 hover:border-red-400"
           : "border-black/5 hover:border-brand/30"
       }`}
@@ -202,8 +215,11 @@ function GuestProfileBlock({
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-          <span className="w-fit rounded-md bg-surface px-2.5 py-1.5 text-xs font-medium text-ink/60">
+          <span className="w-fit rounded-md border border-violet-200 bg-violet-50 px-2.5 py-1.5 text-xs font-medium text-violet-700">
             EDD {formatValue(profile.expectedDeliveryDate)}
+          </span>
+          <span className="w-fit rounded-md border border-brand/15 bg-brand/10 px-2.5 py-1.5 text-xs font-medium text-brand">
+            Room {formatValue(profile.roomNumber)}
           </span>
           <span
             className={`w-fit rounded-md px-2.5 py-1.5 text-xs font-medium ${
@@ -232,6 +248,12 @@ function GuestProfileBlock({
         <SummaryItem label="Mode of Delivery" value={profile.modeOfDelivery} />
         <SummaryItem label="Type of Package" value={profile.packageType} />
       </dl>
+      {overlapWarning && (
+        <p className="pointer-events-none relative z-10 mt-4 rounded-md bg-amber-50 px-3 py-2 text-sm leading-5 text-amber-800">
+          Room may overlap with {overlapWarning.guestName} until{" "}
+          {overlapWarning.throughDate}.
+        </p>
+      )}
     </article>
   );
 }
@@ -338,6 +360,40 @@ function isFollowUpDue(
         edd <= followUpThroughDate,
     )
   );
+}
+
+function getRoomOverlapWarning(
+  profile: GuestProfile,
+  checkedInProfiles: GuestProfile[],
+): RoomOverlapWarning | null {
+  const edd = profile.expectedDeliveryDate;
+  if (!profile.roomNumber || !edd || !isBookingDate(edd)) return null;
+
+  const overlappingGuest = checkedInProfiles.find((checkedInProfile) => {
+    const checkInDate = checkedInProfile.expectedDeliveryDate;
+    if (
+      checkedInProfile.status !== "checked_in" ||
+      checkedInProfile.roomNumber !== profile.roomNumber ||
+      !checkInDate ||
+      !isBookingDate(checkInDate) ||
+      isSameGuest(profile, checkedInProfile)
+    ) {
+      return false;
+    }
+
+    return edd >= checkInDate && edd <= addBookingDays(checkInDate, 30);
+  });
+
+  if (!overlappingGuest?.expectedDeliveryDate) return null;
+
+  return {
+    guestName: overlappingGuest.name,
+    throughDate: addBookingDays(overlappingGuest.expectedDeliveryDate, 30),
+  };
+}
+
+function isSameGuest(a: GuestProfile, b: GuestProfile): boolean {
+  return a.id === b.id || Boolean(a.icNo && b.icNo && a.icNo === b.icNo);
 }
 
 function formatValue(value: string | null | undefined): string {

@@ -1,4 +1,4 @@
-import { isBookingDate } from "./booking-dates";
+import { formatBookingDate, isBookingDate } from "./booking-dates";
 import { db } from "./db";
 
 export type GuestProfileStatus = "not_checked_in" | "checked_in";
@@ -224,9 +224,17 @@ export function checkInGuestProfile(id: number): GuestProfileMutationResult {
   }
 
   try {
+    const checkInDate = formatBookingDate(new Date());
     const result = db
-      .prepare("UPDATE guest_profiles SET status = 'checked_in' WHERE id = ?")
-      .run(id) as MutationResult;
+      .prepare(
+        `
+          UPDATE guest_profiles
+          SET status = 'checked_in',
+              expected_delivery_date = ?
+          WHERE id = ?
+        `,
+      )
+      .run(checkInDate, id) as MutationResult;
 
     if (Number(result.changes) === 0) {
       return { ok: false, message: "Guest profile not found." };
