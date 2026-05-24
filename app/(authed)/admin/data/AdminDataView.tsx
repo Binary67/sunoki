@@ -1,8 +1,10 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { getActiveLoginLock } from "@/src/lib/login-attempts";
 import {
   isUpdateOnlyAdminTable,
   type AdminColumnDefinition,
+  type AdminTablePagination,
   type AdminRow,
   type AdminSelectOptions,
   type AdminTableView,
@@ -329,13 +331,19 @@ export function AdminTableSection({
   actionMode,
   actor,
   editHref,
+  paginationHref,
+  passwordHref,
   tableName,
+  toolbar,
   view,
 }: {
   actionMode: "records" | "user-access";
   actor: User;
   editHref?: (rowId: number) => string;
+  paginationHref?: (page: number) => string;
+  passwordHref?: (rowId: number) => string;
   tableName: EditableTableName;
+  toolbar?: ReactNode;
   view: AdminTableView;
 }) {
   const updateOnly = isUpdateOnlyAdminTable(tableName);
@@ -343,16 +351,20 @@ export function AdminTableSection({
     actionMode === "user-access"
       ? getUserAccessColumns(view)
       : view.table.columns;
+  const rowCountLabel = view.pagination
+    ? getPaginationRangeLabel(view.pagination)
+    : `${view.rows.length} ${view.rows.length === 1 ? "row" : "rows"}`;
 
   return (
     <section>
-      <div className="mb-4 flex items-baseline justify-between">
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <h2 className="text-base font-semibold text-ink">
           {actionMode === "user-access" ? "User Access" : view.table.label}
         </h2>
-        <span className="text-xs text-ink/50">
-          {view.rows.length} {view.rows.length === 1 ? "row" : "rows"}
-        </span>
+        <div className="flex flex-col gap-2 sm:items-end">
+          {toolbar}
+          <span className="text-xs text-ink/50">{rowCountLabel}</span>
+        </div>
       </div>
 
       {view.rows.length === 0 ? (
@@ -394,7 +406,11 @@ export function AdminTableSection({
                         column.name === "password" ? (
                           canManageRecord ? (
                             <Link
-                              href={`/admin/data/users?tab=accounts&password=${rowId}`}
+                              href={
+                                passwordHref
+                                  ? passwordHref(rowId)
+                                  : `/admin/data/users?tab=accounts&password=${rowId}`
+                              }
                               className="inline-flex rounded-md border border-black/10 px-2.5 py-1.5 text-xs font-medium text-ink/70 hover:bg-surface"
                             >
                               Set New Password
@@ -452,8 +468,71 @@ export function AdminTableSection({
           </table>
         </div>
       )}
+      {view.pagination && paginationHref && (
+        <PaginationControls
+          hrefForPage={paginationHref}
+          pagination={view.pagination}
+        />
+      )}
     </section>
   );
+}
+
+function PaginationControls({
+  hrefForPage,
+  pagination,
+}: {
+  hrefForPage: (page: number) => string;
+  pagination: AdminTablePagination;
+}) {
+  const hasPrevious = pagination.page > 1;
+  const hasNext = pagination.page < pagination.totalPages;
+
+  return (
+    <div className="mt-4 flex flex-col gap-3 text-sm text-ink/65 sm:flex-row sm:items-center sm:justify-between">
+      <span>
+        Page {pagination.page} of {pagination.totalPages}
+      </span>
+      <div className="flex items-center gap-2">
+        {hasPrevious ? (
+          <Link
+            href={hrefForPage(pagination.page - 1)}
+            className="rounded-md border border-black/10 px-3 py-2 font-medium text-ink/70 hover:bg-surface"
+          >
+            Previous
+          </Link>
+        ) : (
+          <span className="rounded-md border border-black/5 px-3 py-2 font-medium text-ink/35">
+            Previous
+          </span>
+        )}
+        {hasNext ? (
+          <Link
+            href={hrefForPage(pagination.page + 1)}
+            className="rounded-md border border-black/10 px-3 py-2 font-medium text-ink/70 hover:bg-surface"
+          >
+            Next
+          </Link>
+        ) : (
+          <span className="rounded-md border border-black/5 px-3 py-2 font-medium text-ink/35">
+            Next
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function getPaginationRangeLabel(pagination: AdminTablePagination): string {
+  if (pagination.totalRows === 0) return "Showing 0 of 0";
+
+  const firstRow = (pagination.page - 1) * pagination.pageSize + 1;
+  const lastRow = Math.min(
+    pagination.page * pagination.pageSize,
+    pagination.totalRows,
+  );
+
+  return `Showing ${firstRow}-${lastRow} of ${pagination.totalRows}`;
 }
 
 export function getSingleValue(

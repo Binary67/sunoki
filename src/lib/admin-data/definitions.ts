@@ -54,6 +54,14 @@ export type AdminTableView = {
   table: AdminTableDefinition;
   rows: AdminRow[];
   selectOptions: AdminSelectOptions;
+  pagination?: AdminTablePagination;
+};
+
+export type AdminTablePagination = {
+  page: number;
+  pageSize: number;
+  totalPages: number;
+  totalRows: number;
 };
 
 export type AdminMutationResult =
