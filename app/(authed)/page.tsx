@@ -11,6 +11,7 @@ import {
   formatGuestProfileAddonPrice,
   GUEST_ROOM_LEVELS,
   GUEST_ROOM_NUMBERS,
+  getGuestProfileAddonLineTotalCents,
   getGuestProfileCheckoutDate,
   getGuestProfileAddonTotalCents,
   listGuestProfileAddons,
@@ -542,25 +543,50 @@ function GuestProfileAddonSummary({
         <p className="mt-2 text-sm leading-6 text-ink/60">-</p>
       ) : (
         <ul className="mt-3 list-disc space-y-2 pl-5 text-sm leading-6 text-ink/80">
-          {addons.map((addon) => (
-            <li key={addon.id}>
-              <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                <span>
-                  {addon.serviceName}
-                  {addon.serviceName === ADDITIONAL_DAYS_ADDON_NAME &&
-                    addon.days && `: ${addon.days} DAYS`}
-                </span>
-                <span className="font-medium text-ink">
-                  {formatGuestProfileAddonPrice(addon.priceCents)}
-                </span>
-              </div>
-              {addon.remarks && (
-                <p className="mt-1 whitespace-pre-line text-xs leading-5 text-ink/60">
-                  {addon.remarks}
-                </p>
-              )}
-            </li>
-          ))}
+          {addons.map((addon) => {
+            const isAdditionalDays =
+              addon.serviceName === ADDITIONAL_DAYS_ADDON_NAME;
+
+            return (
+              <li key={addon.id}>
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="grid gap-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span>
+                        {addon.serviceName}
+                        {isAdditionalDays &&
+                          addon.days &&
+                          `: ${addon.days} DAYS`}
+                      </span>
+                      {!isAdditionalDays && (
+                        <span className="rounded-full bg-surface px-2 py-0.5 text-[11px] font-medium uppercase tracking-[0.12em] text-ink/50">
+                          {addon.category === "sunoki"
+                            ? "Purchase Perk"
+                            : "Sunoki"}
+                        </span>
+                      )}
+                    </div>
+                    {!isAdditionalDays && (
+                      <span className="text-xs leading-5 text-ink/55">
+                        Qty {addon.quantity} x{" "}
+                        {formatGuestProfileAddonPrice(addon.priceCents)}
+                      </span>
+                    )}
+                  </div>
+                  <span className="font-medium text-ink">
+                    {formatGuestProfileAddonPrice(
+                      getGuestProfileAddonLineTotalCents(addon),
+                    )}
+                  </span>
+                </div>
+                {addon.remarks && (
+                  <p className="mt-1 whitespace-pre-line text-xs leading-5 text-ink/60">
+                    {addon.remarks}
+                  </p>
+                )}
+              </li>
+            );
+          })}
         </ul>
       )}
       <div className="mt-4 flex items-center justify-between gap-4 border-t border-black/10 pt-4 text-sm">

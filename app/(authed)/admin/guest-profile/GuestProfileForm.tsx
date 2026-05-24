@@ -177,7 +177,9 @@ function getAddonFormValues(
   addons: GuestProfileAddon[],
 ): GuestProfileAddonFormValue[] {
   return addons.map((addon) => ({
+    category: addon.category,
     serviceName: addon.serviceName,
+    quantity: String(addon.quantity),
     days:
       addon.serviceName === ADDITIONAL_DAYS_ADDON_NAME && addon.days
         ? String(addon.days)

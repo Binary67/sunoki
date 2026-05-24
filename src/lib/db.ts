@@ -104,6 +104,8 @@ db.exec(`
     id               INTEGER PRIMARY KEY,
     guest_profile_id INTEGER NOT NULL REFERENCES guest_profiles(id) ON DELETE CASCADE,
     service_name     TEXT NOT NULL,
+    category         TEXT NOT NULL DEFAULT 'custom' CHECK (category IN ('sunoki','custom')),
+    quantity         INTEGER NOT NULL DEFAULT 1 CHECK (quantity > 0),
     days             INTEGER CHECK (days IS NULL OR days > 0),
     price_cents      INTEGER NOT NULL CHECK (price_cents >= 0),
     remarks          TEXT,
@@ -189,6 +191,16 @@ const guestProfileAddonColumns = db
   .all() as { name: string }[];
 if (!guestProfileAddonColumns.some((column) => column.name === "remarks")) {
   db.exec("ALTER TABLE guest_profile_addons ADD COLUMN remarks TEXT;");
+}
+if (!guestProfileAddonColumns.some((column) => column.name === "category")) {
+  db.exec(
+    "ALTER TABLE guest_profile_addons ADD COLUMN category TEXT NOT NULL DEFAULT 'custom' CHECK (category IN ('sunoki','custom'));",
+  );
+}
+if (!guestProfileAddonColumns.some((column) => column.name === "quantity")) {
+  db.exec(
+    "ALTER TABLE guest_profile_addons ADD COLUMN quantity INTEGER NOT NULL DEFAULT 1 CHECK (quantity > 0);",
+  );
 }
 
 const guestProfileColumns = db

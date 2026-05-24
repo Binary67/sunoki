@@ -10,6 +10,7 @@ import {
   getPackageEntitlementSnapshotByName,
   serializePackageEntitlementSnapshot,
 } from "./package-entitlement-options";
+import { PACKAGE_SERVICE_COLUMNS } from "./package-entitlements";
 
 export type GuestProfileStatus = "incoming" | "checked_in";
 export type GuestProfileFilterStatus = GuestProfileStatus | "checked_out";
@@ -78,11 +79,15 @@ export type GuestProfileAddon = {
   id: number;
   guestProfileId: number;
   serviceName: string;
+  category: GuestProfileAddonCategory;
+  quantity: number;
   days: number | null;
   priceCents: number;
   remarks: string | null;
   createdAt: string;
 };
+
+export type GuestProfileAddonCategory = "sunoki" | "custom";
 
 type InsertResult = {
   lastInsertRowid: number | bigint;
@@ -105,7 +110,9 @@ export type GuestProfileAccountMutationResult =
   | { ok: false; message: string };
 
 type GuestProfileAddonInput = {
+  category: GuestProfileAddonCategory;
   serviceName: string;
+  quantity: number;
   days: number | null;
   priceCents: number;
   remarks: string | null;
@@ -245,6 +252,8 @@ export function listGuestProfileAddons(
           id,
           guest_profile_id AS guestProfileId,
           service_name AS serviceName,
+          category,
+          quantity,
           days,
           price_cents AS priceCents,
           remarks,
@@ -252,7 +261,11 @@ export function listGuestProfileAddons(
         FROM guest_profile_addons
         WHERE guest_profile_id = ?
         ORDER BY
-          CASE WHEN service_name = ? THEN 0 ELSE 1 END,
+          CASE
+            WHEN service_name = ? THEN 0
+            WHEN category = 'sunoki' THEN 1
+            ELSE 2
+          END,
           id ASC
       `,
     )
@@ -268,7 +281,22 @@ export function formatGuestProfileAddonPrice(priceCents: number): string {
 export function getGuestProfileAddonTotalCents(
   addons: GuestProfileAddon[],
 ): number {
-  return addons.reduce((total, addon) => total + addon.priceCents, 0);
+  return addons.reduce(
+    (total, addon) => total + addon.priceCents * getAddonQuantity(addon),
+    0,
+  );
+}
+
+export function getGuestProfileAddonLineTotalCents(
+  addon: GuestProfileAddon,
+): number {
+  return addon.priceCents * getAddonQuantity(addon);
+}
+
+function getAddonQuantity(
+  addon: Pick<GuestProfileAddon, "serviceName" | "quantity">,
+): number {
+  return addon.serviceName === ADDITIONAL_DAYS_ADDON_NAME ? 1 : addon.quantity;
 }
 
 export function getGuestProfileCheckoutDate(
@@ -734,7 +762,9 @@ function parseGuestProfileAddons(
 ):
   | { ok: true; data: GuestProfileAddonInput[] }
   | { ok: false; message: string } {
+  const categories = formData.getAll("addon_category");
   const serviceNames = formData.getAll("addon_service_name");
+  const quantities = formData.getAll("addon_quantity");
   const priceAmounts = formData.getAll("addon_price_amount");
   const remarksValues = formData.getAll("addon_remarks");
   const additionalDays = readFormValue(formData.get("additional_days"));
@@ -746,7 +776,9 @@ function parseGuestProfileAddons(
   );
   const addons: GuestProfileAddonInput[] = [];
   const addonRowCount = Math.max(
+    categories.length,
     serviceNames.length,
+    quantities.length,
     priceAmounts.length,
     remarksValues.length,
   );
@@ -776,7 +808,9 @@ function parseGuestProfileAddons(
     }
 
     addons.push({
+      category: "custom",
       serviceName: ADDITIONAL_DAYS_ADDON_NAME,
+      quantity: 1,
       days,
       priceCents,
       remarks: additionalDaysRemarks,
@@ -785,14 +819,28 @@ function parseGuestProfileAddons(
 
   for (let index = 0; index < addonRowCount; index += 1) {
     const serviceName = readFormValue(serviceNames[index] ?? null);
+    const quantityValue = readFormValue(quantities[index] ?? null);
     const priceAmount = readFormValue(priceAmounts[index] ?? null);
     const remarks = readFormValue(remarksValues[index] ?? null);
     if (!serviceName && !priceAmount && !remarks) continue;
+
+    const category = parseAddonCategory(categories[index] ?? null);
+    if (!category) {
+      return { ok: false, message: "Choose a valid add-on category." };
+    }
     if (!serviceName) {
       return { ok: false, message: "Add-on service name is required." };
     }
+    if (!quantityValue) {
+      return { ok: false, message: "Add-on quantity is required." };
+    }
     if (!priceAmount) {
       return { ok: false, message: "Add-on price is required." };
+    }
+
+    const quantity = parseAddonQuantity(quantityValue);
+    if (quantity === null) {
+      return { ok: false, message: "Enter a valid add-on quantity." };
     }
 
     const priceCents = parseAddonPriceCents(priceAmount);
@@ -808,8 +856,18 @@ function parseGuestProfileAddons(
       };
     }
 
+    const storedServiceName =
+      category === "sunoki"
+        ? getSunokiAddonServiceName(serviceName)
+        : normalizedServiceName;
+    if (!storedServiceName) {
+      return { ok: false, message: "Choose a valid Sunoki service." };
+    }
+
     addons.push({
-      serviceName: normalizedServiceName,
+      category,
+      serviceName: storedServiceName,
+      quantity,
       days: null,
       priceCents,
       remarks,
@@ -839,6 +897,27 @@ function parseAddonPriceCents(value: string): number | null {
   return Number.isSafeInteger(totalCents) ? totalCents : null;
 }
 
+function parseAddonCategory(
+  value: FormDataEntryValue | null,
+): GuestProfileAddonCategory | null {
+  if (value === "sunoki" || value === "custom") return value;
+  return null;
+}
+
+function parseAddonQuantity(value: string): number | null {
+  if (!/^\d+$/.test(value)) return null;
+
+  const quantity = Number(value);
+  return Number.isSafeInteger(quantity) && quantity > 0 ? quantity : null;
+}
+
+function getSunokiAddonServiceName(value: string): string | null {
+  return (
+    PACKAGE_SERVICE_COLUMNS.find((column) => column.label === value)?.label ??
+    null
+  );
+}
+
 function parseAdditionalDays(value: string): number | null {
   if (!/^\d+$/.test(value)) return null;
 
@@ -857,11 +936,13 @@ function insertGuestProfileAddons(
       INSERT INTO guest_profile_addons (
         guest_profile_id,
         service_name,
+        category,
+        quantity,
         days,
         price_cents,
         remarks
       )
-      VALUES (?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
     `,
   );
 
@@ -869,6 +950,8 @@ function insertGuestProfileAddons(
     insert.run(
       profileId,
       addon.serviceName,
+      addon.category,
+      addon.quantity,
       addon.days,
       addon.priceCents,
       addon.remarks,
