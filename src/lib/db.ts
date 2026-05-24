@@ -24,7 +24,7 @@ db.exec(`
 
   CREATE TABLE IF NOT EXISTS users (
     id             INTEGER PRIMARY KEY,
-    username       TEXT NOT NULL,
+    username       TEXT UNIQUE NOT NULL,
     password       TEXT NOT NULL,
     role           TEXT NOT NULL CHECK (role IN ('superadmin','admin','guest')),
     active         INTEGER NOT NULL DEFAULT 1 CHECK (active IN (0, 1)),
@@ -135,10 +135,6 @@ db.prepare(
 );
 
 db.exec(`
-  CREATE UNIQUE INDEX IF NOT EXISTS users_active_username_unique
-    ON users(username)
-    WHERE active = 1;
-
   CREATE UNIQUE INDEX IF NOT EXISTS guest_profiles_user_id_unique
     ON guest_profiles(user_id)
     WHERE user_id IS NOT NULL;

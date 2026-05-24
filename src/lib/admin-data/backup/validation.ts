@@ -53,7 +53,7 @@ function validateUsers(
 ): AdminRow[] {
   const normalized: AdminRow[] = [];
   const ids = new Set<number>();
-  const activeUsernames = new Set<string>();
+  const usernames = new Set<string>();
   let superAdminCount = 0;
 
   for (const row of rows) {
@@ -114,18 +114,18 @@ function validateUsers(
       addRowError(errors, row, "users", "active", "Access must be 0 or 1.");
     }
 
-    if (username !== null && active === 1) {
+    if (username !== null) {
       const key = username.toLowerCase();
-      if (activeUsernames.has(key)) {
+      if (usernames.has(key)) {
         addRowError(
           errors,
           row,
           "users",
           "username",
-          `Duplicate active username "${username}".`,
+          `Duplicate username "${username}".`,
         );
       }
-      activeUsernames.add(key);
+      usernames.add(key);
     }
 
     if (role !== "superadmin" && role !== "admin" && role !== "guest") {

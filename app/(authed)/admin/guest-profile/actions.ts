@@ -5,10 +5,10 @@ import { redirect } from "next/navigation";
 import { requireAdminUser } from "@/src/lib/admin-auth";
 import {
   createGuestProfile,
-  deactivateGuestProfileUser,
   deleteGuestProfile,
   getGuestProfileStatus,
   setGuestProfileStatus,
+  toggleGuestProfileUserAccess,
   type GuestProfileStatus,
   updateGuestProfile,
 } from "@/src/lib/guest-profiles";
@@ -123,7 +123,7 @@ export async function setGuestProfileStatusAction(
   );
 }
 
-export async function deactivateGuestProfileUserAction(
+export async function toggleGuestProfileUserAccessAction(
   formData: FormData,
 ): Promise<void> {
   await requireAdminUser();
@@ -133,7 +133,7 @@ export async function deactivateGuestProfileUserAction(
     redirectToGuestProfileList("error", "Choose a valid guest profile.");
   }
 
-  const result = deactivateGuestProfileUser(profileId);
+  const result = toggleGuestProfileUserAccess(profileId);
   if (result.ok) {
     revalidatePath(GUEST_PROFILE_PATH);
     revalidatePath(`${GUEST_PROFILE_PATH}/${profileId}`);

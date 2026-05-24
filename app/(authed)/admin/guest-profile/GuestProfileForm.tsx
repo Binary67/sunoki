@@ -103,7 +103,7 @@ function GuestProfileAccountFields({ profile }: { profile?: GuestProfile }) {
         <div>
           <span className="text-sm font-medium text-ink/75">Username</span>
           <div className="mt-1 flex h-10 items-center rounded-md border border-black/10 bg-surface px-3 text-sm text-ink/70">
-            {profile?.accountUsername ?? "Generated from room and IC on save"}
+            {profile?.accountUsername ?? "Generated on save"}
           </div>
         </div>
         <div>

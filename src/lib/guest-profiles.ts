@@ -1,4 +1,9 @@
-import { addBookingDays, formatBookingDate, isBookingDate } from "./booking-dates";
+import { randomInt } from "node:crypto";
+import {
+  addBookingDays,
+  formatBookingDate,
+  isBookingDate,
+} from "./booking-dates";
 import { db } from "./db";
 import { ADDITIONAL_DAYS_ADDON_NAME } from "./guest-profile-addons";
 
@@ -19,6 +24,8 @@ export const GUEST_ROOM_NUMBERS = [
   "10",
   "11",
 ];
+const GUEST_USERNAME_LENGTH = 6;
+const GUEST_USERNAME_ATTEMPTS = 100;
 
 export type GuestProfile = {
   id: number;
@@ -95,6 +102,10 @@ type GuestProfileAddonInput = {
   days: number | null;
   priceCents: number;
 };
+
+type GuestUsernameResult =
+  | { ok: true; value: string }
+  | { ok: false; message: string };
 
 type ParsedGuestProfileForm =
   | {
@@ -233,12 +244,8 @@ export function createGuestProfile(
   const values = parseGuestProfileForm(formData);
   if (!values.ok) return values;
 
-  const account = parseRequiredGuestAccount(values.data, formData);
+  const account = parseRequiredGuestAccount(formData);
   if (!account.ok) return account;
-
-  if (hasActiveUsername(account.username)) {
-    return { ok: false, message: "An active guest already uses this username." };
-  }
 
   if (hasDuplicateActiveIc(values.data.ic_no)) {
     return {
@@ -290,20 +297,8 @@ export function updateGuestProfile(
   const profile = getGuestProfile(id);
   if (!profile) return { ok: false, message: "Guest profile not found." };
 
-  const account = parseOptionalGuestAccount(
-    values.data,
-    formData,
-    profile.userId !== null,
-  );
+  const account = parseOptionalGuestAccount(formData, profile.userId !== null);
   if (!account.ok) return account;
-
-  if (
-    account.username &&
-    profile.accountActive === 1 &&
-    hasActiveUsername(account.username, profile.userId)
-  ) {
-    return { ok: false, message: "An active guest already uses this username." };
-  }
 
   if (hasDuplicateActiveIc(values.data.ic_no, id)) {
     return {
@@ -320,16 +315,9 @@ export function updateGuestProfile(
       values.addons,
     );
 
-    if (userId && account.username) {
-      updateGuestUser(userId, account.username, account.password, stayDates);
+    if (userId) {
+      updateGuestUser(userId, account.password, stayDates);
     } else if (!userId && account.username && account.password !== null) {
-      if (hasActiveUsername(account.username)) {
-        rollbackGuestProfileTransaction();
-        return {
-          ok: false,
-          message: "An active guest already uses this username.",
-        };
-      }
       userId = insertGuestUser(account.username, account.password, stayDates);
     }
 
@@ -385,7 +373,7 @@ export function deleteGuestProfile(id: number): GuestProfileMutationResult {
   }
 }
 
-export function deactivateGuestProfileUser(
+export function toggleGuestProfileUserAccess(
   id: number,
 ): GuestProfileAccountMutationResult {
   if (!isValidGuestProfileId(id)) {
@@ -397,26 +385,35 @@ export function deactivateGuestProfileUser(
   if (!profile.userId) {
     return { ok: false, message: "This guest profile has no linked account." };
   }
-  if (profile.accountActive !== 1) {
-    return { ok: true, message: "Guest account is already inactive." };
-  }
+  const active = profile.accountActive === 1 ? 0 : 1;
 
   try {
     db.exec("BEGIN");
-    db.prepare("UPDATE users SET active = 0 WHERE id = ?").run(profile.userId);
-    db.prepare(
-      `
-        UPDATE sessions
-        SET revoked_at = ?
-        WHERE user_id = ?
-          AND revoked_at IS NULL
-      `,
-    ).run(formatDateTime(new Date()), profile.userId);
+    db.prepare("UPDATE users SET active = ? WHERE id = ?").run(
+      active,
+      profile.userId,
+    );
+    if (active === 0) {
+      db.prepare(
+        `
+          UPDATE sessions
+          SET revoked_at = ?
+          WHERE user_id = ?
+            AND revoked_at IS NULL
+        `,
+      ).run(formatDateTime(new Date()), profile.userId);
+    }
     db.exec("COMMIT");
-    return { ok: true, message: "Guest account deactivated." };
+    return {
+      ok: true,
+      message:
+        active === 1
+          ? "Guest account reactivated."
+          : "Guest account deactivated.",
+    };
   } catch {
     rollbackGuestProfileTransaction();
-    return { ok: false, message: "Unable to deactivate guest account." };
+    return { ok: false, message: "Unable to update guest account access." };
   }
 }
 
@@ -570,20 +567,22 @@ function parseGuestProfileForm(
 }
 
 function parseRequiredGuestAccount(
-  data: Record<GuestProfileColumn, string | null>,
   formData: FormData,
-): { ok: true; username: string; password: string } | { ok: false; message: string } {
+):
+  | { ok: true; username: string; password: string }
+  | { ok: false; message: string } {
   const password = readPassword(formData);
-  if (!password) return { ok: false, message: "Guest account password is required." };
+  if (!password) {
+    return { ok: false, message: "Guest account password is required." };
+  }
 
-  const username = generateGuestUsername(data);
+  const username = generateGuestUsername();
   if (!username.ok) return username;
 
   return { ok: true, username: username.value, password };
 }
 
 function parseOptionalGuestAccount(
-  data: Record<GuestProfileColumn, string | null>,
   formData: FormData,
   hasLinkedUser: boolean,
 ):
@@ -593,29 +592,36 @@ function parseOptionalGuestAccount(
   if (!hasLinkedUser && !password) {
     return { ok: true, username: null, password: null };
   }
+  if (hasLinkedUser) {
+    return { ok: true, username: null, password };
+  }
 
-  const username = generateGuestUsername(data);
+  const username = generateGuestUsername();
   if (!username.ok) return username;
 
   return { ok: true, username: username.value, password };
 }
 
-function generateGuestUsername(
-  data: Record<GuestProfileColumn, string | null>,
-): { ok: true; value: string } | { ok: false; message: string } {
-  if (!data.room_number) {
-    return { ok: false, message: "Room number is required for guest access." };
+function generateGuestUsername(): GuestUsernameResult {
+  for (let attempt = 0; attempt < GUEST_USERNAME_ATTEMPTS; attempt += 1) {
+    const digits = "0123456789".split("");
+    const firstDigitIndex = randomInt(1, digits.length);
+    let username = digits.splice(firstDigitIndex, 1)[0];
+
+    while (username.length < GUEST_USERNAME_LENGTH) {
+      const digitIndex = randomInt(0, digits.length);
+      username += digits.splice(digitIndex, 1)[0];
+    }
+
+    if (!hasUsername(username)) {
+      return { ok: true, value: username };
+    }
   }
 
-  const icDigits = (data.ic_no ?? "").replace(/\D/g, "");
-  if (icDigits.length < 4) {
-    return {
-      ok: false,
-      message: "IC number must contain at least 4 digits for guest access.",
-    };
-  }
-
-  return { ok: true, value: `${data.room_number}-${icDigits.slice(-4)}` };
+  return {
+    ok: false,
+    message: "Unable to generate a guest username. Try saving again.",
+  };
 }
 
 function readPassword(formData: FormData): string | null {
@@ -786,7 +792,6 @@ function insertGuestUser(
 
 function updateGuestUser(
   userId: number,
-  username: string,
   password: string | null,
   stayDates: GuestStayDates,
 ): void {
@@ -794,14 +799,12 @@ function updateGuestUser(
     db.prepare(
       `
         UPDATE users
-        SET username = ?,
-            password = ?,
+        SET password = ?,
             check_in_date = ?,
             check_out_date = ?
         WHERE id = ?
       `,
     ).run(
-      username,
       password,
       stayDates.checkInDate,
       stayDates.checkOutDate,
@@ -813,12 +816,11 @@ function updateGuestUser(
   db.prepare(
     `
       UPDATE users
-      SET username = ?,
-          check_in_date = ?,
+      SET check_in_date = ?,
           check_out_date = ?
       WHERE id = ?
     `,
-  ).run(username, stayDates.checkInDate, stayDates.checkOutDate, userId);
+  ).run(stayDates.checkInDate, stayDates.checkOutDate, userId);
 }
 
 function updateGuestUserStayDates(
@@ -913,21 +915,17 @@ function getGuestStayDates(
   };
 }
 
-function hasActiveUsername(username: string, excludeUserId?: number | null): boolean {
+function hasUsername(username: string): boolean {
   const row = db
     .prepare(
       `
         SELECT id
         FROM users
         WHERE username = ?
-          AND active = 1
-          AND (? IS NULL OR id != ?)
         LIMIT 1
       `,
     )
-    .get(username, excludeUserId ?? null, excludeUserId ?? null) as
-    | { id: number }
-    | undefined;
+    .get(username) as { id: number } | undefined;
 
   return Boolean(row);
 }

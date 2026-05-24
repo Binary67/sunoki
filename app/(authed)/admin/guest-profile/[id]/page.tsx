@@ -13,8 +13,8 @@ import {
 } from "@/src/lib/guest-profiles";
 import { ADDITIONAL_DAYS_ADDON_NAME } from "@/src/lib/guest-profile-addons";
 import {
-  deactivateGuestProfileUserAction,
   setGuestProfileStatusAction,
+  toggleGuestProfileUserAccessAction,
   updateGuestProfileAction,
 } from "../actions";
 import { GUEST_PROFILE_SECTIONS, type GuestProfileField } from "../fields";
@@ -181,14 +181,20 @@ function GuestProfileAccountSection({ profile }: { profile: GuestProfile }) {
             <ProfileValue label="Access Status" value={accountStatus} />
           </dl>
         </div>
-        {profile.userId && profile.accountActive === 1 && (
-          <form action={deactivateGuestProfileUserAction}>
+        {profile.userId && (
+          <form action={toggleGuestProfileUserAccessAction}>
             <input type="hidden" name="profileId" value={profile.id} />
             <button
               type="submit"
-              className="h-10 rounded-md border border-red-200 px-4 text-sm font-medium text-red-700 hover:bg-red-50"
+              className={
+                profile.accountActive === 1
+                  ? "h-10 rounded-md border border-red-200 px-4 text-sm font-medium text-red-700 hover:bg-red-50"
+                  : "h-10 rounded-md bg-brand px-4 text-sm font-medium text-white hover:bg-brand/90"
+              }
             >
-              Deactivate Account
+              {profile.accountActive === 1
+                ? "Deactivate Account"
+                : "Reactivate Account"}
             </button>
           </form>
         )}
