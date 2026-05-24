@@ -85,6 +85,12 @@ const ADMIN_TABLES: Record<EditableTableName, AdminTableDefinition> = {
         required: true,
       },
       {
+        name: "active",
+        label: "Access",
+        optionsKey: "active",
+        readOnly: true,
+      },
+      {
         name: "check_in_date",
         label: "Check-in Date",
         input: "date",

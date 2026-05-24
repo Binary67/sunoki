@@ -57,6 +57,7 @@ export default function GuestProfileForm({
           </fieldset>
         ))}
         <GuestProfileAddonFields initialAddons={getAddonFormValues(addons)} />
+        <GuestProfileAccountFields profile={profile} />
       </div>
       <div
         className={`flex flex-col gap-3 border-t border-black/10 bg-white px-4 py-4 sm:flex-row sm:items-center sm:px-5 ${
@@ -80,6 +81,56 @@ export default function GuestProfileForm({
         </div>
       </div>
     </form>
+  );
+}
+
+function GuestProfileAccountFields({ profile }: { profile?: GuestProfile }) {
+  const inputId = `${profile ? `guest-${profile.id}` : "guest-new"}-account-password`;
+  const hasLinkedAccount = Boolean(profile?.userId);
+  const accountStatus =
+    profile?.accountActive === 1
+      ? "Active"
+      : hasLinkedAccount
+        ? "Inactive"
+        : "Not created";
+
+  return (
+    <fieldset className="rounded-lg border border-black/5 bg-white px-4 py-4">
+      <legend className="px-1 text-sm font-semibold text-ink">
+        Account Access
+      </legend>
+      <div className="mt-3 grid gap-4 md:grid-cols-2">
+        <div>
+          <span className="text-sm font-medium text-ink/75">Username</span>
+          <div className="mt-1 flex h-10 items-center rounded-md border border-black/10 bg-surface px-3 text-sm text-ink/70">
+            {profile?.accountUsername ?? "Generated from room and IC on save"}
+          </div>
+        </div>
+        <div>
+          <span className="text-sm font-medium text-ink/75">Access Status</span>
+          <div className="mt-1 flex h-10 items-center rounded-md border border-black/10 bg-surface px-3 text-sm text-ink/70">
+            {accountStatus}
+          </div>
+        </div>
+        {profile?.accountActive !== 0 && (
+          <label
+            className="block text-sm font-medium text-ink/75 md:col-span-2"
+            htmlFor={inputId}
+          >
+            {hasLinkedAccount ? "New Password" : "Password"}{" "}
+            {!hasLinkedAccount && <span className="text-red-600">*</span>}
+            <input
+              id={inputId}
+              name="account_password"
+              type="password"
+              required={!profile}
+              autoComplete="new-password"
+              className="mt-1 h-10 w-full rounded-md border border-black/10 bg-white px-3 text-sm text-ink outline-none focus:border-brand focus:ring-2 focus:ring-brand/15 md:max-w-md"
+            />
+          </label>
+        )}
+      </div>
+    </fieldset>
   );
 }
 

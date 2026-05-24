@@ -13,6 +13,7 @@ import {
 } from "@/src/lib/guest-profiles";
 import { ADDITIONAL_DAYS_ADDON_NAME } from "@/src/lib/guest-profile-addons";
 import {
+  deactivateGuestProfileUserAction,
   setGuestProfileStatusAction,
   updateGuestProfileAction,
 } from "../actions";
@@ -153,10 +154,65 @@ export default async function GuestProfileDetailPage({
               </dl>
             </section>
           ))}
+          <GuestProfileAccountSection profile={profile} />
           <GuestProfileAddonSection addons={addons} />
         </div>
       )}
     </main>
+  );
+}
+
+function GuestProfileAccountSection({ profile }: { profile: GuestProfile }) {
+  const hasLinkedAccount = Boolean(profile.userId);
+  const accountStatus =
+    profile.accountActive === 1
+      ? "Active"
+      : hasLinkedAccount
+        ? "Inactive"
+        : "Not created";
+
+  return (
+    <section className="rounded-lg border border-black/5 bg-white px-4 py-5 sm:px-5">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h2 className="text-base font-semibold text-ink">Account Access</h2>
+          <dl className="mt-4 grid gap-4 md:grid-cols-2">
+            <ProfileValue label="Username" value={profile.accountUsername} />
+            <ProfileValue label="Access Status" value={accountStatus} />
+          </dl>
+        </div>
+        {profile.userId && profile.accountActive === 1 && (
+          <form action={deactivateGuestProfileUserAction}>
+            <input type="hidden" name="profileId" value={profile.id} />
+            <button
+              type="submit"
+              className="h-10 rounded-md border border-red-200 px-4 text-sm font-medium text-red-700 hover:bg-red-50"
+            >
+              Deactivate Account
+            </button>
+          </form>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function ProfileValue({
+  label,
+  value,
+}: {
+  label: string;
+  value: string | null | undefined;
+}) {
+  return (
+    <div>
+      <dt className="text-[11px] font-medium uppercase tracking-[0.14em] text-ink/45">
+        {label}
+      </dt>
+      <dd className="mt-1 whitespace-pre-wrap text-sm leading-6 text-ink/80">
+        {formatValue(value)}
+      </dd>
+    </div>
   );
 }
 

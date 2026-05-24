@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { requireAdminUser } from "@/src/lib/admin-auth";
 import {
   createGuestProfile,
+  deactivateGuestProfileUser,
   deleteGuestProfile,
   getGuestProfileStatus,
   setGuestProfileStatus,
@@ -13,6 +14,7 @@ import {
 } from "@/src/lib/guest-profiles";
 
 const GUEST_PROFILE_PATH = "/admin/guest-profile";
+const USERS_DATA_PATH = "/admin/data/users";
 
 export async function createGuestProfileAction(
   formData: FormData,
@@ -25,6 +27,7 @@ export async function createGuestProfileAction(
   }
 
   revalidatePath(GUEST_PROFILE_PATH);
+  revalidatePath(USERS_DATA_PATH);
   redirectToGuestProfileList("success", "Guest profile saved");
 }
 
@@ -42,6 +45,7 @@ export async function updateGuestProfileAction(
   if (result.ok) {
     revalidatePath(GUEST_PROFILE_PATH);
     revalidatePath(`${GUEST_PROFILE_PATH}/${profileId}`);
+    revalidatePath(USERS_DATA_PATH);
   }
 
   redirectToGuestProfileDetail(
@@ -75,6 +79,7 @@ export async function deleteGuestProfileAction(
   if (result.ok) {
     revalidatePath(GUEST_PROFILE_PATH);
     revalidatePath(`${GUEST_PROFILE_PATH}/${profileId}`);
+    revalidatePath(USERS_DATA_PATH);
     redirectToGuestProfileList("success", "Guest profile deleted", false, status);
   }
 
@@ -104,6 +109,7 @@ export async function setGuestProfileStatusAction(
   if (result.ok) {
     revalidatePath(GUEST_PROFILE_PATH);
     revalidatePath(`${GUEST_PROFILE_PATH}/${profileId}`);
+    revalidatePath(USERS_DATA_PATH);
   }
 
   redirectToGuestProfileDetail(
@@ -114,6 +120,30 @@ export async function setGuestProfileStatusAction(
         ? "Guest checked in"
         : "Guest check-in undone"
       : result.message,
+  );
+}
+
+export async function deactivateGuestProfileUserAction(
+  formData: FormData,
+): Promise<void> {
+  await requireAdminUser();
+
+  const profileId = getProfileId(formData);
+  if (!isValidProfileId(profileId)) {
+    redirectToGuestProfileList("error", "Choose a valid guest profile.");
+  }
+
+  const result = deactivateGuestProfileUser(profileId);
+  if (result.ok) {
+    revalidatePath(GUEST_PROFILE_PATH);
+    revalidatePath(`${GUEST_PROFILE_PATH}/${profileId}`);
+    revalidatePath(USERS_DATA_PATH);
+  }
+
+  redirectToGuestProfileDetail(
+    profileId,
+    result.ok ? "success" : "error",
+    result.message,
   );
 }
 

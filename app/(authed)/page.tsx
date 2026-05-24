@@ -10,6 +10,7 @@ import { getUpcomingBookings } from "@/src/lib/bookings";
 import { ADDITIONAL_DAYS_ADDON_NAME } from "@/src/lib/guest-profile-addons";
 import {
   formatGuestProfileAddonPrice,
+  GUEST_BASE_STAY_DAYS,
   GUEST_ROOM_LEVELS,
   GUEST_ROOM_NUMBERS,
   getGuestProfileAddonTotalCents,
@@ -32,7 +33,6 @@ const GUEST_ROOM_SET = new Set(
   ),
 );
 const TOTAL_GUEST_ROOMS = GUEST_ROOM_SET.size;
-const BASE_STAY_DAYS = 27;
 
 type RoomOccupancyGuest = {
   addons: GuestProfileAddon[];
@@ -655,7 +655,7 @@ function getCheckoutDate(
       (addon) => addon.serviceName === ADDITIONAL_DAYS_ADDON_NAME,
     )?.days ?? 0;
 
-  return addBookingDays(edd, BASE_STAY_DAYS + additionalDays);
+  return addBookingDays(edd, GUEST_BASE_STAY_DAYS + additionalDays);
 }
 
 function getRoomDetailsSummary(

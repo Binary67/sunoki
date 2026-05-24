@@ -10,7 +10,6 @@ import {
   EditFormSection,
   getEditId,
   getSingleValue,
-  getUserCreateMode,
   LocalTabNav,
   SetPasswordFormSection,
   StatusMessage,
@@ -21,7 +20,6 @@ type UsersTab = "accounts" | "access";
 
 type PageProps = {
   searchParams: Promise<{
-    create?: string | string[];
     edit?: string | string[];
     error?: string | string[];
     password?: string | string[];
@@ -48,10 +46,7 @@ export default async function AdminUsersPage({ searchParams }: PageProps) {
   const query = await searchParams;
   const activeTab = getUsersTab(getSingleValue(query.tab));
   const canManageAdminUsers = actor.role === "superadmin";
-  const createMode = getUserCreateMode(
-    getSingleValue(query.create),
-    canManageAdminUsers,
-  );
+  const createMode = "admin";
   const editId =
     activeTab === "accounts" ? getEditId(getSingleValue(query.edit)) : null;
   const passwordId =
@@ -76,12 +71,13 @@ export default async function AdminUsersPage({ searchParams }: PageProps) {
 
       {activeTab === "accounts" ? (
         <>
-          <CreateFormSection
-            canManageAdminUsers={canManageAdminUsers}
-            createMode={createMode}
-            tableName="users"
-            view={view}
-          />
+          {canManageAdminUsers && (
+            <CreateFormSection
+              createMode={createMode}
+              tableName="users"
+              view={view}
+            />
+          )}
           <EditFormSection
             actor={actor}
             cancelHref="/admin/data/users?tab=accounts"

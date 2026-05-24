@@ -218,7 +218,13 @@ function validateUserCreate(
   if (tableName !== "users") return null;
   const role = getUserRole(values.role);
   if (!role) return { ok: false, message: "Choose a valid role." };
-  if (role !== "guest" && actor.role !== "superadmin") {
+  if (role === "guest") {
+    return {
+      ok: false,
+      message: "Guest accounts are created from guest profiles.",
+    };
+  }
+  if (actor.role !== "superadmin") {
     return { ok: false, message: "Only super admins can manage admin users." };
   }
   return null;
@@ -248,10 +254,14 @@ function validateUserUpdate(
     return { ok: false, message: "Choose a valid role." };
   }
 
-  if (
-    actor.role !== "superadmin" &&
-    (beforeRole !== "guest" || afterRole !== "guest")
-  ) {
+  if (beforeRole === "guest" || afterRole === "guest") {
+    return {
+      ok: false,
+      message: "Guest accounts are managed from guest profiles.",
+    };
+  }
+
+  if (actor.role !== "superadmin") {
     return { ok: false, message: "Only super admins can manage admin users." };
   }
 
@@ -276,7 +286,14 @@ function validateUserDelete(
   const role = getUserRole(before.role);
   if (!role) return { ok: false, message: "Choose a valid role." };
 
-  if (role !== "guest" && actor.role !== "superadmin") {
+  if (role === "guest") {
+    return {
+      ok: false,
+      message: "Guest accounts are managed from guest profiles.",
+    };
+  }
+
+  if (actor.role !== "superadmin") {
     return { ok: false, message: "Only super admins can manage admin users." };
   }
 
@@ -294,7 +311,14 @@ function validateUserPasswordUpdate(
   const role = getUserRole(before.role);
   if (!role) return { ok: false, message: "Choose a valid role." };
 
-  if (role !== "guest" && actor.role !== "superadmin") {
+  if (role === "guest") {
+    return {
+      ok: false,
+      message: "Guest passwords are managed from guest profiles.",
+    };
+  }
+
+  if (actor.role !== "superadmin") {
     return { ok: false, message: "Only super admins can manage admin users." };
   }
 

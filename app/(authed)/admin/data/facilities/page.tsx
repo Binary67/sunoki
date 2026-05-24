@@ -77,7 +77,6 @@ export default async function AdminFacilitiesPage({ searchParams }: PageProps) {
         success={getSingleValue(query.success)}
       />
       <CreateFormSection
-        canManageAdminUsers={canManageTimeSlots}
         tableName={tableName}
         view={view}
       />

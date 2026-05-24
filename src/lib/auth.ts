@@ -74,6 +74,13 @@ function getCookieMaxAge(expiresAt: Date, now: Date): number {
 export async function setSessionCookie(
   user: User,
 ): Promise<SetSessionCookieResult> {
+  if (user.active !== 1) {
+    return {
+      ok: false,
+      message: "This account is inactive.",
+    };
+  }
+
   const now = new Date();
   const expiresAt = getSessionExpiry(user, now);
   if (!expiresAt || expiresAt.getTime() <= now.getTime()) {
@@ -145,6 +152,7 @@ export function getActiveSessionCount(userId: number): number {
         WHERE s.user_id = ?
           AND s.revoked_at IS NULL
           AND s.expires_at > ?
+          AND u.active = 1
           AND (
             u.role != 'guest'
             OR (
@@ -209,10 +217,12 @@ export function getUserByUsername(username: string): UserWithPassword | null {
           username,
           password,
           role,
+          active,
           check_in_date AS checkInDate,
           check_out_date AS checkOutDate
         FROM users
         WHERE username = ?
+          AND active = 1
       `,
     )
     .get(username) as UserWithPassword | undefined;
@@ -227,6 +237,7 @@ export function getUserById(id: number): User | null {
           id,
           username,
           role,
+          active,
           check_in_date AS checkInDate,
           check_out_date AS checkOutDate
         FROM users
@@ -250,6 +261,7 @@ export async function getCurrentUser(): Promise<User | null> {
           u.id,
           u.username,
           u.role,
+          u.active,
           u.check_in_date AS checkInDate,
           u.check_out_date AS checkOutDate,
           s.expires_at AS expiresAt
@@ -258,6 +270,7 @@ export async function getCurrentUser(): Promise<User | null> {
         WHERE s.token_hash = ?
           AND s.revoked_at IS NULL
           AND s.expires_at > ?
+          AND u.active = 1
       `,
     )
     .get(hashSessionToken(token), formatSessionDateTime(now)) as
@@ -269,6 +282,7 @@ export async function getCurrentUser(): Promise<User | null> {
     id: row.id,
     username: row.username,
     role: row.role,
+    active: row.active,
     checkInDate: row.checkInDate,
     checkOutDate: row.checkOutDate,
   };

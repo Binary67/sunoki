@@ -53,7 +53,7 @@ function validateUsers(
 ): AdminRow[] {
   const normalized: AdminRow[] = [];
   const ids = new Set<number>();
-  const usernames = new Set<string>();
+  const activeUsernames = new Set<string>();
   let superAdminCount = 0;
 
   for (const row of rows) {
@@ -74,6 +74,13 @@ function validateUsers(
       false,
     );
     const role = readRequiredTextValue(row, "users", "role", "Role", errors);
+    const active = readIntegerValue(
+      row,
+      "users",
+      "active",
+      "Access",
+      errors,
+    );
     const checkInDate = readOptionalTextValue(
       row,
       "users",
@@ -103,18 +110,22 @@ function validateUsers(
       ids.add(id);
     }
 
-    if (username !== null) {
+    if (active !== 0 && active !== 1) {
+      addRowError(errors, row, "users", "active", "Access must be 0 or 1.");
+    }
+
+    if (username !== null && active === 1) {
       const key = username.toLowerCase();
-      if (usernames.has(key)) {
+      if (activeUsernames.has(key)) {
         addRowError(
           errors,
           row,
           "users",
           "username",
-          `Duplicate username "${username}".`,
+          `Duplicate active username "${username}".`,
         );
       }
-      usernames.add(key);
+      activeUsernames.add(key);
     }
 
     if (role !== "superadmin" && role !== "admin" && role !== "guest") {
@@ -170,6 +181,7 @@ function validateUsers(
       username,
       password,
       role,
+      active,
       check_in_date: role === "guest" ? checkInDate : null,
       check_out_date: role === "guest" ? checkOutDate : null,
       created_at: createdAt,
@@ -496,6 +508,16 @@ function validateBookings(
         "facility_bookings",
         "facility_time_slot_id",
         `Time slot ID ${timeSlotId} is not present in the workbook.`,
+      );
+    }
+
+    if (user && user.active !== 1) {
+      addRowError(
+        errors,
+        row,
+        "facility_bookings",
+        "user_id",
+        "Facility bookings must use active users.",
       );
     }
 

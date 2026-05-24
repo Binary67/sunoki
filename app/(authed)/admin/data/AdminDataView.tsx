@@ -104,12 +104,10 @@ export function StatusMessage({
 }
 
 export function CreateFormSection({
-  canManageAdminUsers,
   createMode = "guest",
   tableName,
   view,
 }: {
-  canManageAdminUsers: boolean;
   createMode?: UserCreateMode;
   tableName: EditableTableName;
   view: AdminTableView;
@@ -138,26 +136,6 @@ export function CreateFormSection({
           IDs and timestamp defaults are assigned by SQLite.
         </p>
       </div>
-      {tableName === "users" && canManageAdminUsers && (
-        <nav className="mb-4 flex flex-wrap gap-2">
-          {(["guest", "admin"] as const).map((mode) => {
-            const active = mode === createMode;
-            return (
-              <Link
-                key={mode}
-                href={`/admin/data/users?tab=accounts&create=${mode}`}
-                className={`rounded-md px-3 py-2 text-sm transition-colors ${
-                  active
-                    ? "bg-brand text-white"
-                    : "bg-white text-ink/70 hover:text-ink"
-                }`}
-              >
-                Create {mode === "guest" ? "Guest" : "Admin"}
-              </Link>
-            );
-          })}
-        </nav>
-      )}
       <form action={createAdminRowAction}>
         <input type="hidden" name="tableName" value={tableName} />
         {tableName === "users" && (
@@ -215,10 +193,12 @@ export function EditFormSection({
       : editableColumns;
   const editFixedRole =
     tableName === "users" && actor.role !== "superadmin" ? "guest" : undefined;
+  const canEditRow =
+    !editRow || tableName !== "users" || canManageUserRecord(actor, editRow);
 
   return (
     <section className="mb-7 rounded-lg border border-brand/20 px-4 py-5 sm:px-5">
-      {editRow ? (
+      {editRow && canEditRow ? (
         <>
           <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -261,6 +241,10 @@ export function EditFormSection({
             </div>
           </form>
         </>
+      ) : editRow ? (
+        <div className="text-sm text-ink/60">
+          Guest accounts are managed from guest profiles.
+        </div>
       ) : (
         <div className="text-sm text-red-700">Row #{editId} not found.</div>
       )}
@@ -282,7 +266,12 @@ export function SetPasswordFormSection({
   return (
     <section className="mb-7 rounded-lg border border-brand/20 px-4 py-5 sm:px-5">
       {passwordRow ? (
-        <>
+        getUserRole(passwordRow) === "guest" ? (
+          <div className="text-sm text-ink/60">
+            Guest passwords are managed from guest profiles.
+          </div>
+        ) : (
+          <>
           <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h2 className="text-base font-semibold text-ink">
@@ -326,6 +315,7 @@ export function SetPasswordFormSection({
             </div>
           </form>
         </>
+        )
       ) : (
         <div className="text-sm text-red-700">
           User #{passwordId} not found.
@@ -390,6 +380,8 @@ export function AdminTableSection({
             <tbody>
               {view.rows.map((row) => {
                 const rowId = Number(row.id);
+                const canManageRecord =
+                  tableName !== "users" || canManageUserRecord(actor, row);
                 return (
                   <tr key={rowId} className="border-t border-black/5">
                     {columns.map((column) => (
@@ -400,12 +392,18 @@ export function AdminTableSection({
                         {tableName === "users" &&
                         actionMode === "records" &&
                         column.name === "password" ? (
-                          <Link
-                            href={`/admin/data/users?tab=accounts&password=${rowId}`}
-                            className="inline-flex rounded-md border border-black/10 px-2.5 py-1.5 text-xs font-medium text-ink/70 hover:bg-surface"
-                          >
-                            Set New Password
-                          </Link>
+                          canManageRecord ? (
+                            <Link
+                              href={`/admin/data/users?tab=accounts&password=${rowId}`}
+                              className="inline-flex rounded-md border border-black/10 px-2.5 py-1.5 text-xs font-medium text-ink/70 hover:bg-surface"
+                            >
+                              Set New Password
+                            </Link>
+                          ) : (
+                            <span className="text-xs text-ink/45">
+                              Managed in profile
+                            </span>
+                          )
                         ) : (
                           <span className="block truncate">
                             {formatCellValue(column, row, view.selectOptions)}
@@ -423,7 +421,7 @@ export function AdminTableSection({
                           />
                         ) : (
                           <>
-                            {editHref && (
+                            {canManageRecord && editHref && (
                               <Link
                                 href={editHref(rowId)}
                                 className="rounded-md border border-black/10 px-2.5 py-1.5 text-xs font-medium text-ink/70 hover:bg-surface"
@@ -431,12 +429,17 @@ export function AdminTableSection({
                                 Edit
                               </Link>
                             )}
-                            {!updateOnly && (
+                            {canManageRecord && !updateOnly && (
                               <DeleteRowForm
                                 tableName={tableName}
                                 rowId={rowId}
                                 label={`${view.table.label} row #${rowId}`}
                               />
+                            )}
+                            {!canManageRecord && tableName === "users" && (
+                              <span className="rounded-md bg-surface px-2.5 py-1.5 text-xs font-medium text-ink/55">
+                                View only
+                              </span>
                             )}
                           </>
                         )}
@@ -463,14 +466,6 @@ export function getEditId(value: string | undefined): number | null {
   if (!value) return null;
   const id = Number(value);
   return Number.isInteger(id) && id > 0 ? id : null;
-}
-
-export function getUserCreateMode(
-  value: string | undefined,
-  canManageAdminUsers: boolean,
-): UserCreateMode {
-  if (canManageAdminUsers && value === "admin") return "admin";
-  return "guest";
 }
 
 function UserAccessActions({
@@ -521,7 +516,7 @@ function getEditableColumns(view: AdminTableView): AdminColumnDefinition[] {
 
 function getUserAccessColumns(view: AdminTableView): AdminColumnDefinition[] {
   return view.table.columns.filter((column) =>
-    ["id", "username", "role", "check_in_date", "check_out_date"].includes(
+    ["id", "username", "role", "active", "check_in_date", "check_out_date"].includes(
       column.name,
     ),
   );
@@ -580,6 +575,14 @@ function canManageUserAccess(actorRole: string, row: AdminRow): boolean {
     typeof role === "string" &&
     (actorRole === "superadmin" || role === "guest")
   );
+}
+
+function canManageUserRecord(actor: User, row: AdminRow): boolean {
+  return actor.role === "superadmin" && getUserRole(row) !== "guest";
+}
+
+function getUserRole(row: AdminRow): string | null {
+  return typeof row.role === "string" ? row.role : null;
 }
 
 function getUserLabel(row: AdminRow, rowId: number): string {

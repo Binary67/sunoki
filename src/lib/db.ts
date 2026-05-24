@@ -1,7 +1,6 @@
 import { DatabaseSync } from "node:sqlite";
 import { mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { addBookingDays, formatBookingDate } from "./booking-dates";
 import { DEFAULT_BRANDING_SETTINGS } from "./branding-defaults";
 import type { UserRole } from "./roles";
 
@@ -25,9 +24,10 @@ db.exec(`
 
   CREATE TABLE IF NOT EXISTS users (
     id             INTEGER PRIMARY KEY,
-    username       TEXT UNIQUE NOT NULL,
+    username       TEXT NOT NULL,
     password       TEXT NOT NULL,
     role           TEXT NOT NULL CHECK (role IN ('superadmin','admin','guest')),
+    active         INTEGER NOT NULL DEFAULT 1 CHECK (active IN (0, 1)),
     check_in_date  TEXT,
     check_out_date TEXT,
     created_at     TEXT NOT NULL DEFAULT (datetime('now'))
@@ -89,6 +89,7 @@ db.exec(`
     consultant_name        TEXT,
     medical_food_notes     TEXT,
     kitchen_notes          TEXT,
+    user_id                INTEGER REFERENCES users(id) ON DELETE SET NULL,
     created_at             TEXT NOT NULL DEFAULT (datetime('now'))
   );
 
@@ -133,102 +134,15 @@ db.prepare(
   DEFAULT_BRANDING_SETTINGS.iconDataUrl,
 );
 
-type TableColumnRow = {
-  name: string;
-};
+db.exec(`
+  CREATE UNIQUE INDEX IF NOT EXISTS users_active_username_unique
+    ON users(username)
+    WHERE active = 1;
 
-const FACILITY_TAGLINE_COLUMNS = [
-  "tagline_1",
-  "tagline_2",
-  "tagline_3",
-] as const;
-
-const DEFAULT_FACILITY_TAGLINES = [
-  {
-    slug: "karaoke",
-    taglines: ["HI-FI AUDIO", "ATMOSPHERE", "MAX 4 PEOPLE"],
-  },
-  {
-    slug: "gym",
-    taglines: ["FREE WEIGHTS", "CARDIO ZONE", "OPEN 24/7"],
-  },
-  {
-    slug: "yoga",
-    taglines: ["HEATED FLOOR", "MAT INCLUDED", "MAX 12 GUESTS"],
-  },
-  {
-    slug: "lounge",
-    taglines: ["HERBAL BAR", "QUIET HOURS", "MAX 8 GUESTS"],
-  },
-] as const;
-
-const facilityColumns = db
-  .prepare("PRAGMA table_info(facilities)")
-  .all() as TableColumnRow[];
-const facilityColumnNames = new Set(facilityColumns.map((column) => column.name));
-const hadFacilityTaglineColumns = FACILITY_TAGLINE_COLUMNS.every((column) =>
-  facilityColumnNames.has(column),
-);
-
-for (const column of FACILITY_TAGLINE_COLUMNS) {
-  if (!facilityColumnNames.has(column)) {
-    db.exec(`ALTER TABLE facilities ADD COLUMN ${column} TEXT;`);
-  }
-}
-
-if (!hadFacilityTaglineColumns) {
-  seedDefaultFacilityTaglines();
-}
-
-const userColumns = db
-  .prepare("PRAGMA table_info(users)")
-  .all() as TableColumnRow[];
-const userColumnNames = new Set(userColumns.map((column) => column.name));
-
-if (!userColumnNames.has("check_in_date")) {
-  db.exec("ALTER TABLE users ADD COLUMN check_in_date TEXT;");
-}
-
-if (!userColumnNames.has("check_out_date")) {
-  db.exec("ALTER TABLE users ADD COLUMN check_out_date TEXT;");
-}
-
-const guestProfileColumns = db
-  .prepare("PRAGMA table_info(guest_profiles)")
-  .all() as TableColumnRow[];
-const guestProfileColumnNames = new Set(
-  guestProfileColumns.map((column) => column.name),
-);
-
-if (!guestProfileColumnNames.has("status")) {
-  db.exec(`
-    ALTER TABLE guest_profiles
-    ADD COLUMN status TEXT NOT NULL DEFAULT 'not_checked_in'
-      CHECK (status IN ('not_checked_in', 'checked_in'));
-  `);
-}
-
-if (!guestProfileColumnNames.has("room_number")) {
-  db.exec("ALTER TABLE guest_profiles ADD COLUMN room_number TEXT;");
-}
-
-if (!guestProfileColumnNames.has("kitchen_notes")) {
-  db.exec("ALTER TABLE guest_profiles ADD COLUMN kitchen_notes TEXT;");
-}
-
-const guestProfileAddonColumns = db
-  .prepare("PRAGMA table_info(guest_profile_addons)")
-  .all() as TableColumnRow[];
-const guestProfileAddonColumnNames = new Set(
-  guestProfileAddonColumns.map((column) => column.name),
-);
-
-if (!guestProfileAddonColumnNames.has("days")) {
-  db.exec(`
-    ALTER TABLE guest_profile_addons
-    ADD COLUMN days INTEGER CHECK (days IS NULL OR days > 0);
-  `);
-}
+  CREATE UNIQUE INDEX IF NOT EXISTS guest_profiles_user_id_unique
+    ON guest_profiles(user_id)
+    WHERE user_id IS NOT NULL;
+`);
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS sessions (
@@ -260,39 +174,11 @@ db.exec(`
   );
 `);
 
-const defaultCheckInDate = formatBookingDate(new Date());
-const defaultCheckOutDate = addBookingDays(defaultCheckInDate, 7);
-
-db.prepare(
-  `
-    UPDATE users
-    SET check_in_date = ?,
-        check_out_date = ?
-    WHERE role = 'guest'
-      AND (check_in_date IS NULL OR check_out_date IS NULL)
-  `,
-).run(defaultCheckInDate, defaultCheckOutDate);
-
-function seedDefaultFacilityTaglines(): void {
-  const update = db.prepare(
-    `
-      UPDATE facilities
-      SET tagline_1 = COALESCE(tagline_1, ?),
-          tagline_2 = COALESCE(tagline_2, ?),
-          tagline_3 = COALESCE(tagline_3, ?)
-      WHERE slug = ?
-    `,
-  );
-
-  for (const facility of DEFAULT_FACILITY_TAGLINES) {
-    update.run(...facility.taglines, facility.slug);
-  }
-}
-
 export type User = {
   id: number;
   username: string;
   role: UserRole;
+  active: number;
   checkInDate: string | null;
   checkOutDate: string | null;
 };

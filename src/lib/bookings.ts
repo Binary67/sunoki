@@ -48,6 +48,7 @@ type SlotRow = {
 
 type BookingUserRow = {
   role: UserRole;
+  active: number;
   checkInDate: string | null;
   checkOutDate: string | null;
 };
@@ -255,6 +256,7 @@ export function createFacilityBooking({
         `
           SELECT
             role,
+            active,
             check_in_date AS checkInDate,
             check_out_date AS checkOutDate
           FROM users
@@ -267,6 +269,12 @@ export function createFacilityBooking({
       db.exec("ROLLBACK");
       inTransaction = false;
       return { ok: false, error: "Sign in before reserving a time slot." };
+    }
+
+    if (bookingUser.active !== 1) {
+      db.exec("ROLLBACK");
+      inTransaction = false;
+      return { ok: false, error: "This account is inactive." };
     }
 
     if (bookingUser.role === "guest") {

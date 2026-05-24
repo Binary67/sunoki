@@ -14,6 +14,11 @@ import {
 } from "./workbook";
 import type { BackupRowsByTable, BackupTableDiff } from "./types";
 
+type GuestProfileUserLink = {
+  id: number;
+  userId: number;
+};
+
 export function applyBackupRows(
   actor: User,
   rows: BackupRowsByTable,
@@ -40,10 +45,12 @@ export function applyBackupRows(
   }
 
   if (usersChanged) {
+    const guestProfileUserLinks = getGuestProfileUserLinks(rows.users);
     db.prepare("DELETE FROM facility_bookings").run();
     db.prepare("DELETE FROM facility_time_slots").run();
     db.prepare("DELETE FROM users").run();
     insertRows("users", rows.users);
+    restoreGuestProfileUserLinks(guestProfileUserLinks);
     insertRows("facility_time_slots", rows.facility_time_slots);
     insertRows("facility_bookings", rows.facility_bookings);
   } else if (timeSlotsChanged) {
@@ -57,6 +64,34 @@ export function applyBackupRows(
   }
 
   insertRestoreAuditLogs(actor, beforeSnapshot, rows, diff);
+}
+
+function getGuestProfileUserLinks(users: AdminRow[]): GuestProfileUserLink[] {
+  const userIds = new Set(users.map((user) => user.id).filter(Number.isInteger));
+  const rows = db
+    .prepare(
+      `
+        SELECT
+          id,
+          user_id AS userId
+        FROM guest_profiles
+        WHERE user_id IS NOT NULL
+      `,
+    )
+    .all() as GuestProfileUserLink[];
+
+  return rows.filter((row) => userIds.has(row.userId));
+}
+
+function restoreGuestProfileUserLinks(links: GuestProfileUserLink[]): void {
+  if (links.length === 0) return;
+
+  const update = db.prepare(
+    "UPDATE guest_profiles SET user_id = ? WHERE id = ?",
+  );
+  for (const link of links) {
+    update.run(link.userId, link.id);
+  }
 }
 
 export async function writePreRestoreBackup(

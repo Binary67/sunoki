@@ -1,10 +1,11 @@
-import { formatBookingDate, isBookingDate } from "./booking-dates";
+import { addBookingDays, formatBookingDate, isBookingDate } from "./booking-dates";
 import { db } from "./db";
 import { ADDITIONAL_DAYS_ADDON_NAME } from "./guest-profile-addons";
 
 export type GuestProfileStatus = "not_checked_in" | "checked_in";
 
 export const GUEST_ROOM_LEVELS = ["12", "13", "14"];
+export const GUEST_BASE_STAY_DAYS = 27;
 export const GUEST_ROOM_NUMBERS = [
   "01",
   "02",
@@ -47,6 +48,9 @@ export type GuestProfile = {
   consultantName: string | null;
   medicalFoodNotes: string | null;
   kitchenNotes: string | null;
+  userId: number | null;
+  accountUsername: string | null;
+  accountActive: number | null;
   createdAt: string;
 };
 
@@ -80,6 +84,10 @@ type GuestProfileCreateResult =
 
 type GuestProfileMutationResult =
   | { ok: true }
+  | { ok: false; message: string };
+
+export type GuestProfileAccountMutationResult =
+  | { ok: true; message: string }
   | { ok: false; message: string };
 
 type GuestProfileAddonInput = {
@@ -133,9 +141,10 @@ export function listGuestProfiles(
     .prepare(
       `
         SELECT ${getGuestProfileSelectList()}
-        FROM guest_profiles
-        WHERE status = ?
-        ORDER BY datetime(created_at) DESC, id DESC
+        FROM guest_profiles gp
+        LEFT JOIN users u ON u.id = gp.user_id
+        WHERE gp.status = ?
+        ORDER BY datetime(gp.created_at) DESC, gp.id DESC
       `,
     )
     .all(status) as GuestProfile[];
@@ -148,8 +157,9 @@ export function getGuestProfile(id: number): GuestProfile | null {
     .prepare(
       `
         SELECT ${getGuestProfileSelectList()}
-        FROM guest_profiles
-        WHERE id = ?
+        FROM guest_profiles gp
+        LEFT JOIN users u ON u.id = gp.user_id
+        WHERE gp.id = ?
       `,
     )
     .get(id) as GuestProfile | undefined;
@@ -223,6 +233,13 @@ export function createGuestProfile(
   const values = parseGuestProfileForm(formData);
   if (!values.ok) return values;
 
+  const account = parseRequiredGuestAccount(values.data, formData);
+  if (!account.ok) return account;
+
+  if (hasActiveUsername(account.username)) {
+    return { ok: false, message: "An active guest already uses this username." };
+  }
+
   if (hasDuplicateActiveIc(values.data.ic_no)) {
     return {
       ok: false,
@@ -232,15 +249,22 @@ export function createGuestProfile(
 
   try {
     db.exec("BEGIN");
+    const userId = insertGuestUser(
+      account.username,
+      account.password,
+      getGuestStayDates(values.data.expected_delivery_date, values.addons),
+    );
     const result = db
       .prepare(
         `
-          INSERT INTO guest_profiles (${GUEST_PROFILE_COLUMNS.join(", ")})
-          VALUES (${GUEST_PROFILE_COLUMNS.map(() => "?").join(", ")})
+          INSERT INTO guest_profiles (${GUEST_PROFILE_COLUMNS.join(", ")}, user_id)
+          VALUES (${GUEST_PROFILE_COLUMNS.map(() => "?").join(", ")}, ?)
         `,
       )
-      .run(...GUEST_PROFILE_COLUMNS.map((column) => values.data[column])) as
-      InsertResult;
+      .run(
+        ...GUEST_PROFILE_COLUMNS.map((column) => values.data[column]),
+        userId,
+      ) as InsertResult;
     const profileId = Number(result.lastInsertRowid);
     insertGuestProfileAddons(profileId, values.addons);
     db.exec("COMMIT");
@@ -263,6 +287,24 @@ export function updateGuestProfile(
   const values = parseGuestProfileForm(formData);
   if (!values.ok) return values;
 
+  const profile = getGuestProfile(id);
+  if (!profile) return { ok: false, message: "Guest profile not found." };
+
+  const account = parseOptionalGuestAccount(
+    values.data,
+    formData,
+    profile.userId !== null,
+  );
+  if (!account.ok) return account;
+
+  if (
+    account.username &&
+    profile.accountActive === 1 &&
+    hasActiveUsername(account.username, profile.userId)
+  ) {
+    return { ok: false, message: "An active guest already uses this username." };
+  }
+
   if (hasDuplicateActiveIc(values.data.ic_no, id)) {
     return {
       ok: false,
@@ -272,18 +314,39 @@ export function updateGuestProfile(
 
   try {
     db.exec("BEGIN");
+    let userId = profile.userId;
+    const stayDates = getGuestStayDates(
+      values.data.expected_delivery_date,
+      values.addons,
+    );
+
+    if (userId && account.username) {
+      updateGuestUser(userId, account.username, account.password, stayDates);
+    } else if (!userId && account.username && account.password !== null) {
+      if (hasActiveUsername(account.username)) {
+        rollbackGuestProfileTransaction();
+        return {
+          ok: false,
+          message: "An active guest already uses this username.",
+        };
+      }
+      userId = insertGuestUser(account.username, account.password, stayDates);
+    }
+
     const result = db
       .prepare(
         `
           UPDATE guest_profiles
           SET ${GUEST_PROFILE_COLUMNS.map((column) => `${column} = ?`).join(
             ", ",
-          )}
+          )},
+              user_id = ?
           WHERE id = ?
         `,
       )
       .run(
         ...GUEST_PROFILE_COLUMNS.map((column) => values.data[column]),
+        userId,
         id,
       ) as MutationResult;
 
@@ -319,6 +382,41 @@ export function deleteGuestProfile(id: number): GuestProfileMutationResult {
     return { ok: true };
   } catch {
     return { ok: false, message: "Unable to delete guest profile." };
+  }
+}
+
+export function deactivateGuestProfileUser(
+  id: number,
+): GuestProfileAccountMutationResult {
+  if (!isValidGuestProfileId(id)) {
+    return { ok: false, message: "Choose a valid guest profile." };
+  }
+
+  const profile = getGuestProfile(id);
+  if (!profile) return { ok: false, message: "Guest profile not found." };
+  if (!profile.userId) {
+    return { ok: false, message: "This guest profile has no linked account." };
+  }
+  if (profile.accountActive !== 1) {
+    return { ok: true, message: "Guest account is already inactive." };
+  }
+
+  try {
+    db.exec("BEGIN");
+    db.prepare("UPDATE users SET active = 0 WHERE id = ?").run(profile.userId);
+    db.prepare(
+      `
+        UPDATE sessions
+        SET revoked_at = ?
+        WHERE user_id = ?
+          AND revoked_at IS NULL
+      `,
+    ).run(formatDateTime(new Date()), profile.userId);
+    db.exec("COMMIT");
+    return { ok: true, message: "Guest account deactivated." };
+  } catch {
+    rollbackGuestProfileTransaction();
+    return { ok: false, message: "Unable to deactivate guest account." };
   }
 }
 
@@ -365,16 +463,36 @@ export function setGuestProfileStatus(
 }
 
 function checkInGuestProfile(id: number): MutationResult {
-  return db
-    .prepare(
-      `
-        UPDATE guest_profiles
-        SET status = 'checked_in',
-            expected_delivery_date = ?
-        WHERE id = ?
-      `,
-    )
-    .run(formatBookingDate(new Date()), id) as MutationResult;
+  const profile = getGuestProfile(id);
+  if (!profile) return { changes: 0 };
+
+  const checkInDate = formatBookingDate(new Date());
+  const addons = listGuestProfileAddons(id);
+  const stayDates = getGuestStayDates(checkInDate, addons);
+
+  db.exec("BEGIN");
+  try {
+    const result = db
+      .prepare(
+        `
+          UPDATE guest_profiles
+          SET status = 'checked_in',
+              expected_delivery_date = ?
+          WHERE id = ?
+        `,
+      )
+      .run(checkInDate, id) as MutationResult;
+
+    if (profile.userId) {
+      updateGuestUserStayDates(profile.userId, stayDates);
+    }
+
+    db.exec("COMMIT");
+    return result;
+  } catch (error) {
+    rollbackGuestProfileTransaction();
+    throw error;
+  }
 }
 
 function undoGuestProfileCheckIn(id: number): MutationResult {
@@ -449,6 +567,60 @@ function parseGuestProfileForm(
       kitchen_notes: readText(formData, "kitchen_notes"),
     },
   };
+}
+
+function parseRequiredGuestAccount(
+  data: Record<GuestProfileColumn, string | null>,
+  formData: FormData,
+): { ok: true; username: string; password: string } | { ok: false; message: string } {
+  const password = readPassword(formData);
+  if (!password) return { ok: false, message: "Guest account password is required." };
+
+  const username = generateGuestUsername(data);
+  if (!username.ok) return username;
+
+  return { ok: true, username: username.value, password };
+}
+
+function parseOptionalGuestAccount(
+  data: Record<GuestProfileColumn, string | null>,
+  formData: FormData,
+  hasLinkedUser: boolean,
+):
+  | { ok: true; username: string | null; password: string | null }
+  | { ok: false; message: string } {
+  const password = readPassword(formData);
+  if (!hasLinkedUser && !password) {
+    return { ok: true, username: null, password: null };
+  }
+
+  const username = generateGuestUsername(data);
+  if (!username.ok) return username;
+
+  return { ok: true, username: username.value, password };
+}
+
+function generateGuestUsername(
+  data: Record<GuestProfileColumn, string | null>,
+): { ok: true; value: string } | { ok: false; message: string } {
+  if (!data.room_number) {
+    return { ok: false, message: "Room number is required for guest access." };
+  }
+
+  const icDigits = (data.ic_no ?? "").replace(/\D/g, "");
+  if (icDigits.length < 4) {
+    return {
+      ok: false,
+      message: "IC number must contain at least 4 digits for guest access.",
+    };
+  }
+
+  return { ok: true, value: `${data.room_number}-${icDigits.slice(-4)}` };
+}
+
+function readPassword(formData: FormData): string | null {
+  const value = formData.get("account_password");
+  return typeof value === "string" && value ? value : null;
 }
 
 function parseGuestProfileAddons(
@@ -583,6 +755,86 @@ function insertGuestProfileAddons(
   }
 }
 
+function insertGuestUser(
+  username: string,
+  password: string,
+  stayDates: GuestStayDates,
+): number {
+  const result = db
+    .prepare(
+      `
+        INSERT INTO users (
+          username,
+          password,
+          role,
+          active,
+          check_in_date,
+          check_out_date
+        )
+        VALUES (?, ?, 'guest', 1, ?, ?)
+      `,
+    )
+    .run(
+      username,
+      password,
+      stayDates.checkInDate,
+      stayDates.checkOutDate,
+    ) as InsertResult;
+
+  return Number(result.lastInsertRowid);
+}
+
+function updateGuestUser(
+  userId: number,
+  username: string,
+  password: string | null,
+  stayDates: GuestStayDates,
+): void {
+  if (password !== null) {
+    db.prepare(
+      `
+        UPDATE users
+        SET username = ?,
+            password = ?,
+            check_in_date = ?,
+            check_out_date = ?
+        WHERE id = ?
+      `,
+    ).run(
+      username,
+      password,
+      stayDates.checkInDate,
+      stayDates.checkOutDate,
+      userId,
+    );
+    return;
+  }
+
+  db.prepare(
+    `
+      UPDATE users
+      SET username = ?,
+          check_in_date = ?,
+          check_out_date = ?
+      WHERE id = ?
+    `,
+  ).run(username, stayDates.checkInDate, stayDates.checkOutDate, userId);
+}
+
+function updateGuestUserStayDates(
+  userId: number,
+  stayDates: GuestStayDates,
+): void {
+  db.prepare(
+    `
+      UPDATE users
+      SET check_in_date = ?,
+          check_out_date = ?
+      WHERE id = ?
+    `,
+  ).run(stayDates.checkInDate, stayDates.checkOutDate, userId);
+}
+
 function replaceGuestProfileAddons(
   profileId: number,
   addons: GuestProfileAddonInput[],
@@ -635,35 +887,93 @@ function hasDuplicateActiveIc(icNo: string | null, excludeId?: number): boolean 
   return Boolean(row);
 }
 
+type GuestStayDates = {
+  checkInDate: string | null;
+  checkOutDate: string | null;
+};
+
+function getGuestStayDates(
+  checkInDate: string | null,
+  addons: GuestProfileAddonInput[],
+): GuestStayDates {
+  if (!checkInDate || !isBookingDate(checkInDate)) {
+    return { checkInDate: null, checkOutDate: null };
+  }
+
+  const additionalDays =
+    addons.find((addon) => addon.serviceName === ADDITIONAL_DAYS_ADDON_NAME)
+      ?.days ?? 0;
+
+  return {
+    checkInDate,
+    checkOutDate: addBookingDays(
+      checkInDate,
+      GUEST_BASE_STAY_DAYS + additionalDays,
+    ),
+  };
+}
+
+function hasActiveUsername(username: string, excludeUserId?: number | null): boolean {
+  const row = db
+    .prepare(
+      `
+        SELECT id
+        FROM users
+        WHERE username = ?
+          AND active = 1
+          AND (? IS NULL OR id != ?)
+        LIMIT 1
+      `,
+    )
+    .get(username, excludeUserId ?? null, excludeUserId ?? null) as
+    | { id: number }
+    | undefined;
+
+  return Boolean(row);
+}
+
+function formatDateTime(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  const hour = String(date.getHours()).padStart(2, "0");
+  const minute = String(date.getMinutes()).padStart(2, "0");
+  const second = String(date.getSeconds()).padStart(2, "0");
+  return `${year}-${month}-${day} ${hour}:${minute}:${second}`;
+}
+
 function getGuestProfileSelectList(): string {
   return `
-    id,
-    name,
-    status,
-    room_number AS roomNumber,
-    ic_no AS icNo,
-    handphone_no AS handphoneNo,
-    email,
-    expected_delivery_date AS expectedDeliveryDate,
-    hospital_of_delivery AS hospitalOfDelivery,
-    mode_of_delivery AS modeOfDelivery,
-    child_count AS childCount,
-    special_note AS specialNote,
-    husband_name AS husbandName,
-    husband_ic_no AS husbandIcNo,
-    husband_handphone_no AS husbandHandphoneNo,
-    husband_email AS husbandEmail,
-    address,
-    occupation,
-    occupation_2 AS occupation2,
-    package_type AS packageType,
-    package_payable_amount AS packagePayableAmount,
-    deposit_to_pay AS depositToPay,
-    balance_to_pay AS balanceToPay,
-    package_special_note AS packageSpecialNote,
-    consultant_name AS consultantName,
-    medical_food_notes AS medicalFoodNotes,
-    kitchen_notes AS kitchenNotes,
-    created_at AS createdAt
+    gp.id,
+    gp.name,
+    gp.status,
+    gp.room_number AS roomNumber,
+    gp.ic_no AS icNo,
+    gp.handphone_no AS handphoneNo,
+    gp.email,
+    gp.expected_delivery_date AS expectedDeliveryDate,
+    gp.hospital_of_delivery AS hospitalOfDelivery,
+    gp.mode_of_delivery AS modeOfDelivery,
+    gp.child_count AS childCount,
+    gp.special_note AS specialNote,
+    gp.husband_name AS husbandName,
+    gp.husband_ic_no AS husbandIcNo,
+    gp.husband_handphone_no AS husbandHandphoneNo,
+    gp.husband_email AS husbandEmail,
+    gp.address,
+    gp.occupation,
+    gp.occupation_2 AS occupation2,
+    gp.package_type AS packageType,
+    gp.package_payable_amount AS packagePayableAmount,
+    gp.deposit_to_pay AS depositToPay,
+    gp.balance_to_pay AS balanceToPay,
+    gp.package_special_note AS packageSpecialNote,
+    gp.consultant_name AS consultantName,
+    gp.medical_food_notes AS medicalFoodNotes,
+    gp.kitchen_notes AS kitchenNotes,
+    gp.user_id AS userId,
+    u.username AS accountUsername,
+    u.active AS accountActive,
+    gp.created_at AS createdAt
   `;
 }

@@ -12,6 +12,7 @@ type UserOptionRow = {
   id: number;
   username: string;
   role: UserRole;
+  active: number;
 };
 
 type TimeSlotOptionRow = {
@@ -28,7 +29,9 @@ export function getAdminSelectOptions(): AdminSelectOptions {
     .prepare("SELECT id, slug, name FROM facilities ORDER BY name ASC, id ASC")
     .all() as FacilityOptionRow[];
   const users = db
-    .prepare("SELECT id, username, role FROM users ORDER BY username ASC, id ASC")
+    .prepare(
+      "SELECT id, username, role, active FROM users ORDER BY username ASC, id ASC",
+    )
     .all() as UserOptionRow[];
   const timeSlots = db
     .prepare(
@@ -70,7 +73,9 @@ export function getAdminSelectOptions(): AdminSelectOptions {
     })),
     users: users.map((user) => ({
       value: String(user.id),
-      label: `${user.username} (${formatRoleLabel(user.role)})`,
+      label: `${user.username} (${formatRoleLabel(user.role)}${
+        user.active === 1 ? "" : ", inactive"
+      })`,
     })),
   };
 }

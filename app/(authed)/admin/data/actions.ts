@@ -179,9 +179,9 @@ function getUserId(formData: FormData): number {
   return typeof raw === "string" ? Number(raw) : NaN;
 }
 
-function getCreateMode(formData: FormData): "guest" | "admin" | null {
+function getCreateMode(formData: FormData): "admin" | null {
   const raw = formData.get("createMode");
-  return raw === "guest" || raw === "admin" ? raw : null;
+  return raw === "admin" ? raw : null;
 }
 
 function revalidateFacilityBookingPath(
@@ -201,7 +201,7 @@ function redirectWithMessage(
   tone: "error" | "success",
   message: string,
   editId?: number,
-  createMode?: "guest" | "admin" | null,
+  createMode?: "admin" | null,
   requestedTab?: string,
   passwordId?: number,
 ): never {

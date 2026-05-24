@@ -13,6 +13,7 @@ type ParsedValues =
 
 type BookingUserRow = {
   role: UserRole;
+  active: number;
   checkInDate: string | null;
   checkOutDate: string | null;
 };
@@ -243,6 +244,7 @@ function validateUserBookingWindow(
       `
         SELECT
           role,
+          active,
           check_in_date AS checkInDate,
           check_out_date AS checkOutDate
         FROM users
@@ -252,6 +254,7 @@ function validateUserBookingWindow(
     .get(userId) as BookingUserRow | undefined;
 
   if (!user) return { ok: false, message: "Choose a valid user." };
+  if (user.active !== 1) return { ok: false, message: "User is inactive." };
   if (user.role !== "guest") return { ok: true };
 
   if (

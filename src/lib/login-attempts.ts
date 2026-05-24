@@ -85,6 +85,7 @@ function getUserById(userId: number): User | null {
           id,
           username,
           role,
+          active,
           check_in_date AS checkInDate,
           check_out_date AS checkOutDate
         FROM users
