@@ -4,6 +4,11 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireAdminUser } from "@/src/lib/admin-auth";
 import {
+  updateGuestBookingStatus,
+  type GuestBookingStatusField,
+  type GuestBookingType,
+} from "@/src/lib/guest-bookings";
+import {
   createGuestProfile,
   deleteGuestProfile,
   getGuestProfileStatus,
@@ -147,6 +152,43 @@ export async function toggleGuestProfileUserAccessAction(
   );
 }
 
+export async function updateGuestBookingStatusAction(
+  formData: FormData,
+): Promise<void> {
+  await requireAdminUser();
+
+  const profileId = getProfileId(formData);
+  if (!isValidProfileId(profileId)) {
+    redirectToGuestProfileList("error", "Choose a valid guest profile.");
+  }
+
+  const bookingId = Number(formData.get("bookingId"));
+  const type = readBookingType(formData);
+  const field = readBookingStatusField(formData);
+  if (!type || !field || !Number.isInteger(bookingId) || bookingId <= 0) {
+    redirectToGuestProfileDetail(profileId, "error", "Choose a valid booking.");
+  }
+
+  const result = updateGuestBookingStatus({
+    bookingId,
+    checked: readFormText(formData, "checked") === "1",
+    field,
+    profileId,
+    type,
+  });
+  if (result.ok) {
+    revalidatePath("/");
+    revalidatePath(GUEST_PROFILE_PATH);
+    revalidatePath(`${GUEST_PROFILE_PATH}/${profileId}`);
+  }
+
+  redirectToGuestProfileDetail(
+    profileId,
+    result.ok ? "success" : "error",
+    result.message,
+  );
+}
+
 function redirectToGuestProfileList(
   tone: "error" | "success",
   message: string,
@@ -180,6 +222,18 @@ function getProfileId(formData: FormData): number {
 function readFormText(formData: FormData, key: string): string | undefined {
   const value = formData.get(key);
   return typeof value === "string" ? value : undefined;
+}
+
+function readBookingType(formData: FormData): GuestBookingType | null {
+  const value = readFormText(formData, "bookingType");
+  return value === "facility" || value === "service" ? value : null;
+}
+
+function readBookingStatusField(
+  formData: FormData,
+): GuestBookingStatusField | null {
+  const value = readFormText(formData, "field");
+  return value === "read" || value === "done" ? value : null;
 }
 
 function isValidProfileId(profileId: number): boolean {

@@ -2,6 +2,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireAdminUser } from "@/src/lib/admin-auth";
 import {
+  listGuestBookingChecklist,
+  type GuestBookingChecklistItem,
+} from "@/src/lib/guest-bookings";
+import {
   formatGuestProfileAddonPrice,
   getGuestProfileAddonLineTotalCents,
   getGuestProfileAddonTotalCents,
@@ -25,6 +29,7 @@ import {
   updateGuestProfileAction,
 } from "../actions";
 import { GUEST_PROFILE_SECTIONS, type GuestProfileField } from "../fields";
+import GuestBookingStatusCheckbox from "../GuestBookingStatusCheckbox";
 import GuestProfileDeleteForm from "../GuestProfileDeleteForm";
 import GuestProfileForm from "../GuestProfileForm";
 import GuestPackageServicesList from "../GuestPackageServicesList";
@@ -48,6 +53,7 @@ export default async function GuestProfileDetailPage({
   const profile = getGuestProfile(Number(id));
   if (!profile) notFound();
   const addons = listGuestProfileAddons(profile.id);
+  const bookings = listGuestBookingChecklist(profile.id);
   const displayStatus = getGuestProfileComputedStatus(profile, addons);
   const checkoutDate = getGuestProfileCheckoutDate(profile, addons);
   const showEdit = getSingleValue(query.edit) === "1";
@@ -182,6 +188,10 @@ export default async function GuestProfileDetailPage({
             </section>
           ))}
           <GuestProfileAccountSection profile={profile} />
+          <GuestProfileBookingsSection
+            bookings={bookings}
+            profileId={profile.id}
+          />
           <GuestProfileAddonSection addons={addons} />
         </div>
       )}
@@ -226,6 +236,93 @@ function GuestProfileAccountSection({ profile }: { profile: GuestProfile }) {
           </form>
         )}
       </div>
+    </section>
+  );
+}
+
+function GuestProfileBookingsSection({
+  bookings,
+  profileId,
+}: {
+  bookings: GuestBookingChecklistItem[];
+  profileId: number;
+}) {
+  return (
+    <section className="rounded-lg border border-black/5 bg-white px-4 py-5 sm:px-5">
+      <div className="flex items-baseline justify-between gap-4">
+        <h2 className="text-base font-semibold text-ink">Bookings</h2>
+        <span className="text-xs text-ink/50">
+          {bookings.length} {bookings.length === 1 ? "booking" : "bookings"}
+        </span>
+      </div>
+      {bookings.length === 0 ? (
+        <p className="mt-4 text-sm leading-6 text-ink/60">-</p>
+      ) : (
+        <div className="mt-4 overflow-x-auto rounded-lg border border-black/5">
+          <table className="w-full min-w-[760px] text-sm">
+            <thead className="bg-surface text-[11px] uppercase tracking-[0.14em] text-ink/45">
+              <tr>
+                <th className="px-4 py-3 text-left font-medium">Type</th>
+                <th className="px-4 py-3 text-left font-medium">Booking</th>
+                <th className="px-4 py-3 text-left font-medium">Date</th>
+                <th className="px-4 py-3 text-left font-medium">Time</th>
+                <th className="px-4 py-3 text-center font-medium">Read</th>
+                <th className="px-4 py-3 text-center font-medium">Done</th>
+                <th className="px-4 py-3 text-left font-medium">Done At</th>
+              </tr>
+            </thead>
+            <tbody>
+              {bookings.map((booking) => (
+                <tr
+                  className="border-t border-black/5 text-ink/75"
+                  key={`${booking.type}-${booking.id}`}
+                >
+                  <td className="px-4 py-3 capitalize">{booking.type}</td>
+                  <td className="px-4 py-3">
+                    <div className="font-medium text-ink">{booking.name}</div>
+                    {booking.detail && (
+                      <div className="mt-0.5 text-xs text-ink/50">
+                        {booking.detail}
+                      </div>
+                    )}
+                  </td>
+                  <td className="px-4 py-3">{booking.bookingDate}</td>
+                  <td className="px-4 py-3">{booking.bookingTime}</td>
+                  <td className="px-4 py-3">
+                    <div className="flex justify-center">
+                      <GuestBookingStatusCheckbox
+                        bookingId={booking.id}
+                        bookingType={booking.type}
+                        checked={booking.isRead}
+                        disabled={booking.isDone}
+                        field="read"
+                        label={`Mark ${booking.name} as read`}
+                        profileId={profileId}
+                      />
+                    </div>
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex justify-center">
+                      <GuestBookingStatusCheckbox
+                        bookingId={booking.id}
+                        bookingType={booking.type}
+                        checked={booking.isDone}
+                        disabled={!booking.isRead}
+                        field="done"
+                        label={`Mark ${booking.name} as done`}
+                        profileId={profileId}
+                      />
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 text-ink/60">
+                    {formatValue(booking.doneAt)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </section>
   );
 }

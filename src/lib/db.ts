@@ -63,6 +63,9 @@ db.exec(`
     user_id               INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     facility_time_slot_id INTEGER NOT NULL REFERENCES facility_time_slots(id) ON DELETE CASCADE,
     booking_date          TEXT NOT NULL,
+    admin_read            INTEGER NOT NULL DEFAULT 0 CHECK (admin_read IN (0, 1)),
+    admin_done            INTEGER NOT NULL DEFAULT 0 CHECK (admin_done IN (0, 1)),
+    admin_done_at         TEXT,
     created_at            TEXT NOT NULL DEFAULT (datetime('now')),
     UNIQUE (user_id, facility_time_slot_id, booking_date)
   );
@@ -124,6 +127,9 @@ db.exec(`
     booking_date     TEXT NOT NULL,
     booking_time     TEXT NOT NULL,
     status           TEXT NOT NULL DEFAULT 'booked' CHECK (status IN ('booked','cancelled')),
+    admin_read       INTEGER NOT NULL DEFAULT 0 CHECK (admin_read IN (0, 1)),
+    admin_done       INTEGER NOT NULL DEFAULT 0 CHECK (admin_done IN (0, 1)),
+    admin_done_at    TEXT,
     cancelled_at     TEXT,
     created_at       TEXT NOT NULL DEFAULT (datetime('now'))
   );
@@ -221,6 +227,42 @@ if (!guestProfileAddonColumns.some((column) => column.name === "quantity")) {
   db.exec(
     "ALTER TABLE guest_profile_addons ADD COLUMN quantity INTEGER NOT NULL DEFAULT 1 CHECK (quantity > 0);",
   );
+}
+
+const facilityBookingColumns = db
+  .prepare("PRAGMA table_info(facility_bookings)")
+  .all() as { name: string }[];
+if (!facilityBookingColumns.some((column) => column.name === "admin_read")) {
+  db.exec(
+    "ALTER TABLE facility_bookings ADD COLUMN admin_read INTEGER NOT NULL DEFAULT 0 CHECK (admin_read IN (0, 1));",
+  );
+}
+if (!facilityBookingColumns.some((column) => column.name === "admin_done")) {
+  db.exec(
+    "ALTER TABLE facility_bookings ADD COLUMN admin_done INTEGER NOT NULL DEFAULT 0 CHECK (admin_done IN (0, 1));",
+  );
+}
+if (!facilityBookingColumns.some((column) => column.name === "admin_done_at")) {
+  db.exec("ALTER TABLE facility_bookings ADD COLUMN admin_done_at TEXT;");
+}
+
+const guestServiceBookingColumns = db
+  .prepare("PRAGMA table_info(guest_service_bookings)")
+  .all() as { name: string }[];
+if (!guestServiceBookingColumns.some((column) => column.name === "admin_read")) {
+  db.exec(
+    "ALTER TABLE guest_service_bookings ADD COLUMN admin_read INTEGER NOT NULL DEFAULT 0 CHECK (admin_read IN (0, 1));",
+  );
+}
+if (!guestServiceBookingColumns.some((column) => column.name === "admin_done")) {
+  db.exec(
+    "ALTER TABLE guest_service_bookings ADD COLUMN admin_done INTEGER NOT NULL DEFAULT 0 CHECK (admin_done IN (0, 1));",
+  );
+}
+if (
+  !guestServiceBookingColumns.some((column) => column.name === "admin_done_at")
+) {
+  db.exec("ALTER TABLE guest_service_bookings ADD COLUMN admin_done_at TEXT;");
 }
 
 const guestProfileColumns = db

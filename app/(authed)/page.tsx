@@ -6,6 +6,11 @@ import {
   isBookingDate,
 } from "@/src/lib/booking-dates";
 import { getUpcomingBookings } from "@/src/lib/bookings";
+import {
+  hasUnreadGuestBookings,
+  listGuestBookingChecklist,
+  type GuestBookingChecklistItem,
+} from "@/src/lib/guest-bookings";
 import { ADDITIONAL_DAYS_ADDON_NAME } from "@/src/lib/guest-profile-addons";
 import {
   formatGuestProfileAddonPrice,
@@ -36,7 +41,9 @@ const TOTAL_GUEST_ROOMS = GUEST_ROOM_SET.size;
 
 type RoomOccupancyGuest = {
   addons: GuestProfileAddon[];
+  bookings: GuestBookingChecklistItem[];
   checkoutDate: string | null;
+  hasUnreadBookings: boolean;
   profile: GuestProfile;
 };
 
@@ -275,6 +282,7 @@ function RoomTile({
   const occupied = guestCount > 0;
   const conflict = guestCount > 1;
   const primaryGuest = guests[0];
+  const hasUnreadBookings = guests.some((guest) => guest.hasUnreadBookings);
   const nextGuest = roomDetails?.nextGuest ?? null;
   const actionable = occupied || Boolean(nextGuest);
   const stateText = conflict
@@ -309,6 +317,12 @@ function RoomTile({
   );
   const content = (
     <>
+      {hasUnreadBookings && (
+        <span
+          aria-label="Unread guest booking"
+          className="absolute right-2 top-2 size-2.5 rounded-full bg-red-600 shadow-[0_0_0_3px_rgba(220,38,38,0.18)]"
+        />
+      )}
       <span className="font-semibold text-ink">{roomNumber}</span>
       {!primaryGuest && nextGuest && stateLabel}
       {primaryGuest && (
@@ -347,7 +361,7 @@ function RoomTile({
     return (
       <div
         aria-label={`Room ${roomNumber} available`}
-        className={`min-h-[6.5rem] rounded-md border px-2 py-2 text-left transition-colors ${stateClass}`}
+        className={`relative min-h-[6.5rem] rounded-md border px-2 py-2 text-left transition-colors ${stateClass}`}
       >
         {content}
       </div>
@@ -357,7 +371,7 @@ function RoomTile({
   return (
     <Link
       aria-label={`View room ${roomNumber} ${conflict ? "conflict" : primaryGuest?.profile.name ?? nextGuest?.profile.name}`}
-      className={`min-h-[6.5rem] rounded-md border px-2 py-2 text-left transition-colors focus:outline-none focus:ring-2 focus:ring-brand/20 ${stateClass}`}
+      className={`relative min-h-[6.5rem] rounded-md border px-2 py-2 text-left transition-colors focus:outline-none focus:ring-2 focus:ring-brand/20 ${stateClass}`}
       href={`/?room=${encodeURIComponent(roomNumber)}`}
     >
       {content}
@@ -503,8 +517,63 @@ function RoomGuestArticle({
           wide
         />
       </dl>
+      {isCurrentStay && <GuestBookingsSummary bookings={guest.bookings} />}
       <GuestProfileAddonSummary addons={guest.addons} />
     </article>
+  );
+}
+
+function GuestBookingsSummary({
+  bookings,
+}: {
+  bookings: GuestBookingChecklistItem[];
+}) {
+  return (
+    <section className="mt-5 border-t border-black/5 pt-4">
+      <div className="flex items-baseline justify-between gap-4">
+        <h4 className="text-sm font-semibold text-ink">Bookings</h4>
+        <span className="text-xs text-ink/50">
+          {bookings.length} {bookings.length === 1 ? "booking" : "bookings"}
+        </span>
+      </div>
+      {bookings.length === 0 ? (
+        <p className="mt-2 text-sm leading-6 text-ink/60">-</p>
+      ) : (
+        <ul className="mt-3 grid gap-2">
+          {bookings.map((booking) => (
+            <li
+              className="rounded-md bg-surface px-3 py-2 text-sm"
+              key={`${booking.type}-${booking.id}`}
+            >
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-medium text-ink">
+                      {booking.name}
+                    </span>
+                    <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.12em] text-ink/45">
+                      {booking.type}
+                    </span>
+                  </div>
+                  <div className="mt-0.5 text-xs text-ink/55">
+                    {booking.bookingDate} at {booking.bookingTime}
+                    {booking.detail ? ` · ${booking.detail}` : ""}
+                  </div>
+                </div>
+                <div className="text-xs font-medium text-ink/55">
+                  {getBookingStatusLabel(booking)}
+                </div>
+              </div>
+              {booking.doneAt && (
+                <div className="mt-1 text-xs text-ink/45">
+                  Done {booking.doneAt}
+                </div>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }
 
@@ -620,7 +689,9 @@ function getRoomOccupancy(
     const room = getRoomOccupancyRoom(rooms, profile.roomNumber);
     room.currentGuests.push({
       addons,
+      bookings: listGuestBookingChecklist(profile.id),
       checkoutDate: getCheckoutDate(profile, addons),
+      hasUnreadBookings: hasUnreadGuestBookings(profile.id),
       profile,
     });
   }
@@ -645,7 +716,9 @@ function getRoomOccupancy(
     const addons = listGuestProfileAddons(profile.id);
     room.nextGuest = {
       addons,
+      bookings: [],
       checkoutDate: getCheckoutDate(profile, addons),
+      hasUnreadBookings: false,
       profile,
     };
   }
@@ -721,4 +794,10 @@ function getSingleValue(value: string | string[] | undefined): string | undefine
 
 function formatValue(value: string | null | undefined): string {
   return value || "-";
+}
+
+function getBookingStatusLabel(booking: GuestBookingChecklistItem): string {
+  if (booking.isDone) return "Done";
+  if (booking.isRead) return "Read";
+  return "Unread";
 }
