@@ -64,7 +64,7 @@ db.exec(`
   CREATE TABLE IF NOT EXISTS guest_profiles (
     id                     INTEGER PRIMARY KEY,
     name                   TEXT NOT NULL,
-    status                 TEXT NOT NULL DEFAULT 'not_checked_in' CHECK (status IN ('not_checked_in', 'checked_in')),
+    status                 TEXT NOT NULL DEFAULT 'incoming' CHECK (status IN ('incoming', 'checked_in')),
     room_number            TEXT,
     ic_no                  TEXT,
     handphone_no           TEXT,

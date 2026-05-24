@@ -9,7 +9,7 @@ import {
   getGuestProfileStatus,
   setGuestProfileStatus,
   toggleGuestProfileUserAccess,
-  type GuestProfileStatus,
+  type GuestProfileFilterStatus,
   updateGuestProfile,
 } from "@/src/lib/guest-profiles";
 
@@ -97,7 +97,7 @@ export async function setGuestProfileStatusAction(
   }
 
   const status = readFormText(formData, "targetStatus");
-  if (status !== "checked_in" && status !== "not_checked_in") {
+  if (status !== "checked_in" && status !== "incoming") {
     redirectToGuestProfileDetail(
       profileId,
       "error",
@@ -151,11 +151,11 @@ function redirectToGuestProfileList(
   tone: "error" | "success",
   message: string,
   showForm = false,
-  status: GuestProfileStatus = "not_checked_in",
+  status: GuestProfileFilterStatus = "incoming",
 ): never {
   const params = new URLSearchParams();
   if (showForm) params.set("new", "1");
-  if (status === "checked_in") params.set("status", status);
+  if (status !== "incoming") params.set("status", status);
   params.set(tone, message);
   redirect(`${GUEST_PROFILE_PATH}?${params.toString()}`);
 }

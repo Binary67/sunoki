@@ -2,7 +2,6 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/src/lib/auth";
 import {
-  addBookingDays,
   formatBookingDate as formatDateKey,
   isBookingDate,
 } from "@/src/lib/booking-dates";
@@ -10,9 +9,9 @@ import { getUpcomingBookings } from "@/src/lib/bookings";
 import { ADDITIONAL_DAYS_ADDON_NAME } from "@/src/lib/guest-profile-addons";
 import {
   formatGuestProfileAddonPrice,
-  GUEST_BASE_STAY_DAYS,
   GUEST_ROOM_LEVELS,
   GUEST_ROOM_NUMBERS,
+  getGuestProfileCheckoutDate,
   getGuestProfileAddonTotalCents,
   listGuestProfileAddons,
   listGuestProfiles,
@@ -72,10 +71,10 @@ export default async function Dashboard({ searchParams }: PageProps) {
   if (!user) redirect("/login");
   if (!isAdminRole(user.role)) redirect("/booking/karaoke");
 
-  const bookings = getUpcomingBookings();
-  const checkedInProfiles = listGuestProfiles("checked_in");
-  const incomingProfiles = listGuestProfiles("not_checked_in");
   const today = formatDateKey(new Date());
+  const bookings = getUpcomingBookings();
+  const checkedInProfiles = listGuestProfiles("checked_in", today);
+  const incomingProfiles = listGuestProfiles("incoming", today);
   const roomOccupancy = getRoomOccupancy(
     checkedInProfiles,
     incomingProfiles,
@@ -652,15 +651,7 @@ function getCheckoutDate(
   profile: GuestProfile,
   addons: GuestProfileAddon[],
 ): string | null {
-  const edd = profile.expectedDeliveryDate;
-  if (!edd || !isBookingDate(edd)) return null;
-
-  const additionalDays =
-    addons.find(
-      (addon) => addon.serviceName === ADDITIONAL_DAYS_ADDON_NAME,
-    )?.days ?? 0;
-
-  return addBookingDays(edd, GUEST_BASE_STAY_DAYS + additionalDays);
+  return getGuestProfileCheckoutDate(profile, addons);
 }
 
 function getRoomDetailsSummary(

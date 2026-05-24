@@ -5,11 +5,13 @@ import {
   formatGuestProfileAddonPrice,
   getGuestProfileAddonTotalCents,
   getGuestProfile,
+  getGuestProfileCheckoutDate,
+  getGuestProfileComputedStatus,
   getGuestProfileStatusLabel,
   listGuestProfileAddons,
   type GuestProfile,
   type GuestProfileAddon,
-  type GuestProfileStatus,
+  type GuestProfileFilterStatus,
 } from "@/src/lib/guest-profiles";
 import { ADDITIONAL_DAYS_ADDON_NAME } from "@/src/lib/guest-profile-addons";
 import {
@@ -40,6 +42,8 @@ export default async function GuestProfileDetailPage({
   const profile = getGuestProfile(Number(id));
   if (!profile) notFound();
   const addons = listGuestProfileAddons(profile.id);
+  const displayStatus = getGuestProfileComputedStatus(profile, addons);
+  const checkoutDate = getGuestProfileCheckoutDate(profile, addons);
   const showEdit = getSingleValue(query.edit) === "1";
   const error = getSingleValue(query.error);
   const success = getSingleValue(query.success);
@@ -50,7 +54,7 @@ export default async function GuestProfileDetailPage({
       <div className="mb-7 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <Link
-            href={getGuestProfileListHref(profile.status)}
+            href={getGuestProfileListHref(displayStatus)}
             className="text-sm font-medium text-brand hover:underline"
           >
             Back to Guest Profile
@@ -67,39 +71,44 @@ export default async function GuestProfileDetailPage({
             <span className="w-fit rounded-md bg-surface px-3 py-2 text-sm font-medium text-ink/65">
               EDD {formatValue(profile.expectedDeliveryDate)}
             </span>
+            {checkoutDate && (
+              <span className="w-fit rounded-md bg-surface px-3 py-2 text-sm font-medium text-ink/65">
+                Checkout {checkoutDate}
+              </span>
+            )}
             <span
               className={`w-fit rounded-md px-3 py-2 text-sm font-medium ${
-                profile.status === "checked_in"
+                displayStatus === "checked_in"
                   ? "bg-emerald-50 text-emerald-700"
-                  : "bg-surface text-ink/65"
+                  : displayStatus === "checked_out"
+                    ? "bg-amber-50 text-amber-800"
+                    : "bg-surface text-ink/65"
               }`}
             >
-              {getGuestProfileStatusLabel(profile.status)}
+              {getGuestProfileStatusLabel(displayStatus)}
             </span>
+          </div>
+          <div className="flex flex-wrap items-center gap-2 sm:justify-end">
             <form action={setGuestProfileStatusAction}>
               <input type="hidden" name="profileId" value={profile.id} />
               <input
                 type="hidden"
                 name="targetStatus"
                 value={
-                  profile.status === "checked_in"
-                    ? "not_checked_in"
-                    : "checked_in"
+                  profile.status === "checked_in" ? "incoming" : "checked_in"
                 }
               />
               <button
                 type="submit"
                 className={
                   profile.status === "checked_in"
-                    ? "h-10 rounded-md border border-red-200 px-4 text-sm font-medium text-red-700 hover:bg-red-50"
-                    : "h-10 rounded-md bg-brand px-4 text-sm font-medium text-white hover:bg-brand/90"
+                    ? "h-9 rounded-md border border-red-200 px-3 text-sm font-medium text-red-700 hover:bg-red-50"
+                    : "h-9 rounded-md bg-brand px-3 text-sm font-medium text-white hover:bg-brand/90"
                 }
               >
                 {profile.status === "checked_in" ? "Undo Check-In" : "Check In"}
               </button>
             </form>
-          </div>
-          <div className="flex flex-wrap items-center gap-2 sm:justify-end">
             <Link
               href={
                 showEdit
@@ -114,7 +123,7 @@ export default async function GuestProfileDetailPage({
               <GuestProfileDeleteForm
                 label={profile.name}
                 profileId={profile.id}
-                status={profile.status}
+                status={displayStatus}
               />
             )}
           </div>
@@ -317,8 +326,8 @@ function getSingleValue(value: string | string[] | undefined): string | undefine
   return Array.isArray(value) ? value[0] : value;
 }
 
-function getGuestProfileListHref(status: GuestProfileStatus): string {
-  return status === "checked_in"
-    ? "/admin/guest-profile?status=checked_in"
-    : "/admin/guest-profile";
+function getGuestProfileListHref(status: GuestProfileFilterStatus): string {
+  return status === "incoming"
+    ? "/admin/guest-profile"
+    : `/admin/guest-profile?status=${status}`;
 }

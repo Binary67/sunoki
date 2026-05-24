@@ -1,6 +1,6 @@
 import { createHash, randomBytes } from "node:crypto";
 import { cookies } from "next/headers";
-import { isBookingDate } from "./booking-dates";
+import { formatBookingDate, isBookingDate } from "./booking-dates";
 import { db, type User, type UserWithPassword } from "./db";
 
 const SESSION_COOKIE = "session";
@@ -69,6 +69,57 @@ function hasValidGuestCheckout(user: User, now: Date): boolean {
 
 function getCookieMaxAge(expiresAt: Date, now: Date): number {
   return Math.max(1, Math.floor((expiresAt.getTime() - now.getTime()) / 1000));
+}
+
+function deactivateExpiredGuestUsers(now: Date): void {
+  const today = formatBookingDate(now);
+  const expiredUsers = db
+    .prepare(
+      `
+        SELECT u.id
+        FROM users u
+        JOIN guest_profiles gp ON gp.user_id = u.id
+        WHERE u.role = 'guest'
+          AND u.active = 1
+          AND gp.status = 'checked_in'
+          AND u.check_out_date IS NOT NULL
+          AND length(u.check_out_date) = 10
+          AND u.check_out_date < ?
+      `,
+    )
+    .all(today) as { id: number }[];
+
+  if (expiredUsers.length === 0) return;
+
+  db.exec("BEGIN");
+  try {
+    const revokedAt = formatSessionDateTime(now);
+    const deactivateUser = db.prepare(
+      "UPDATE users SET active = 0 WHERE id = ?",
+    );
+    const revokeSessions = db.prepare(
+      `
+        UPDATE sessions
+        SET revoked_at = ?
+        WHERE user_id = ?
+          AND revoked_at IS NULL
+      `,
+    );
+
+    for (const user of expiredUsers) {
+      deactivateUser.run(user.id);
+      revokeSessions.run(revokedAt, user.id);
+    }
+
+    db.exec("COMMIT");
+  } catch (error) {
+    try {
+      db.exec("ROLLBACK");
+    } catch {
+      // The transaction may already be closed if SQLite rejected BEGIN.
+    }
+    throw error;
+  }
 }
 
 export async function setSessionCookie(
@@ -209,6 +260,8 @@ export function revokeUserSessions(
 }
 
 export function getUserByUsername(username: string): UserWithPassword | null {
+  deactivateExpiredGuestUsers(new Date());
+
   const row = db
     .prepare(
       `
@@ -254,6 +307,8 @@ export async function getCurrentUser(): Promise<User | null> {
   if (!token) return null;
 
   const now = new Date();
+  deactivateExpiredGuestUsers(now);
+
   const row = db
     .prepare(
       `

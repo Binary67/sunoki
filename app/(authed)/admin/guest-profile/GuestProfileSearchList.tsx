@@ -2,12 +2,16 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { addBookingDays, isBookingDate } from "@/src/lib/booking-dates";
+import { isBookingDate } from "@/src/lib/booking-dates";
 import type {
   GuestProfile,
-  GuestProfileStatus,
+  GuestProfileFilterStatus,
 } from "@/src/lib/guest-profiles";
 import GuestProfileDeleteForm from "./GuestProfileDeleteForm";
+
+type CheckedInGuestProfile = GuestProfile & {
+  checkoutDate: string | null;
+};
 
 type RoomOverlapWarning = {
   guestId: number;
@@ -23,9 +27,9 @@ export default function GuestProfileSearchList({
   profiles,
   today,
 }: {
-  activeStatus: GuestProfileStatus;
+  activeStatus: GuestProfileFilterStatus;
   canDeleteGuestProfiles: boolean;
-  checkedInProfiles: GuestProfile[];
+  checkedInProfiles: CheckedInGuestProfile[];
   followUpThroughDate: string;
   profiles: GuestProfile[];
   today: string;
@@ -36,7 +40,7 @@ export default function GuestProfileSearchList({
     ? profiles.filter((profile) =>
         [
           profile.name,
-          profile.icNo,
+          profile.accountUsername,
           profile.handphoneNo,
         ].some((value) => normalizeSearchValue(value).includes(searchValue)),
       )
@@ -53,7 +57,7 @@ export default function GuestProfileSearchList({
           className="h-10 w-full rounded-md border border-black/10 bg-white px-3 text-sm text-ink outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/15"
           id="guest-profile-search"
           onChange={(event) => setSearchTerm(event.target.value)}
-          placeholder="Search mother name, IC number, or phone number"
+          placeholder="Search mother name, username, or phone number"
           type="search"
           value={searchTerm}
         />
@@ -104,9 +108,9 @@ function GuestProfileBlock({
   profile,
   today,
 }: {
-  activeStatus: GuestProfileStatus;
+  activeStatus: GuestProfileFilterStatus;
   canDeleteGuestProfiles: boolean;
-  checkedInProfiles: GuestProfile[];
+  checkedInProfiles: CheckedInGuestProfile[];
   followUpThroughDate: string;
   listOrder: number;
   profile: GuestProfile;
@@ -115,6 +119,12 @@ function GuestProfileBlock({
   const profileHref = `/admin/guest-profile/${profile.id}`;
   const followUpDue = isFollowUpDue(profile, today, followUpThroughDate);
   const overlapWarnings = getRoomOverlapWarnings(profile, checkedInProfiles);
+  const statusClass =
+    activeStatus === "checked_in"
+      ? "bg-emerald-50 text-emerald-700"
+      : activeStatus === "checked_out"
+        ? "bg-amber-50 text-amber-800"
+        : "bg-surface text-ink/60";
 
   return (
     <article
@@ -146,13 +156,9 @@ function GuestProfileBlock({
             Room {formatValue(profile.roomNumber)}
           </span>
           <span
-            className={`w-fit rounded-md px-2.5 py-1.5 text-xs font-medium ${
-              profile.status === "checked_in"
-                ? "bg-emerald-50 text-emerald-700"
-                : "bg-surface text-ink/60"
-            }`}
+            className={`w-fit rounded-md px-2.5 py-1.5 text-xs font-medium ${statusClass}`}
           >
-            {getGuestProfileStatusLabel(profile.status)}
+            {getGuestProfileStatusLabel(activeStatus)}
           </span>
           {canDeleteGuestProfiles && (
             <div className="pointer-events-auto">
@@ -169,7 +175,7 @@ function GuestProfileBlock({
       <div className="pointer-events-none relative z-10 grid grid-rows-[0fr] opacity-0 transition-[grid-template-rows,margin,opacity] duration-200 group-hover:mt-4 group-hover:grid-rows-[1fr] group-hover:opacity-100 group-focus-within:mt-4 group-focus-within:grid-rows-[1fr] group-focus-within:opacity-100">
         <div className="min-h-0 overflow-hidden">
           <dl className="grid gap-3 sm:grid-cols-2">
-            <SummaryItem label="IC Number" value={profile.icNo} />
+            <SummaryItem label="Username" value={profile.accountUsername} />
             <SummaryItem
               label="Mother Phone Number"
               value={profile.handphoneNo}
@@ -234,7 +240,7 @@ function isFollowUpDue(
 ): boolean {
   const edd = profile.expectedDeliveryDate;
   return (
-    profile.status === "not_checked_in" &&
+    profile.status === "incoming" &&
     Boolean(
       edd &&
         isBookingDate(edd) &&
@@ -246,7 +252,7 @@ function isFollowUpDue(
 
 function getRoomOverlapWarnings(
   profile: GuestProfile,
-  checkedInProfiles: GuestProfile[],
+  checkedInProfiles: CheckedInGuestProfile[],
 ): RoomOverlapWarning[] {
   const edd = profile.expectedDeliveryDate;
   if (!profile.roomNumber || !edd || !isBookingDate(edd)) return [];
@@ -263,7 +269,8 @@ function getRoomOverlapWarnings(
       return [];
     }
 
-    const throughDate = addBookingDays(checkInDate, 30);
+    const throughDate = checkedInProfile.checkoutDate;
+    if (!throughDate) return [];
     if (edd < checkInDate || edd > throughDate) return [];
 
     return [
@@ -280,8 +287,9 @@ function isSameGuest(a: GuestProfile, b: GuestProfile): boolean {
   return a.id === b.id || Boolean(a.icNo && b.icNo && a.icNo === b.icNo);
 }
 
-function getGuestProfileStatusLabel(status: GuestProfileStatus): string {
-  return status === "checked_in" ? "Checked In" : "Not Checked In";
+function getGuestProfileStatusLabel(status: GuestProfileFilterStatus): string {
+  if (status === "checked_out") return "Checked Out";
+  return status === "checked_in" ? "Checked In" : "Incoming";
 }
 
 function normalizeSearchValue(value: string | null | undefined): string {

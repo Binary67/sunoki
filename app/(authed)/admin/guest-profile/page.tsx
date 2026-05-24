@@ -8,9 +8,11 @@ import { requireAdminUser } from "@/src/lib/admin-auth";
 import {
   getGuestProfileStatus,
   getGuestProfileStatusLabel,
+  getGuestProfileCheckoutDate,
   listGuestProfiles,
+  listGuestProfileAddons,
   type GuestProfile,
-  type GuestProfileStatus,
+  type GuestProfileFilterStatus,
 } from "@/src/lib/guest-profiles";
 import { createGuestProfileAction } from "./actions";
 import GuestProfileForm from "./GuestProfileForm";
@@ -25,7 +27,11 @@ type PageProps = {
   }>;
 };
 
-const STATUS_FILTERS: GuestProfileStatus[] = ["not_checked_in", "checked_in"];
+const STATUS_FILTERS: GuestProfileFilterStatus[] = [
+  "incoming",
+  "checked_in",
+  "checked_out",
+];
 
 export default async function GuestProfilePage({ searchParams }: PageProps) {
   const query = await searchParams;
@@ -36,7 +42,7 @@ export default async function GuestProfilePage({ searchParams }: PageProps) {
   const activeStatus = getGuestProfileStatus(getSingleValue(query.status));
   const today = formatBookingDate(new Date());
   const profiles = sortGuestProfilesByEdd(
-    listGuestProfiles(activeStatus).map((profile) => ({ ...profile })),
+    listGuestProfiles(activeStatus, today).map((profile) => ({ ...profile })),
     today,
   );
   const canDeleteGuestProfiles = user.role === "superadmin";
@@ -44,7 +50,16 @@ export default async function GuestProfilePage({ searchParams }: PageProps) {
   const checkedInProfiles =
     activeStatus === "checked_in"
       ? profiles
-      : listGuestProfiles("checked_in").map((profile) => ({ ...profile }));
+      : listGuestProfiles("checked_in", today).map((profile) => ({
+          ...profile,
+        }));
+  const checkedInProfilesWithCheckout = checkedInProfiles.map((profile) => ({
+    ...profile,
+    checkoutDate: getGuestProfileCheckoutDate(
+      profile,
+      listGuestProfileAddons(profile.id),
+    ),
+  }));
 
   return (
     <main className="flex-1 px-4 py-6 sm:px-6 sm:py-8 lg:px-10">
@@ -90,15 +105,13 @@ export default async function GuestProfilePage({ searchParams }: PageProps) {
 
         {profiles.length === 0 ? (
           <div className="rounded-lg border border-black/5 bg-surface px-6 py-10 text-center text-sm text-ink/60">
-            {activeStatus === "checked_in"
-              ? "No checked-in guest profiles."
-              : "No guests waiting for check-in."}
+            {getEmptyStatusMessage(activeStatus)}
           </div>
         ) : (
           <GuestProfileSearchList
             activeStatus={activeStatus}
             canDeleteGuestProfiles={canDeleteGuestProfiles}
-            checkedInProfiles={checkedInProfiles}
+            checkedInProfiles={checkedInProfilesWithCheckout}
             followUpThroughDate={followUpThroughDate}
             profiles={profiles}
             today={today}
@@ -113,7 +126,7 @@ function GuestProfileModal({
   activeStatus,
   error,
 }: {
-  activeStatus: GuestProfileStatus;
+  activeStatus: GuestProfileFilterStatus;
   error?: string;
 }) {
   const closeHref = getGuestProfileListHref(activeStatus);
@@ -170,7 +183,7 @@ function GuestProfileModal({
 function GuestProfileStatusSegmentedControl({
   activeStatus,
 }: {
-  activeStatus: GuestProfileStatus;
+  activeStatus: GuestProfileFilterStatus;
 }) {
   return (
     <nav
@@ -221,16 +234,23 @@ function getSingleValue(value: string | string[] | undefined): string | undefine
   return Array.isArray(value) ? value[0] : value;
 }
 
-function getGuestProfileListHref(status: GuestProfileStatus): string {
-  return status === "checked_in"
-    ? "/admin/guest-profile?status=checked_in"
-    : "/admin/guest-profile";
+function getGuestProfileListHref(status: GuestProfileFilterStatus): string {
+  return status === "incoming"
+    ? "/admin/guest-profile"
+    : `/admin/guest-profile?status=${status}`;
 }
 
-function getNewGuestHref(status: GuestProfileStatus): string {
+function getNewGuestHref(status: GuestProfileFilterStatus): string {
+  return status === "incoming"
+    ? "/admin/guest-profile?new=1"
+    : `/admin/guest-profile?new=1&status=${status}`;
+}
+
+function getEmptyStatusMessage(status: GuestProfileFilterStatus): string {
+  if (status === "checked_out") return "No checked-out guest profiles.";
   return status === "checked_in"
-    ? "/admin/guest-profile?new=1&status=checked_in"
-    : "/admin/guest-profile?new=1";
+    ? "No checked-in guest profiles."
+    : "No incoming guests.";
 }
 
 function sortGuestProfilesByEdd(

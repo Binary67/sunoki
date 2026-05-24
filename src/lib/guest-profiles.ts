@@ -7,7 +7,8 @@ import {
 import { db } from "./db";
 import { ADDITIONAL_DAYS_ADDON_NAME } from "./guest-profile-addons";
 
-export type GuestProfileStatus = "not_checked_in" | "checked_in";
+export type GuestProfileStatus = "incoming" | "checked_in";
+export type GuestProfileFilterStatus = GuestProfileStatus | "checked_out";
 
 export const GUEST_ROOM_LEVELS = ["12", "13", "14"];
 export const GUEST_BASE_STAY_DAYS = 27;
@@ -105,6 +106,11 @@ type GuestProfileAddonInput = {
   remarks: string | null;
 };
 
+type GuestStayAddon = {
+  serviceName: string;
+  days: number | null;
+};
+
 type GuestUsernameResult =
   | { ok: true; value: string }
   | { ok: false; message: string };
@@ -148,8 +154,25 @@ const GUEST_PROFILE_COLUMNS = [
 export type GuestProfileColumn = (typeof GUEST_PROFILE_COLUMNS)[number];
 
 export function listGuestProfiles(
-  status: GuestProfileStatus = "not_checked_in",
+  status: GuestProfileFilterStatus = "incoming",
+  today = formatBookingDate(new Date()),
 ): GuestProfile[] {
+  const profiles = selectGuestProfiles(
+    status === "incoming" ? "incoming" : "checked_in",
+  );
+  if (status === "incoming") return profiles;
+
+  return profiles.filter(
+    (profile) =>
+      getGuestProfileComputedStatus(
+        profile,
+        listGuestProfileAddons(profile.id),
+        today,
+      ) === status,
+  );
+}
+
+function selectGuestProfiles(status: GuestProfileStatus): GuestProfile[] {
   return db
     .prepare(
       `
@@ -181,26 +204,27 @@ export function getGuestProfile(id: number): GuestProfile | null {
 }
 
 export function listCheckedInGuestKitchenNotes(): GuestKitchenNote[] {
-  return db
-    .prepare(
-      `
-        SELECT
-          id,
-          name,
-          room_number AS roomNumber,
-          kitchen_notes AS kitchenNotes
-        FROM guest_profiles
-        WHERE status = 'checked_in'
-          AND kitchen_notes IS NOT NULL
-          AND TRIM(kitchen_notes) != ''
-        ORDER BY
-          CASE WHEN room_number IS NULL OR room_number = '' THEN 1 ELSE 0 END,
-          room_number ASC,
-          name COLLATE NOCASE ASC,
-          id ASC
-      `,
-    )
-    .all() as GuestKitchenNote[];
+  return listGuestProfiles("checked_in")
+    .filter((profile) => profile.kitchenNotes?.trim())
+    .sort((a, b) => {
+      const aMissingRoom = !a.roomNumber;
+      const bMissingRoom = !b.roomNumber;
+      if (aMissingRoom !== bMissingRoom) return aMissingRoom ? 1 : -1;
+      if (a.roomNumber !== b.roomNumber) {
+        return (a.roomNumber ?? "").localeCompare(b.roomNumber ?? "");
+      }
+
+      const nameOrder = a.name.localeCompare(b.name, undefined, {
+        sensitivity: "base",
+      });
+      return nameOrder || a.id - b.id;
+    })
+    .map((profile) => ({
+      id: profile.id,
+      name: profile.name,
+      roomNumber: profile.roomNumber,
+      kitchenNotes: profile.kitchenNotes ?? "",
+    }));
 }
 
 export function listGuestProfileAddons(
@@ -241,6 +265,24 @@ export function getGuestProfileAddonTotalCents(
   return addons.reduce((total, addon) => total + addon.priceCents, 0);
 }
 
+export function getGuestProfileCheckoutDate(
+  profile: Pick<GuestProfile, "expectedDeliveryDate">,
+  addons: GuestStayAddon[],
+): string | null {
+  return getGuestCheckoutDateFromStartDate(profile.expectedDeliveryDate, addons);
+}
+
+export function getGuestProfileComputedStatus(
+  profile: Pick<GuestProfile, "status" | "expectedDeliveryDate">,
+  addons: GuestStayAddon[],
+  today = formatBookingDate(new Date()),
+): GuestProfileFilterStatus {
+  if (profile.status === "incoming") return "incoming";
+
+  const checkoutDate = getGuestProfileCheckoutDate(profile, addons);
+  return checkoutDate && checkoutDate < today ? "checked_out" : "checked_in";
+}
+
 export function createGuestProfile(
   formData: FormData,
 ): GuestProfileCreateResult {
@@ -250,10 +292,10 @@ export function createGuestProfile(
   const account = parseRequiredGuestAccount(formData);
   if (!account.ok) return account;
 
-  if (hasDuplicateActiveIc(values.data.ic_no)) {
+  if (hasDuplicateIncomingIc(values.data.ic_no)) {
     return {
       ok: false,
-      message: "A not checked-in guest with this IC number already exists.",
+      message: "An incoming guest with this IC number already exists.",
     };
   }
 
@@ -303,10 +345,10 @@ export function updateGuestProfile(
   const account = parseOptionalGuestAccount(formData, profile.userId !== null);
   if (!account.ok) return account;
 
-  if (hasDuplicateActiveIc(values.data.ic_no, id)) {
+  if (hasDuplicateIncomingIc(values.data.ic_no, id)) {
     return {
       ok: false,
-      message: "A not checked-in guest with this IC number already exists.",
+      message: "An incoming guest with this IC number already exists.",
     };
   }
 
@@ -429,14 +471,14 @@ export function setGuestProfileStatus(
   }
 
   try {
-    if (status === "not_checked_in") {
+    if (status === "incoming") {
       const profile = getGuestProfile(id);
       if (!profile) return { ok: false, message: "Guest profile not found." };
 
-      if (hasDuplicateActiveIc(profile.icNo, id)) {
+      if (hasDuplicateIncomingIc(profile.icNo, id)) {
         return {
           ok: false,
-          message: "A not checked-in guest with this IC number already exists.",
+          message: "An incoming guest with this IC number already exists.",
         };
       }
     }
@@ -500,21 +542,25 @@ function undoGuestProfileCheckIn(id: number): MutationResult {
     .prepare(
       `
         UPDATE guest_profiles
-        SET status = 'not_checked_in'
+        SET status = 'incoming'
         WHERE id = ?
       `,
     )
     .run(id) as MutationResult;
 }
 
-export function getGuestProfileStatus(value?: string): GuestProfileStatus {
-  return value === "checked_in" ? "checked_in" : "not_checked_in";
+export function getGuestProfileStatus(
+  value?: string,
+): GuestProfileFilterStatus {
+  if (value === "checked_out") return "checked_out";
+  return value === "checked_in" ? "checked_in" : "incoming";
 }
 
 export function getGuestProfileStatusLabel(
-  status: GuestProfileStatus,
+  status: GuestProfileFilterStatus,
 ): string {
-  return status === "checked_in" ? "Checked In" : "Not Checked In";
+  if (status === "checked_out") return "Checked Out";
+  return status === "checked_in" ? "Checked In" : "Incoming";
 }
 
 function parseGuestProfileForm(
@@ -886,7 +932,10 @@ function isGuestRoomNumber(value: string): boolean {
   );
 }
 
-function hasDuplicateActiveIc(icNo: string | null, excludeId?: number): boolean {
+function hasDuplicateIncomingIc(
+  icNo: string | null,
+  excludeId?: number,
+): boolean {
   if (!icNo) return false;
 
   const row = db
@@ -894,7 +943,7 @@ function hasDuplicateActiveIc(icNo: string | null, excludeId?: number): boolean 
       `
         SELECT id
         FROM guest_profiles
-        WHERE status = 'not_checked_in'
+        WHERE status = 'incoming'
           AND ic_no = ?
           AND (? IS NULL OR id != ?)
         LIMIT 1
@@ -916,21 +965,27 @@ function getGuestStayDates(
   checkInDate: string | null,
   addons: GuestProfileAddonInput[],
 ): GuestStayDates {
-  if (!checkInDate || !isBookingDate(checkInDate)) {
+  const checkOutDate = getGuestCheckoutDateFromStartDate(checkInDate, addons);
+  if (!checkInDate || !checkOutDate) {
     return { checkInDate: null, checkOutDate: null };
+  }
+
+  return { checkInDate, checkOutDate };
+}
+
+function getGuestCheckoutDateFromStartDate(
+  checkInDate: string | null,
+  addons: GuestStayAddon[],
+): string | null {
+  if (!checkInDate || !isBookingDate(checkInDate)) {
+    return null;
   }
 
   const additionalDays =
     addons.find((addon) => addon.serviceName === ADDITIONAL_DAYS_ADDON_NAME)
       ?.days ?? 0;
 
-  return {
-    checkInDate,
-    checkOutDate: addBookingDays(
-      checkInDate,
-      GUEST_BASE_STAY_DAYS + additionalDays,
-    ),
-  };
+  return addBookingDays(checkInDate, GUEST_BASE_STAY_DAYS + additionalDays);
 }
 
 function hasUsername(username: string): boolean {

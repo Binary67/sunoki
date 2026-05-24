@@ -1,6 +1,6 @@
 "use client";
 
-import type { GuestProfileStatus } from "@/src/lib/guest-profiles";
+import type { GuestProfileFilterStatus } from "@/src/lib/guest-profiles";
 import { deleteGuestProfileAction } from "./actions";
 
 export default function GuestProfileDeleteForm({
@@ -12,7 +12,7 @@ export default function GuestProfileDeleteForm({
   iconOnly?: boolean;
   label: string;
   profileId: number;
-  status?: GuestProfileStatus;
+  status?: GuestProfileFilterStatus;
 }) {
   const ariaLabel = `Delete ${label}`;
 
