@@ -2,6 +2,7 @@ import { DatabaseSync } from "node:sqlite";
 import { mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { DEFAULT_BRANDING_SETTINGS } from "./branding-defaults";
+import { PACKAGE_SERVICE_COLUMNS } from "./package-entitlements";
 import type { UserRole } from "./roles";
 
 export type { UserRole } from "./roles";
@@ -13,6 +14,11 @@ mkdirSync(dirname(DB_PATH), { recursive: true });
 export const db = new DatabaseSync(DB_PATH);
 
 db.exec("PRAGMA foreign_keys = ON;");
+
+const packageServiceColumnSql = PACKAGE_SERVICE_COLUMNS.map(
+  (column) =>
+    `${column.name} INTEGER NOT NULL DEFAULT 0 CHECK (${column.name} >= -1)`,
+).join(",\n    ");
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS branding_settings (
@@ -106,18 +112,76 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS guest_profile_addons_guest_profile_id_idx
     ON guest_profile_addons(guest_profile_id);
 
+  CREATE TABLE IF NOT EXISTS package_service_entitlements (
+    id                      INTEGER PRIMARY KEY,
+    package_name            TEXT UNIQUE NOT NULL,
+    ${packageServiceColumnSql},
+    celebration_choice_rule TEXT NOT NULL DEFAULT 'none' CHECK (celebration_choice_rule IN ('none','choose_one'))
+  );
+
   CREATE TABLE IF NOT EXISTS audit_logs (
     id             INTEGER PRIMARY KEY,
     actor_user_id  INTEGER NOT NULL,
     actor_username TEXT NOT NULL,
     operation      TEXT NOT NULL CHECK (operation IN ('insert','update','delete')),
-    table_name     TEXT NOT NULL CHECK (table_name IN ('users','facilities','facility_time_slots','facility_bookings')),
+    table_name     TEXT NOT NULL CHECK (table_name IN ('users','facilities','facility_time_slots','facility_bookings','package_service_entitlements')),
     row_id         INTEGER NOT NULL,
     before_json    TEXT,
     after_json     TEXT,
     created_at     TEXT NOT NULL DEFAULT (datetime('now'))
   );
 `);
+
+const auditLogSchema = db
+  .prepare(
+    "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'audit_logs'",
+  )
+  .get() as { sql: string } | undefined;
+if (
+  auditLogSchema?.sql &&
+  !auditLogSchema.sql.includes("'package_service_entitlements'")
+) {
+  db.exec(`
+    ALTER TABLE audit_logs RENAME TO audit_logs_old;
+
+    CREATE TABLE audit_logs (
+      id             INTEGER PRIMARY KEY,
+      actor_user_id  INTEGER NOT NULL,
+      actor_username TEXT NOT NULL,
+      operation      TEXT NOT NULL CHECK (operation IN ('insert','update','delete')),
+      table_name     TEXT NOT NULL CHECK (table_name IN ('users','facilities','facility_time_slots','facility_bookings','package_service_entitlements')),
+      row_id         INTEGER NOT NULL,
+      before_json    TEXT,
+      after_json     TEXT,
+      created_at     TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    INSERT INTO audit_logs (
+      id,
+      actor_user_id,
+      actor_username,
+      operation,
+      table_name,
+      row_id,
+      before_json,
+      after_json,
+      created_at
+    )
+    SELECT
+      id,
+      actor_user_id,
+      actor_username,
+      operation,
+      table_name,
+      row_id,
+      before_json,
+      after_json,
+      created_at
+    FROM audit_logs_old;
+
+    DROP TABLE audit_logs_old;
+  `);
+}
 
 const guestProfileAddonColumns = db
   .prepare("PRAGMA table_info(guest_profile_addons)")

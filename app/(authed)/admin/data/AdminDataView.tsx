@@ -11,6 +11,7 @@ import {
   type EditableTableName,
 } from "@/src/lib/admin-data/definitions";
 import type { User } from "@/src/lib/db";
+import { UNLIMITED_PACKAGE_SERVICE_QUANTITY } from "@/src/lib/package-entitlements";
 import AdminFormFields from "./AdminFormFields";
 import {
   createAdminRowAction,
@@ -347,6 +348,7 @@ export function AdminTableSection({
   view: AdminTableView;
 }) {
   const updateOnly = isUpdateOnlyAdminTable(tableName);
+  const isPackageTable = tableName === "package_service_entitlements";
   const columns =
     actionMode === "user-access"
       ? getUserAccessColumns(view)
@@ -373,13 +375,40 @@ export function AdminTableSection({
         </div>
       ) : (
         <div className="overflow-x-auto rounded-lg border border-black/5">
-          <table className="w-full min-w-[780px] text-sm">
+          <table
+            className={`w-full text-sm ${
+              isPackageTable ? "min-w-[2600px] table-fixed" : "min-w-[780px]"
+            }`}
+          >
+            {isPackageTable && (
+              <colgroup>
+                {columns.map((column) => (
+                  <col
+                    key={column.name}
+                    className={
+                      column.name === "id"
+                        ? "w-[72px]"
+                        : column.name === "package_name"
+                          ? "w-[180px]"
+                          : column.name === "celebration_choice_rule"
+                            ? "w-[170px]"
+                            : "w-[128px]"
+                    }
+                  />
+                ))}
+                <col className="w-[120px]" />
+              </colgroup>
+            )}
             <thead className="bg-surface text-[11px] uppercase tracking-[0.14em] text-ink/50">
               <tr>
                 {columns.map((column) => (
                   <th
                     key={column.name}
-                    className="px-4 py-3 text-left font-medium"
+                    className={`px-4 py-3 font-medium ${
+                      isPackageTable
+                        ? "whitespace-normal break-words text-left leading-5"
+                        : "text-left"
+                    }`}
                   >
                     {column.label}
                   </th>
@@ -399,7 +428,11 @@ export function AdminTableSection({
                     {columns.map((column) => (
                       <td
                         key={column.name}
-                        className="max-w-[260px] px-4 py-3 text-ink/80"
+                        className={`px-4 py-3 text-ink/80 ${
+                          isPackageTable
+                            ? getPackageCellClassName(column)
+                            : "max-w-[260px]"
+                        }`}
                       >
                         {tableName === "users" &&
                         actionMode === "records" &&
@@ -421,7 +454,13 @@ export function AdminTableSection({
                             </span>
                           )
                         ) : (
-                          <span className="block truncate">
+                          <span
+                            className={
+                              isPackageTable
+                                ? "block whitespace-normal break-words"
+                                : "block truncate"
+                            }
+                          >
                             {formatCellValue(column, row, view.selectOptions)}
                           </span>
                         )}
@@ -476,6 +515,13 @@ export function AdminTableSection({
       )}
     </section>
   );
+}
+
+function getPackageCellClassName(column: AdminColumnDefinition): string {
+  if (column.name === "id" || column.input === "packageQuantity") {
+    return "text-center";
+  }
+  return "text-left";
 }
 
 function PaginationControls({
@@ -611,6 +657,8 @@ function getSingularLabel(tableName: EditableTableName): string {
       return "Time Slot";
     case "facility_bookings":
       return "Booking";
+    case "package_service_entitlements":
+      return "Package";
   }
 }
 
@@ -682,6 +730,12 @@ function formatCellValue(
     return "-";
   }
   if (value === null || value === undefined) return "";
+  if (
+    column.input === "packageQuantity" &&
+    value === UNLIMITED_PACKAGE_SERVICE_QUANTITY
+  ) {
+    return "Unlimited";
+  }
   if (column.optionsKey) {
     const option = options[column.optionsKey].find(
       (candidate) => candidate.value === String(value),

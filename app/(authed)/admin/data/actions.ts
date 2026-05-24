@@ -20,6 +20,7 @@ import { clearUserLoginLock } from "@/src/lib/login-attempts";
 
 const USERS_DATA_PATH = "/admin/data/users";
 const FACILITIES_DATA_PATH = "/admin/data/facilities";
+const PACKAGES_DATA_PATH = "/admin/data/packages";
 const AUDIT_PATH = "/admin/audit-log";
 
 export async function createAdminRowAction(formData: FormData): Promise<void> {
@@ -221,9 +222,9 @@ function redirectWithMessage(
 }
 
 function getDataPath(tableName: EditableTableName | null): string {
-  return tableName === "users" || tableName === null
-    ? USERS_DATA_PATH
-    : FACILITIES_DATA_PATH;
+  if (tableName === "users" || tableName === null) return USERS_DATA_PATH;
+  if (tableName === "package_service_entitlements") return PACKAGES_DATA_PATH;
+  return FACILITIES_DATA_PATH;
 }
 
 function getDataTab(
@@ -241,5 +242,7 @@ function getDataTab(
       return "time-slots";
     case "facility_bookings":
       return "bookings";
+    case "package_service_entitlements":
+      return "service-quantities";
   }
 }

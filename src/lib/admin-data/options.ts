@@ -55,6 +55,10 @@ export function getAdminSelectOptions(): AdminSelectOptions {
       { value: "1", label: "Active" },
       { value: "0", label: "Inactive" },
     ],
+    celebrationChoiceRules: [
+      { value: "none", label: "None" },
+      { value: "choose_one", label: "Choose One" },
+    ],
     facilities: facilities.map((facility) => ({
       value: String(facility.id),
       label: `${facility.name} (${facility.slug})`,

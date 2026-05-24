@@ -3,6 +3,7 @@ import {
   EDITABLE_TABLE_NAMES,
   getAdminTableDefinition,
   getAdminTableLabel,
+  isUpdateOnlyAdminTable,
   type AdminRow,
   type AdminRowValue,
   type EditableTableName,
@@ -56,7 +57,7 @@ export function buildBackupDiff(
       }
     }
 
-    if (tableName !== "facilities") {
+    if (!isUpdateOnlyAdminTable(tableName)) {
       for (const current of snapshot[tableName]) {
         const rowId = Number(current.id);
         if (!targetById.has(rowId)) {

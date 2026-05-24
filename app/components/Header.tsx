@@ -18,6 +18,9 @@ function getSectionLabel(pathname: string): string {
   if (pathname === "/admin/data/facilities") {
     return "ADMIN / DATA EDITOR / FACILITIES";
   }
+  if (pathname === "/admin/data/packages") {
+    return "ADMIN / DATA EDITOR / PACKAGES";
+  }
   if (pathname === "/admin/data/backup") {
     return "ADMIN / DATA EDITOR / BACKUP & RESTORE";
   }

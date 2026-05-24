@@ -51,7 +51,11 @@ export async function generateBackupWorkbookBuffer(
     }
 
     for (const column of table.columns) {
-      if (column.input !== "number" && column.name !== "id") {
+      if (
+        column.input !== "number" &&
+        column.input !== "packageQuantity" &&
+        column.name !== "id"
+      ) {
         worksheet.getColumn(column.name).numFmt = "@";
       }
     }

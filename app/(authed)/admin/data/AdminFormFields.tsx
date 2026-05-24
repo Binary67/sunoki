@@ -7,6 +7,7 @@ import type {
   AdminSelectOptions,
   EditableTableName,
 } from "@/src/lib/admin-data/definitions";
+import { UNLIMITED_PACKAGE_SERVICE_QUANTITY } from "@/src/lib/package-entitlements";
 import type { UserRole } from "@/src/lib/roles";
 import AdminDateField from "./AdminDateField";
 
@@ -127,6 +128,18 @@ function AdminField({
     );
   }
 
+  if (column.input === "packageQuantity") {
+    return (
+      <PackageQuantityField
+        baseClasses={baseClasses}
+        column={column}
+        formId={formId}
+        required={required}
+        value={value}
+      />
+    );
+  }
+
   return (
     <label htmlFor={id} className="block text-sm font-medium text-ink/75">
       {column.label}
@@ -160,6 +173,64 @@ function AdminField({
         />
       )}
     </label>
+  );
+}
+
+function PackageQuantityField({
+  baseClasses,
+  column,
+  formId,
+  required,
+  value,
+}: {
+  baseClasses: string;
+  column: AdminColumnDefinition;
+  formId: string;
+  required?: boolean;
+  value: string;
+}) {
+  const isInitialUnlimited =
+    value === String(UNLIMITED_PACKAGE_SERVICE_QUANTITY);
+  const [unlimited, setUnlimited] = useState(isInitialUnlimited);
+  const [quantity, setQuantity] = useState(isInitialUnlimited ? "0" : value || "0");
+  const id = `${formId}-${column.name}`;
+  const checkboxId = `${id}-unlimited`;
+
+  return (
+    <div className="block text-sm font-medium text-ink/75">
+      <label htmlFor={id}>
+        {column.label}
+        {required && <span className="text-red-600"> *</span>}
+      </label>
+      <input
+        type="hidden"
+        name={column.name}
+        value={unlimited ? String(UNLIMITED_PACKAGE_SERVICE_QUANTITY) : quantity}
+      />
+      <input
+        id={id}
+        type="number"
+        min={0}
+        required={required && !unlimited}
+        disabled={unlimited}
+        value={quantity}
+        onChange={(event) => setQuantity(event.currentTarget.value)}
+        className={`${baseClasses} disabled:cursor-not-allowed disabled:border-black/5 disabled:bg-black/[0.03] disabled:text-ink/35`}
+      />
+      <label
+        htmlFor={checkboxId}
+        className="mt-2 flex items-center gap-2 text-xs font-medium text-ink/65"
+      >
+        <input
+          id={checkboxId}
+          type="checkbox"
+          checked={unlimited}
+          onChange={(event) => setUnlimited(event.currentTarget.checked)}
+          className="size-4 rounded border-black/20 text-brand focus:ring-brand/20"
+        />
+        Unlimited
+      </label>
+    </div>
   );
 }
 

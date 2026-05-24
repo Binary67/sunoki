@@ -1,8 +1,11 @@
+import { PACKAGE_SERVICE_COLUMNS } from "../package-entitlements";
+
 export const EDITABLE_TABLE_NAMES = [
   "users",
   "facilities",
   "facility_time_slots",
   "facility_bookings",
+  "package_service_entitlements",
 ] as const;
 
 export type EditableTableName = (typeof EDITABLE_TABLE_NAMES)[number];
@@ -12,6 +15,7 @@ const AUDIT_TABLE_NAMES = [
   "facilities",
   "facility_time_slots",
   "facility_bookings",
+  "package_service_entitlements",
 ] as const;
 
 export type AuditTableName = (typeof AUDIT_TABLE_NAMES)[number];
@@ -23,8 +27,21 @@ export type AdminRow = Record<string, AdminRowValue>;
 export type AdminColumnDefinition = {
   name: string;
   label: string;
-  input?: "text" | "password" | "number" | "select" | "date" | "time";
-  optionsKey?: "active" | "facilities" | "roles" | "timeSlots" | "users";
+  input?:
+    | "text"
+    | "password"
+    | "number"
+    | "select"
+    | "date"
+    | "time"
+    | "packageQuantity";
+  optionsKey?:
+    | "active"
+    | "celebrationChoiceRules"
+    | "facilities"
+    | "roles"
+    | "timeSlots"
+    | "users";
   readOnly?: boolean;
   required?: boolean;
   min?: number;
@@ -73,6 +90,7 @@ const TABLE_LABELS: Record<AuditTableName, string> = {
   facilities: "Facility Content",
   facility_time_slots: "Time Slots",
   facility_bookings: "Bookings",
+  package_service_entitlements: "Packages",
 };
 
 export const FACILITY_TAGLINE_MAX_LENGTH = 40;
@@ -209,6 +227,29 @@ const ADMIN_TABLES: Record<EditableTableName, AdminTableDefinition> = {
         required: true,
       },
       { name: "created_at", label: "Created", readOnly: true },
+    ],
+  },
+  package_service_entitlements: {
+    name: "package_service_entitlements",
+    label: TABLE_LABELS.package_service_entitlements,
+    mutationMode: "update-only",
+    columns: [
+      { name: "id", label: "ID", readOnly: true },
+      { name: "package_name", label: "Package", readOnly: true },
+      ...PACKAGE_SERVICE_COLUMNS.map((column) => ({
+        name: column.name,
+        label: column.label,
+        input: "packageQuantity" as const,
+        required: true,
+        min: 0,
+      })),
+      {
+        name: "celebration_choice_rule",
+        label: "Celebration Choice Rule",
+        input: "select",
+        optionsKey: "celebrationChoiceRules",
+        required: true,
+      },
     ],
   },
 };

@@ -113,6 +113,11 @@ const dataChildren: {
   { label: "Users", href: "/admin/data/users" },
   { label: "Facilities", href: "/admin/data/facilities" },
   {
+    label: "Packages",
+    href: "/admin/data/packages",
+    superadminOnly: true,
+  },
+  {
     label: "Backup & Restore",
     href: "/admin/data/backup",
     superadminOnly: true,

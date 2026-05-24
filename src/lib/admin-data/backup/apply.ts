@@ -44,6 +44,23 @@ export function applyBackupRows(
     }
   }
 
+  if (hasTableChanges(diff, "package_service_entitlements")) {
+    const table = getAdminTableDefinition("package_service_entitlements");
+    const columns = table.columns
+      .filter((column) => !column.readOnly)
+      .map((column) => column.name);
+    const updatePackage = db.prepare(
+      `
+        UPDATE package_service_entitlements
+        SET ${columns.map((column) => `${column} = ?`).join(", ")}
+        WHERE id = ?
+      `,
+    );
+    for (const row of rows.package_service_entitlements) {
+      updatePackage.run(...columns.map((column) => row[column]), row.id);
+    }
+  }
+
   if (usersChanged) {
     const guestProfileUserLinks = getGuestProfileUserLinks(rows.users);
     db.prepare("DELETE FROM facility_bookings").run();

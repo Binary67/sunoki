@@ -1,5 +1,9 @@
 import { isBookingDate, isWithinBookingDateRange } from "../booking-dates";
 import { db } from "../db";
+import {
+  PACKAGE_SERVICE_COLUMNS,
+  UNLIMITED_PACKAGE_SERVICE_QUANTITY,
+} from "../package-entitlements";
 import type { UserRole } from "../roles";
 import {
   FACILITY_TAGLINE_MAX_LENGTH,
@@ -179,6 +183,39 @@ export function parseFormValues(
         },
       };
     }
+    case "package_service_entitlements": {
+      const values: Record<string, AdminRowValue> = {};
+
+      for (const column of PACKAGE_SERVICE_COLUMNS) {
+        const quantity = readPackageQuantity(formData, column.name, column.label);
+        if (!quantity.ok) return quantity;
+        values[column.name] = quantity.value;
+      }
+
+      const celebrationChoiceRule = readRequiredText(
+        formData,
+        "celebration_choice_rule",
+        "Celebration choice rule",
+      );
+      if (!celebrationChoiceRule.ok) return celebrationChoiceRule;
+      if (
+        celebrationChoiceRule.value !== "none" &&
+        celebrationChoiceRule.value !== "choose_one"
+      ) {
+        return {
+          ok: false,
+          message: "Choose a valid celebration choice rule.",
+        };
+      }
+
+      return {
+        ok: true,
+        values: {
+          ...values,
+          celebration_choice_rule: celebrationChoiceRule.value,
+        },
+      };
+    }
   }
 }
 
@@ -231,6 +268,27 @@ function readPositiveInteger(
   const value = typeof raw === "string" ? Number(raw) : NaN;
   if (!Number.isInteger(value) || value <= 0) {
     return { ok: false, message: `Choose a valid ${label.toLowerCase()}.` };
+  }
+  return { ok: true, value };
+}
+
+function readPackageQuantity(
+  formData: FormData,
+  key: string,
+  label: string,
+):
+  | { ok: true; value: number }
+  | { ok: false; message: string } {
+  const raw = formData.get(key);
+  const value = typeof raw === "string" ? Number(raw) : NaN;
+  if (!Number.isInteger(value)) {
+    return { ok: false, message: `${label} must be a whole number.` };
+  }
+  if (value < 0 && value !== UNLIMITED_PACKAGE_SERVICE_QUANTITY) {
+    return {
+      ok: false,
+      message: `${label} must be 0 or more, or unlimited.`,
+    };
   }
   return { ok: true, value };
 }

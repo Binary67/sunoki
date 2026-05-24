@@ -1,4 +1,8 @@
 import { db } from "../src/lib/db";
+import {
+  PACKAGE_ENTITLEMENT_DEFAULTS,
+  PACKAGE_SERVICE_COLUMNS,
+} from "../src/lib/package-entitlements";
 
 const upsert = db.prepare(
   `
@@ -109,4 +113,36 @@ for (const facility of facilities) {
       Number(slotResult.changes) === 1 ? "inserted" : "already exists";
     console.log(`${facility.slug} ${timeSlot}: ${slotAction}`);
   }
+}
+
+const packageColumns = [
+  "id",
+  "package_name",
+  ...PACKAGE_SERVICE_COLUMNS.map((column) => column.name),
+  "celebration_choice_rule",
+] as const;
+const packageUpdateColumns = packageColumns.filter((column) => column !== "id");
+const upsertPackageEntitlement = db.prepare(
+  `
+    INSERT INTO package_service_entitlements (
+      ${packageColumns.join(", ")}
+    )
+    VALUES (${packageColumns.map(() => "?").join(", ")})
+    ON CONFLICT(id) DO UPDATE SET
+      ${packageUpdateColumns
+        .map((column) => `${column} = excluded.${column}`)
+        .join(", ")}
+  `,
+);
+
+for (const entitlement of PACKAGE_ENTITLEMENT_DEFAULTS) {
+  upsertPackageEntitlement.run(
+    entitlement.id,
+    entitlement.packageName,
+    ...PACKAGE_SERVICE_COLUMNS.map(
+      (column) => entitlement.services[column.name],
+    ),
+    entitlement.celebrationChoiceRule,
+  );
+  console.log(`${entitlement.packageName} package entitlement: reset`);
 }

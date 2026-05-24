@@ -1,4 +1,8 @@
 import { isBookingDate, isWithinBookingDateRange } from "../../booking-dates";
+import {
+  PACKAGE_SERVICE_COLUMNS,
+  UNLIMITED_PACKAGE_SERVICE_QUANTITY,
+} from "../../package-entitlements";
 import type { AdminRow } from "../definitions";
 import { indexRowsById } from "./diff";
 import type {
@@ -28,6 +32,11 @@ export function validateParsedRows(
   const rows = {
     users: validateUsers(parsedRows.users, errors),
     facilities: validateFacilities(parsedRows.facilities, snapshot, errors),
+    package_service_entitlements: validatePackages(
+      parsedRows.package_service_entitlements,
+      snapshot,
+      errors,
+    ),
     facility_time_slots: [] as AdminRow[],
     facility_bookings: [] as AdminRow[],
   };
@@ -304,6 +313,114 @@ function validateFacilities(
   return normalized;
 }
 
+function validatePackages(
+  rows: ParsedSheetRow[],
+  snapshot: BackupRowsByTable,
+  errors: BackupImportError[],
+): AdminRow[] {
+  const normalized: AdminRow[] = [];
+  const ids = new Set<number>();
+  const currentById = indexRowsById(snapshot.package_service_entitlements);
+
+  for (const row of rows) {
+    const id = readPositiveIntegerValue(
+      row,
+      "package_service_entitlements",
+      "id",
+      "ID",
+      errors,
+    );
+    const packageName = readRequiredTextValue(
+      row,
+      "package_service_entitlements",
+      "package_name",
+      "Package",
+      errors,
+    );
+    const values: AdminRow = {
+      id,
+      package_name: packageName,
+    };
+
+    for (const column of PACKAGE_SERVICE_COLUMNS) {
+      values[column.name] = readPackageQuantityValue(
+        row,
+        column.name,
+        column.label,
+        errors,
+      );
+    }
+
+    const celebrationChoiceRule = readRequiredTextValue(
+      row,
+      "package_service_entitlements",
+      "celebration_choice_rule",
+      "Celebration choice rule",
+      errors,
+    );
+    if (
+      celebrationChoiceRule !== "none" &&
+      celebrationChoiceRule !== "choose_one"
+    ) {
+      addRowError(
+        errors,
+        row,
+        "package_service_entitlements",
+        "celebration_choice_rule",
+        "Choose a valid celebration choice rule.",
+      );
+    }
+
+    if (id !== null) {
+      if (ids.has(id)) {
+        addRowError(
+          errors,
+          row,
+          "package_service_entitlements",
+          "id",
+          `Duplicate package ID ${id}.`,
+        );
+      }
+      ids.add(id);
+      const current = currentById.get(id);
+      if (!current) {
+        addRowError(
+          errors,
+          row,
+          "package_service_entitlements",
+          "id",
+          `Package ID ${id} does not exist in SQLite.`,
+        );
+      } else if (current.package_name !== packageName) {
+        addRowError(
+          errors,
+          row,
+          "package_service_entitlements",
+          "package_name",
+          "Package name must match SQLite.",
+        );
+      }
+    }
+
+    normalized.push({
+      ...values,
+      celebration_choice_rule: celebrationChoiceRule,
+    });
+  }
+
+  for (const current of snapshot.package_service_entitlements) {
+    const id = Number(current.id);
+    if (!ids.has(id)) {
+      errors.push({
+        tableName: "package_service_entitlements",
+        message: `Package ID ${id} is missing from the workbook.`,
+      });
+    }
+  }
+
+  return normalized;
+}
+
 function validateTimeSlots(
   rows: ParsedSheetRow[],
   facilities: AdminRow[],
@@ -426,6 +543,31 @@ function validateTimeSlots(
   }
 
   return normalized;
+}
+
+function readPackageQuantityValue(
+  row: ParsedSheetRow,
+  columnName: string,
+  label: string,
+  errors: BackupImportError[],
+): number | null {
+  const value = readIntegerValue(
+    row,
+    "package_service_entitlements",
+    columnName,
+    label,
+    errors,
+  );
+  if (value !== null && value < 0 && value !== UNLIMITED_PACKAGE_SERVICE_QUANTITY) {
+    addRowError(
+      errors,
+      row,
+      "package_service_entitlements",
+      columnName,
+      `${label} must be 0 or more, or unlimited.`,
+    );
+  }
+  return value;
 }
 
 function validateBookings(
