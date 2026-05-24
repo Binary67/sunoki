@@ -100,10 +100,10 @@ export default function GuestProfileAddonFields({
               setRows={setRows}
             />
           }
-          emptyMessage="No purchase perks added."
+          emptyMessage="No purchased perks added."
           rows={sunokiRows}
           setRows={setRows}
-          title="Purchase Perks"
+          title="Purchased Perks"
         />
 
         <AddonGroup
@@ -315,7 +315,7 @@ function SunokiServicePicker({
             setOpen(false);
           }}
         >
-          <option value="">Select purchase perk</option>
+          <option value="">Select purchased perk</option>
           {SUNOKI_SERVICE_OPTIONS.map((option) => (
             <option key={option.value} value={option.value}>
               {option.label}
@@ -332,7 +332,7 @@ function SunokiServicePicker({
       onClick={() => setOpen(true)}
       type="button"
     >
-      + Add purchase perk
+      + Add purchased perk
     </button>
   );
 }

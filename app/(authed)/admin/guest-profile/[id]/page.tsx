@@ -281,7 +281,7 @@ function GuestProfileAddonSection({
                       {!isAdditionalDays && (
                         <span className="rounded-full bg-surface px-2 py-0.5 text-[11px] font-medium uppercase tracking-[0.12em] text-ink/50">
                           {addon.category === "sunoki"
-                            ? "Purchase Perk"
+                            ? "Purchased Perk"
                             : "Sunoki"}
                         </span>
                       )}
