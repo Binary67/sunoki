@@ -452,16 +452,35 @@ export function deleteGuestProfile(id: number): GuestProfileMutationResult {
   }
 
   try {
+    db.exec("BEGIN");
+    const profile = db
+      .prepare("SELECT user_id AS userId FROM guest_profiles WHERE id = ?")
+      .get(id) as { userId: number | null } | undefined;
+
+    if (!profile) {
+      rollbackGuestProfileTransaction();
+      return { ok: false, message: "Guest profile not found." };
+    }
+
     const result = db
       .prepare("DELETE FROM guest_profiles WHERE id = ?")
       .run(id) as MutationResult;
 
     if (Number(result.changes) === 0) {
+      rollbackGuestProfileTransaction();
       return { ok: false, message: "Guest profile not found." };
     }
 
+    if (profile.userId !== null) {
+      db.prepare("DELETE FROM users WHERE id = ? AND role = 'guest'").run(
+        profile.userId,
+      );
+    }
+
+    db.exec("COMMIT");
     return { ok: true };
   } catch {
+    rollbackGuestProfileTransaction();
     return { ok: false, message: "Unable to delete guest profile." };
   }
 }

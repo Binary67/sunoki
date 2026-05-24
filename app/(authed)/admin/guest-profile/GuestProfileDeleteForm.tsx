@@ -20,7 +20,11 @@ export default function GuestProfileDeleteForm({
     <form
       action={deleteGuestProfileAction}
       onSubmit={(event) => {
-        if (!window.confirm(`Delete ${label}?`)) {
+        if (
+          !window.confirm(
+            `Delete ${label}? This also removes any linked guest account.`,
+          )
+        ) {
           event.preventDefault();
         }
       }}
