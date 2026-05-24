@@ -555,6 +555,11 @@ function GuestProfileAddonSummary({
                   {formatGuestProfileAddonPrice(addon.priceCents)}
                 </span>
               </div>
+              {addon.remarks && (
+                <p className="mt-1 whitespace-pre-line text-xs leading-5 text-ink/60">
+                  {addon.remarks}
+                </p>
+              )}
             </li>
           ))}
         </ul>

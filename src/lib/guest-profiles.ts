@@ -74,6 +74,7 @@ export type GuestProfileAddon = {
   serviceName: string;
   days: number | null;
   priceCents: number;
+  remarks: string | null;
   createdAt: string;
 };
 
@@ -101,6 +102,7 @@ type GuestProfileAddonInput = {
   serviceName: string;
   days: number | null;
   priceCents: number;
+  remarks: string | null;
 };
 
 type GuestUsernameResult =
@@ -215,6 +217,7 @@ export function listGuestProfileAddons(
           service_name AS serviceName,
           days,
           price_cents AS priceCents,
+          remarks,
           created_at AS createdAt
         FROM guest_profile_addons
         WHERE guest_profile_id = ?
@@ -636,13 +639,22 @@ function parseGuestProfileAddons(
   | { ok: false; message: string } {
   const serviceNames = formData.getAll("addon_service_name");
   const priceAmounts = formData.getAll("addon_price_amount");
+  const remarksValues = formData.getAll("addon_remarks");
   const additionalDays = readFormValue(formData.get("additional_days"));
   const additionalDaysPriceAmount = readFormValue(
     formData.get("additional_days_price_amount"),
   );
+  const additionalDaysRemarks = readFormValue(
+    formData.get("additional_days_remarks"),
+  );
   const addons: GuestProfileAddonInput[] = [];
+  const addonRowCount = Math.max(
+    serviceNames.length,
+    priceAmounts.length,
+    remarksValues.length,
+  );
 
-  if (additionalDays || additionalDaysPriceAmount) {
+  if (additionalDays || additionalDaysPriceAmount || additionalDaysRemarks) {
     if (!additionalDays) {
       return {
         ok: false,
@@ -670,17 +682,15 @@ function parseGuestProfileAddons(
       serviceName: ADDITIONAL_DAYS_ADDON_NAME,
       days,
       priceCents,
+      remarks: additionalDaysRemarks,
     });
   }
 
-  for (
-    let index = 0;
-    index < Math.max(serviceNames.length, priceAmounts.length);
-    index += 1
-  ) {
+  for (let index = 0; index < addonRowCount; index += 1) {
     const serviceName = readFormValue(serviceNames[index] ?? null);
     const priceAmount = readFormValue(priceAmounts[index] ?? null);
-    if (!serviceName && !priceAmount) continue;
+    const remarks = readFormValue(remarksValues[index] ?? null);
+    if (!serviceName && !priceAmount && !remarks) continue;
     if (!serviceName) {
       return { ok: false, message: "Add-on service name is required." };
     }
@@ -705,6 +715,7 @@ function parseGuestProfileAddons(
       serviceName: normalizedServiceName,
       days: null,
       priceCents,
+      remarks,
     });
   }
 
@@ -750,14 +761,21 @@ function insertGuestProfileAddons(
         guest_profile_id,
         service_name,
         days,
-        price_cents
+        price_cents,
+        remarks
       )
-      VALUES (?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?)
     `,
   );
 
   for (const addon of addons) {
-    insert.run(profileId, addon.serviceName, addon.days, addon.priceCents);
+    insert.run(
+      profileId,
+      addon.serviceName,
+      addon.days,
+      addon.priceCents,
+      addon.remarks,
+    );
   }
 }
 

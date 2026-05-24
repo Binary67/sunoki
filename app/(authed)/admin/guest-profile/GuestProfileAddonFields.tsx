@@ -8,6 +8,7 @@ export type GuestProfileAddonFormValue = {
   serviceName: string;
   days: string;
   priceAmount: string;
+  remarks: string;
 };
 
 type GuestProfileAddonFieldsProps = {
@@ -16,6 +17,7 @@ type GuestProfileAddonFieldsProps = {
 
 type AddonRow = GuestProfileAddonFormValue & {
   id: string;
+  remarksOpen: boolean;
 };
 
 export default function GuestProfileAddonFields({
@@ -33,14 +35,23 @@ export default function GuestProfileAddonFields({
   const [additionalDaysPriceAmount, setAdditionalDaysPriceAmount] = useState(
     initialAdditionalDaysAddon?.priceAmount ?? "",
   );
+  const [additionalDaysRemarks, setAdditionalDaysRemarks] = useState(
+    initialAdditionalDaysAddon?.remarks ?? "",
+  );
+  const [additionalDaysRemarksOpen, setAdditionalDaysRemarksOpen] = useState(
+    Boolean(initialAdditionalDaysAddon?.remarks),
+  );
   const [rows, setRows] = useState<AddonRow[]>(() =>
     regularAddons.length > 0
       ? regularAddons.map((addon, index) => ({
           ...addon,
           id: `addon-${index}`,
+          remarksOpen: Boolean(addon.remarks),
         }))
       : [createBlankRow("addon-0")],
   );
+  const showAdditionalDaysRemarks =
+    additionalDaysRemarksOpen || additionalDaysRemarks.trim().length > 0;
   const totalCents = useMemo(
     () => {
       const additionalDaysCents =
@@ -62,7 +73,25 @@ export default function GuestProfileAddonFields({
       <div className="mt-3 grid gap-3">
         <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_8rem_10rem_6.5rem] md:items-end">
           <div className="block text-sm font-medium text-ink/75">
-            Service
+            <div className="flex min-h-5 items-center justify-between gap-2">
+              <span>Service</span>
+              <button
+                aria-controls="additional-days-remarks"
+                aria-expanded={showAdditionalDaysRemarks}
+                className="text-xs font-medium text-brand hover:text-brand/80"
+                onClick={() => {
+                  if (showAdditionalDaysRemarks) {
+                    setAdditionalDaysRemarks("");
+                    setAdditionalDaysRemarksOpen(false);
+                    return;
+                  }
+                  setAdditionalDaysRemarksOpen(true);
+                }}
+                type="button"
+              >
+                {showAdditionalDaysRemarks ? "Remove remarks" : "Add remarks"}
+              </button>
+            </div>
             <div className="mt-1 flex h-10 w-full items-center rounded-md border border-black/10 bg-surface px-3 text-sm font-semibold text-ink">
               {ADDITIONAL_DAYS_ADDON_NAME}
             </div>
@@ -102,21 +131,56 @@ export default function GuestProfileAddonFields({
             />
           </label>
           <div className="hidden h-10 md:block" />
+          {showAdditionalDaysRemarks ? (
+            <label
+              className="block text-sm font-medium text-ink/75 md:col-span-4"
+              htmlFor="additional-days-remarks"
+            >
+              Remarks
+              <textarea
+                className="mt-1 min-h-20 w-full rounded-md border border-black/10 bg-white px-3 py-2 text-sm text-ink outline-none focus:border-brand focus:ring-2 focus:ring-brand/15"
+                id="additional-days-remarks"
+                name="additional_days_remarks"
+                onChange={(event) =>
+                  setAdditionalDaysRemarks(event.target.value)
+                }
+                rows={3}
+                value={additionalDaysRemarks}
+              />
+            </label>
+          ) : (
+            <input name="additional_days_remarks" type="hidden" value="" />
+          )}
         </div>
         {rows.map((row, index) => {
           const serviceInputId = `${row.id}-service-name`;
           const priceInputId = `${row.id}-price`;
+          const remarksInputId = `${row.id}-remarks`;
+          const showRemarks = row.remarksOpen || row.remarks.trim().length > 0;
 
           return (
             <div
               className="grid gap-3 border-t border-black/5 pt-3 first:border-t-0 first:pt-0 md:grid-cols-[minmax(0,1fr)_8rem_10rem_6.5rem] md:items-end"
               key={row.id}
             >
-              <label
-                className="block text-sm font-medium text-ink/75 md:col-span-2"
-                htmlFor={serviceInputId}
-              >
-                Service
+              <div className="block text-sm font-medium text-ink/75 md:col-span-2">
+                <div className="flex min-h-5 items-center justify-between gap-2">
+                  <label htmlFor={serviceInputId}>Service</label>
+                  <button
+                    aria-controls={remarksInputId}
+                    aria-expanded={showRemarks}
+                    className="text-xs font-medium text-brand hover:text-brand/80"
+                    onClick={() => {
+                      updateRow(setRows, row.id, {
+                        remarks: "",
+                        remarksOpen: !showRemarks,
+                      });
+                    }}
+                    type="button"
+                  >
+                    {showRemarks ? "Remove remarks" : "Add remarks"}
+                  </button>
+                </div>
                 <input
                   className="mt-1 h-10 w-full rounded-md border border-black/10 bg-white px-3 text-sm text-ink outline-none focus:border-brand focus:ring-2 focus:ring-brand/15"
                   id={serviceInputId}
@@ -129,7 +193,7 @@ export default function GuestProfileAddonFields({
                   type="text"
                   value={row.serviceName}
                 />
-              </label>
+              </div>
               <label
                 className="block text-sm font-medium text-ink/75"
                 htmlFor={priceInputId}
@@ -166,6 +230,28 @@ export default function GuestProfileAddonFields({
               >
                 Remove
               </button>
+              {showRemarks ? (
+                <label
+                  className="block text-sm font-medium text-ink/75 md:col-span-4"
+                  htmlFor={remarksInputId}
+                >
+                  Remarks
+                  <textarea
+                    className="mt-1 min-h-20 w-full rounded-md border border-black/10 bg-white px-3 py-2 text-sm text-ink outline-none focus:border-brand focus:ring-2 focus:ring-brand/15"
+                    id={remarksInputId}
+                    name="addon_remarks"
+                    onChange={(event) =>
+                      updateRow(setRows, row.id, {
+                        remarks: event.target.value,
+                      })
+                    }
+                    rows={3}
+                    value={row.remarks}
+                  />
+                </label>
+              ) : (
+                <input name="addon_remarks" type="hidden" value="" />
+              )}
             </div>
           );
         })}
@@ -197,7 +283,7 @@ export default function GuestProfileAddonFields({
 function updateRow(
   setRows: Dispatch<SetStateAction<AddonRow[]>>,
   rowId: string,
-  value: Partial<GuestProfileAddonFormValue>,
+  value: Partial<AddonRow>,
 ): void {
   setRows((rows) =>
     rows.map((row) => (row.id === rowId ? { ...row, ...value } : row)),
@@ -205,7 +291,14 @@ function updateRow(
 }
 
 function createBlankRow(id: string): AddonRow {
-  return { id, serviceName: "", days: "", priceAmount: "" };
+  return {
+    id,
+    serviceName: "",
+    days: "",
+    priceAmount: "",
+    remarks: "",
+    remarksOpen: false,
+  };
 }
 
 function createRowId(): string {

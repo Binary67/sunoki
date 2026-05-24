@@ -99,6 +99,7 @@ db.exec(`
     service_name     TEXT NOT NULL,
     days             INTEGER CHECK (days IS NULL OR days > 0),
     price_cents      INTEGER NOT NULL CHECK (price_cents >= 0),
+    remarks          TEXT,
     created_at       TEXT NOT NULL DEFAULT (datetime('now'))
   );
 
@@ -117,6 +118,13 @@ db.exec(`
     created_at     TEXT NOT NULL DEFAULT (datetime('now'))
   );
 `);
+
+const guestProfileAddonColumns = db
+  .prepare("PRAGMA table_info(guest_profile_addons)")
+  .all() as { name: string }[];
+if (!guestProfileAddonColumns.some((column) => column.name === "remarks")) {
+  db.exec("ALTER TABLE guest_profile_addons ADD COLUMN remarks TEXT;");
+}
 
 db.prepare(
   `

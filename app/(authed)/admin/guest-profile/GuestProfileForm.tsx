@@ -144,6 +144,7 @@ function getAddonFormValues(
         ? String(addon.days)
         : "",
     priceAmount: formatAddonInputPrice(addon.priceCents),
+    remarks: addon.remarks ?? "",
   }));
 }
 
