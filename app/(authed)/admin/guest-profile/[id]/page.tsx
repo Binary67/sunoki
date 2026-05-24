@@ -15,6 +15,10 @@ import {
 } from "@/src/lib/guest-profiles";
 import { ADDITIONAL_DAYS_ADDON_NAME } from "@/src/lib/guest-profile-addons";
 import {
+  listPackageEntitlementOptions,
+  parsePackageEntitlementSnapshot,
+} from "@/src/lib/package-entitlement-options";
+import {
   setGuestProfileStatusAction,
   toggleGuestProfileUserAccessAction,
   updateGuestProfileAction,
@@ -22,6 +26,7 @@ import {
 import { GUEST_PROFILE_SECTIONS, type GuestProfileField } from "../fields";
 import GuestProfileDeleteForm from "../GuestProfileDeleteForm";
 import GuestProfileForm from "../GuestProfileForm";
+import GuestPackageServicesList from "../GuestPackageServicesList";
 
 type PageProps = {
   params: Promise<{ id: string }>;
@@ -48,6 +53,10 @@ export default async function GuestProfileDetailPage({
   const error = getSingleValue(query.error);
   const success = getSingleValue(query.success);
   const canDeleteGuestProfiles = user.role === "superadmin";
+  const packageOptions = showEdit ? listPackageEntitlementOptions() : [];
+  const packageSnapshot = parsePackageEntitlementSnapshot(
+    profile.packageEntitlementSnapshotJson,
+  );
 
   return (
     <main className="flex-1 px-4 py-6 sm:px-6 sm:py-8 lg:px-10">
@@ -138,6 +147,7 @@ export default async function GuestProfileDetailPage({
             action={updateGuestProfileAction}
             addons={addons}
             cancelHref={`/admin/guest-profile/${profile.id}`}
+            packageOptions={packageOptions}
             profile={profile}
             submitLabel="Save Changes"
           />
@@ -161,6 +171,13 @@ export default async function GuestProfileDetailPage({
                   />
                 ))}
               </dl>
+              {section.title === "Package" && (
+                <GuestPackageServicesList
+                  className="mt-5"
+                  emptyMessage="No package service snapshot saved."
+                  snapshot={packageSnapshot}
+                />
+              )}
             </section>
           ))}
           <GuestProfileAccountSection profile={profile} />

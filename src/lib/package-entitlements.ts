@@ -47,6 +47,18 @@ export type PackageServiceColumnName =
 
 export type CelebrationChoiceRule = "none" | "choose_one";
 
+export type PackageServiceSnapshotItem = {
+  name: PackageServiceColumnName;
+  label: string;
+  quantity: number;
+};
+
+export type PackageEntitlementSnapshot = {
+  packageName: string;
+  celebrationChoiceRule: CelebrationChoiceRule;
+  services: PackageServiceSnapshotItem[];
+};
+
 export type PackageEntitlementDefault = {
   celebrationChoiceRule: CelebrationChoiceRule;
   id: number;
@@ -122,6 +134,11 @@ export const PACKAGE_ENTITLEMENT_DEFAULTS: PackageEntitlementDefault[] = [
     ]),
   },
 ];
+
+export function formatPackageServiceQuantity(quantity: number): string {
+  if (quantity === UNLIMITED_PACKAGE_SERVICE_QUANTITY) return "Unlimited";
+  return String(quantity);
+}
 
 function packageServices(
   values: readonly number[],

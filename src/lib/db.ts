@@ -91,6 +91,7 @@ db.exec(`
     package_payable_amount TEXT,
     deposit_to_pay         TEXT,
     balance_to_pay         TEXT,
+    package_entitlement_snapshot_json TEXT,
     package_special_note   TEXT,
     consultant_name        TEXT,
     medical_food_notes     TEXT,
@@ -188,6 +189,19 @@ const guestProfileAddonColumns = db
   .all() as { name: string }[];
 if (!guestProfileAddonColumns.some((column) => column.name === "remarks")) {
   db.exec("ALTER TABLE guest_profile_addons ADD COLUMN remarks TEXT;");
+}
+
+const guestProfileColumns = db
+  .prepare("PRAGMA table_info(guest_profiles)")
+  .all() as { name: string }[];
+if (
+  !guestProfileColumns.some(
+    (column) => column.name === "package_entitlement_snapshot_json",
+  )
+) {
+  db.exec(
+    "ALTER TABLE guest_profiles ADD COLUMN package_entitlement_snapshot_json TEXT;",
+  );
 }
 
 db.prepare(

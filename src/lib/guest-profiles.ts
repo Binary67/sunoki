@@ -6,6 +6,10 @@ import {
 } from "./booking-dates";
 import { db } from "./db";
 import { ADDITIONAL_DAYS_ADDON_NAME } from "./guest-profile-addons";
+import {
+  getPackageEntitlementSnapshotByName,
+  serializePackageEntitlementSnapshot,
+} from "./package-entitlement-options";
 
 export type GuestProfileStatus = "incoming" | "checked_in";
 export type GuestProfileFilterStatus = GuestProfileStatus | "checked_out";
@@ -52,6 +56,7 @@ export type GuestProfile = {
   packagePayableAmount: string | null;
   depositToPay: string | null;
   balanceToPay: string | null;
+  packageEntitlementSnapshotJson: string | null;
   packageSpecialNote: string | null;
   consultantName: string | null;
   medicalFoodNotes: string | null;
@@ -145,6 +150,7 @@ const GUEST_PROFILE_COLUMNS = [
   "package_payable_amount",
   "deposit_to_pay",
   "balance_to_pay",
+  "package_entitlement_snapshot_json",
   "package_special_note",
   "consultant_name",
   "medical_food_notes",
@@ -299,6 +305,13 @@ export function createGuestProfile(
     };
   }
 
+  const packageSnapshot = getPackageSnapshotJsonForSave(
+    values.data.package_type,
+    null,
+  );
+  if (!packageSnapshot.ok) return packageSnapshot;
+  values.data.package_entitlement_snapshot_json = packageSnapshot.value;
+
   try {
     db.exec("BEGIN");
     const userId = insertGuestUser(
@@ -351,6 +364,13 @@ export function updateGuestProfile(
       message: "An incoming guest with this IC number already exists.",
     };
   }
+
+  const packageSnapshot = getPackageSnapshotJsonForSave(
+    values.data.package_type,
+    profile,
+  );
+  if (!packageSnapshot.ok) return packageSnapshot;
+  values.data.package_entitlement_snapshot_json = packageSnapshot.value;
 
   try {
     db.exec("BEGIN");
@@ -607,11 +627,42 @@ function parseGuestProfileForm(
       package_payable_amount: readText(formData, "package_payable_amount"),
       deposit_to_pay: readText(formData, "deposit_to_pay"),
       balance_to_pay: readText(formData, "balance_to_pay"),
+      package_entitlement_snapshot_json: null,
       package_special_note: readText(formData, "package_special_note"),
       consultant_name: readText(formData, "consultant_name"),
       medical_food_notes: readText(formData, "medical_food_notes"),
       kitchen_notes: readText(formData, "kitchen_notes"),
     },
+  };
+}
+
+function getPackageSnapshotJsonForSave(
+  packageType: string | null,
+  profile: Pick<
+    GuestProfile,
+    "packageType" | "packageEntitlementSnapshotJson"
+  > | null,
+):
+  | { ok: true; value: string | null }
+  | { ok: false; message: string } {
+  if (!packageType) return { ok: true, value: null };
+
+  const snapshot = getPackageEntitlementSnapshotByName(packageType);
+  if (!snapshot) {
+    return { ok: false, message: "Choose a valid package." };
+  }
+
+  if (
+    profile &&
+    profile.packageType === packageType &&
+    profile.packageEntitlementSnapshotJson
+  ) {
+    return { ok: true, value: profile.packageEntitlementSnapshotJson };
+  }
+
+  return {
+    ok: true,
+    value: serializePackageEntitlementSnapshot(snapshot),
   };
 }
 
@@ -1038,6 +1089,7 @@ function getGuestProfileSelectList(): string {
     gp.package_payable_amount AS packagePayableAmount,
     gp.deposit_to_pay AS depositToPay,
     gp.balance_to_pay AS balanceToPay,
+    gp.package_entitlement_snapshot_json AS packageEntitlementSnapshotJson,
     gp.package_special_note AS packageSpecialNote,
     gp.consultant_name AS consultantName,
     gp.medical_food_notes AS medicalFoodNotes,

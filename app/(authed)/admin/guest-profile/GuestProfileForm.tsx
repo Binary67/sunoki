@@ -7,10 +7,15 @@ import {
   type GuestProfileAddon,
   type GuestProfile,
 } from "@/src/lib/guest-profiles";
+import { parsePackageEntitlementSnapshot } from "@/src/lib/package-entitlement-options";
+import type { PackageEntitlementSnapshot } from "@/src/lib/package-entitlements";
 import GuestProfileAddonFields, {
   type GuestProfileAddonFormValue,
 } from "./GuestProfileAddonFields";
 import GuestProfileImportButton from "./GuestProfileImportButton";
+import GuestProfilePackageFields, {
+  type RenderedGuestProfileField,
+} from "./GuestProfilePackageFields";
 import { GUEST_PROFILE_SECTIONS, type GuestProfileField } from "./fields";
 
 type GuestProfileFormProps = {
@@ -19,6 +24,7 @@ type GuestProfileFormProps = {
   allowImport?: boolean;
   cancelHref: string;
   notice?: ReactNode;
+  packageOptions: PackageEntitlementSnapshot[];
   profile?: GuestProfile;
   submitLabel: string;
 };
@@ -29,33 +35,54 @@ export default function GuestProfileForm({
   allowImport = false,
   cancelHref,
   notice,
+  packageOptions,
   profile,
   submitLabel,
 }: GuestProfileFormProps) {
+  const packageSnapshot = parsePackageEntitlementSnapshot(
+    profile?.packageEntitlementSnapshotJson ?? null,
+  );
+
   return (
     <form action={action} className="flex min-h-0 flex-1 flex-col">
       {profile && <input type="hidden" name="profileId" value={profile.id} />}
       <div className="grid gap-5 overflow-y-auto bg-surface px-4 py-5 sm:px-5">
         {notice}
-        {GUEST_PROFILE_SECTIONS.map((section) => (
-          <fieldset
-            key={section.title}
-            className="rounded-lg border border-black/5 bg-white px-4 py-4"
-          >
-            <legend className="px-1 text-sm font-semibold text-ink">
-              {section.title}
-            </legend>
-            <div className="mt-3 grid gap-4 md:grid-cols-2">
-              {section.fields.map((field) => (
-                <GuestProfileInput
-                  key={field.name}
-                  field={field}
-                  profile={profile}
-                />
-              ))}
-            </div>
-          </fieldset>
-        ))}
+        {GUEST_PROFILE_SECTIONS.map((section) => {
+          const isPackageSection = section.title === "Package";
+
+          return (
+            <fieldset
+              key={section.title}
+              className="rounded-lg border border-black/5 bg-white px-4 py-4"
+            >
+              <legend className="px-1 text-sm font-semibold text-ink">
+                {section.title}
+              </legend>
+              <div className="mt-3 grid gap-4 md:grid-cols-2">
+                {isPackageSection ? (
+                  <GuestProfilePackageFields
+                    fields={getRenderedGuestProfileFields(
+                      section.fields,
+                      profile,
+                    )}
+                    initialSnapshot={packageSnapshot}
+                    packageOptions={packageOptions}
+                    profileId={profile?.id}
+                  />
+                ) : (
+                  section.fields.map((field) => (
+                    <GuestProfileInput
+                      key={field.name}
+                      field={field}
+                      profile={profile}
+                    />
+                  ))
+                )}
+              </div>
+            </fieldset>
+          );
+        })}
         <GuestProfileAddonFields initialAddons={getAddonFormValues(addons)} />
         <GuestProfileAccountFields profile={profile} />
       </div>
@@ -82,6 +109,18 @@ export default function GuestProfileForm({
       </div>
     </form>
   );
+}
+
+function getRenderedGuestProfileFields(
+  fields: GuestProfileField[],
+  profile?: GuestProfile,
+): RenderedGuestProfileField[] {
+  return fields.map((field) => ({
+    label: field.label,
+    multiline: field.multiline,
+    name: field.name,
+    value: profile ? field.value(profile) ?? "" : "",
+  }));
 }
 
 function GuestProfileAccountFields({ profile }: { profile?: GuestProfile }) {

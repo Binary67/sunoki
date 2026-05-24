@@ -14,6 +14,7 @@ import {
   type GuestProfile,
   type GuestProfileFilterStatus,
 } from "@/src/lib/guest-profiles";
+import { listPackageEntitlementOptions } from "@/src/lib/package-entitlement-options";
 import { createGuestProfileAction } from "./actions";
 import GuestProfileForm from "./GuestProfileForm";
 import GuestProfileSearchList from "./GuestProfileSearchList";
@@ -60,6 +61,7 @@ export default async function GuestProfilePage({ searchParams }: PageProps) {
       listGuestProfileAddons(profile.id),
     ),
   }));
+  const packageOptions = showForm ? listPackageEntitlementOptions() : [];
 
   return (
     <main className="flex-1 px-4 py-6 sm:px-6 sm:py-8 lg:px-10">
@@ -87,7 +89,11 @@ export default async function GuestProfilePage({ searchParams }: PageProps) {
       {!showForm && <StatusMessage error={error} success={success} />}
 
       {showForm && (
-        <GuestProfileModal activeStatus={activeStatus} error={error} />
+        <GuestProfileModal
+          activeStatus={activeStatus}
+          error={error}
+          packageOptions={packageOptions}
+        />
       )}
 
       <section>
@@ -125,9 +131,11 @@ export default async function GuestProfilePage({ searchParams }: PageProps) {
 function GuestProfileModal({
   activeStatus,
   error,
+  packageOptions,
 }: {
   activeStatus: GuestProfileFilterStatus;
   error?: string;
+  packageOptions: ReturnType<typeof listPackageEntitlementOptions>;
 }) {
   const closeHref = getGuestProfileListHref(activeStatus);
 
@@ -173,6 +181,7 @@ function GuestProfileModal({
           allowImport
           cancelHref={closeHref}
           notice={<StatusMessage error={error} />}
+          packageOptions={packageOptions}
           submitLabel="Save Guest"
         />
       </section>
