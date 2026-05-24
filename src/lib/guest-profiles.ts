@@ -1,93 +1,62 @@
-import { randomInt } from "node:crypto";
-import {
-  addBookingDays,
-  formatBookingDate,
-  isBookingDate,
-} from "./booking-dates";
+import { formatBookingDate } from "./booking-dates";
 import { db } from "./db";
-import { ADDITIONAL_DAYS_ADDON_NAME } from "./guest-profile-addons";
 import {
-  getPackageEntitlementSnapshotByName,
-  serializePackageEntitlementSnapshot,
-} from "./package-entitlement-options";
-import { PACKAGE_SERVICE_COLUMNS } from "./package-entitlements";
+  insertGuestProfileAddons,
+  listGuestProfileAddons,
+  replaceGuestProfileAddons,
+} from "./guest-profile-addons";
+import {
+  insertGuestUser,
+  parseOptionalGuestAccount,
+  parseRequiredGuestAccount,
+  setGuestUserAccess,
+  updateGuestUser,
+  updateGuestUserStayDates,
+  type GuestProfileAccountMutationResult,
+} from "./guest-profile-accounts";
+import {
+  getPackageSnapshotJsonForSave,
+  parseGuestProfileForm,
+} from "./guest-profile-form";
+import {
+  getGuestProfileComputedStatus,
+  getGuestStayDates,
+} from "./guest-profile-stay";
+import {
+  GUEST_PROFILE_COLUMNS,
+  type GuestKitchenNote,
+  type GuestProfile,
+  type GuestProfileFilterStatus,
+  type GuestProfileStatus,
+} from "./guest-profile-types";
 
-export type GuestProfileStatus = "incoming" | "checked_in";
-export type GuestProfileFilterStatus = GuestProfileStatus | "checked_out";
-
-export const GUEST_ROOM_LEVELS = ["12", "13", "14"];
-export const GUEST_BASE_STAY_DAYS = 27;
-export const GUEST_ROOM_NUMBERS = [
-  "01",
-  "02",
-  "03",
-  "04",
-  "05",
-  "06",
-  "07",
-  "08",
-  "09",
-  "10",
-  "11",
-];
-const GUEST_USERNAME_LENGTH = 6;
-const GUEST_USERNAME_ATTEMPTS = 100;
-
-export type GuestProfile = {
-  id: number;
-  name: string;
-  status: GuestProfileStatus;
-  roomNumber: string | null;
-  icNo: string | null;
-  handphoneNo: string | null;
-  email: string | null;
-  expectedDeliveryDate: string | null;
-  hospitalOfDelivery: string | null;
-  modeOfDelivery: string | null;
-  childCount: string | null;
-  specialNote: string | null;
-  husbandName: string | null;
-  husbandIcNo: string | null;
-  husbandHandphoneNo: string | null;
-  husbandEmail: string | null;
-  address: string | null;
-  occupation: string | null;
-  occupation2: string | null;
-  packageType: string | null;
-  packagePayableAmount: string | null;
-  depositToPay: string | null;
-  balanceToPay: string | null;
-  packageEntitlementSnapshotJson: string | null;
-  packageSpecialNote: string | null;
-  consultantName: string | null;
-  medicalFoodNotes: string | null;
-  kitchenNotes: string | null;
-  userId: number | null;
-  accountUsername: string | null;
-  accountActive: number | null;
-  createdAt: string;
-};
-
-export type GuestKitchenNote = {
-  id: number;
-  name: string;
-  roomNumber: string | null;
-  kitchenNotes: string;
-};
-
-export type GuestProfileAddon = {
-  id: number;
-  guestProfileId: number;
-  serviceName: string;
-  category: GuestProfileAddonCategory;
-  quantity: number;
-  days: number | null;
-  priceCents: number;
-  remarks: string | null;
-  createdAt: string;
-};
-
-export type GuestProfileAddonCategory = "sunoki" | "custom";
+export {
+  formatGuestProfileAddonPrice,
+  getGuestProfileAddonLineTotalCents,
+  getGuestProfileAddonTotalCents,
+  listGuestProfileAddons,
+} from "./guest-profile-addons";
+export type {
+  GuestProfileAddon,
+  GuestProfileAddonCategory,
+} from "./guest-profile-addons";
+export type { GuestProfileAccountMutationResult } from "./guest-profile-accounts";
+export {
+  getGuestProfileCheckoutDate,
+  getGuestProfileComputedStatus,
+} from "./guest-profile-stay";
+export {
+  GUEST_BASE_STAY_DAYS,
+  GUEST_ROOM_LEVELS,
+  GUEST_ROOM_NUMBERS,
+} from "./guest-profile-types";
+export type {
+  GuestKitchenNote,
+  GuestProfile,
+  GuestProfileColumn,
+  GuestProfileFilterStatus,
+  GuestProfileStatus,
+} from "./guest-profile-types";
 
 type InsertResult = {
   lastInsertRowid: number | bigint;
@@ -104,67 +73,6 @@ type GuestProfileCreateResult =
 type GuestProfileMutationResult =
   | { ok: true }
   | { ok: false; message: string };
-
-export type GuestProfileAccountMutationResult =
-  | { ok: true; message: string }
-  | { ok: false; message: string };
-
-type GuestProfileAddonInput = {
-  category: GuestProfileAddonCategory;
-  serviceName: string;
-  quantity: number;
-  days: number | null;
-  priceCents: number;
-  remarks: string | null;
-};
-
-type GuestStayAddon = {
-  serviceName: string;
-  days: number | null;
-};
-
-type GuestUsernameResult =
-  | { ok: true; value: string }
-  | { ok: false; message: string };
-
-type ParsedGuestProfileForm =
-  | {
-      ok: true;
-      addons: GuestProfileAddonInput[];
-      data: Record<GuestProfileColumn, string | null>;
-    }
-  | { ok: false; message: string };
-
-const GUEST_PROFILE_COLUMNS = [
-  "name",
-  "room_number",
-  "ic_no",
-  "handphone_no",
-  "email",
-  "expected_delivery_date",
-  "hospital_of_delivery",
-  "mode_of_delivery",
-  "child_count",
-  "special_note",
-  "husband_name",
-  "husband_ic_no",
-  "husband_handphone_no",
-  "husband_email",
-  "address",
-  "occupation",
-  "occupation_2",
-  "package_type",
-  "package_payable_amount",
-  "deposit_to_pay",
-  "balance_to_pay",
-  "package_entitlement_snapshot_json",
-  "package_special_note",
-  "consultant_name",
-  "medical_food_notes",
-  "kitchen_notes",
-] as const;
-
-export type GuestProfileColumn = (typeof GUEST_PROFILE_COLUMNS)[number];
 
 export function listGuestProfiles(
   status: GuestProfileFilterStatus = "incoming",
@@ -183,20 +91,6 @@ export function listGuestProfiles(
         today,
       ) === status,
   );
-}
-
-function selectGuestProfiles(status: GuestProfileStatus): GuestProfile[] {
-  return db
-    .prepare(
-      `
-        SELECT ${getGuestProfileSelectList()}
-        FROM guest_profiles gp
-        LEFT JOIN users u ON u.id = gp.user_id
-        WHERE gp.status = ?
-        ORDER BY datetime(gp.created_at) DESC, gp.id DESC
-      `,
-    )
-    .all(status) as GuestProfile[];
 }
 
 export function getGuestProfile(id: number): GuestProfile | null {
@@ -238,83 +132,6 @@ export function listCheckedInGuestKitchenNotes(): GuestKitchenNote[] {
       roomNumber: profile.roomNumber,
       kitchenNotes: profile.kitchenNotes ?? "",
     }));
-}
-
-export function listGuestProfileAddons(
-  profileId: number,
-): GuestProfileAddon[] {
-  if (!isValidGuestProfileId(profileId)) return [];
-
-  return db
-    .prepare(
-      `
-        SELECT
-          id,
-          guest_profile_id AS guestProfileId,
-          service_name AS serviceName,
-          category,
-          quantity,
-          days,
-          price_cents AS priceCents,
-          remarks,
-          created_at AS createdAt
-        FROM guest_profile_addons
-        WHERE guest_profile_id = ?
-        ORDER BY
-          CASE
-            WHEN service_name = ? THEN 0
-            WHEN category = 'sunoki' THEN 1
-            ELSE 2
-          END,
-          id ASC
-      `,
-    )
-    .all(profileId, ADDITIONAL_DAYS_ADDON_NAME) as GuestProfileAddon[];
-}
-
-export function formatGuestProfileAddonPrice(priceCents: number): string {
-  const whole = Math.floor(priceCents / 100).toLocaleString("en-MY");
-  const fraction = String(priceCents % 100).padStart(2, "0");
-  return `RM ${whole}.${fraction}`;
-}
-
-export function getGuestProfileAddonTotalCents(
-  addons: GuestProfileAddon[],
-): number {
-  return addons.reduce(
-    (total, addon) => total + addon.priceCents * getAddonQuantity(addon),
-    0,
-  );
-}
-
-export function getGuestProfileAddonLineTotalCents(
-  addon: GuestProfileAddon,
-): number {
-  return addon.priceCents * getAddonQuantity(addon);
-}
-
-function getAddonQuantity(
-  addon: Pick<GuestProfileAddon, "serviceName" | "quantity">,
-): number {
-  return addon.serviceName === ADDITIONAL_DAYS_ADDON_NAME ? 1 : addon.quantity;
-}
-
-export function getGuestProfileCheckoutDate(
-  profile: Pick<GuestProfile, "expectedDeliveryDate">,
-  addons: GuestStayAddon[],
-): string | null {
-  return getGuestCheckoutDateFromStartDate(profile.expectedDeliveryDate, addons);
-}
-
-export function getGuestProfileComputedStatus(
-  profile: Pick<GuestProfile, "status" | "expectedDeliveryDate">,
-  addons: GuestStayAddon[],
-  today = formatBookingDate(new Date()),
-): GuestProfileFilterStatus {
-  if (profile.status === "incoming") return "incoming";
-
-  const checkoutDate = getGuestProfileCheckoutDate(profile, addons);
-  return checkoutDate && checkoutDate < today ? "checked_out" : "checked_in";
 }
 
 export function createGuestProfile(
@@ -501,20 +318,7 @@ export function toggleGuestProfileUserAccess(
 
   try {
     db.exec("BEGIN");
-    db.prepare("UPDATE users SET active = ? WHERE id = ?").run(
-      active,
-      profile.userId,
-    );
-    if (active === 0) {
-      db.prepare(
-        `
-          UPDATE sessions
-          SET revoked_at = ?
-          WHERE user_id = ?
-            AND revoked_at IS NULL
-        `,
-      ).run(formatDateTime(new Date()), profile.userId);
-    }
+    setGuestUserAccess(profile.userId, active);
     db.exec("COMMIT");
     return {
       ok: true,
@@ -571,6 +375,34 @@ export function setGuestProfileStatus(
   }
 }
 
+export function getGuestProfileStatus(
+  value?: string,
+): GuestProfileFilterStatus {
+  if (value === "checked_out") return "checked_out";
+  return value === "checked_in" ? "checked_in" : "incoming";
+}
+
+export function getGuestProfileStatusLabel(
+  status: GuestProfileFilterStatus,
+): string {
+  if (status === "checked_out") return "Checked Out";
+  return status === "checked_in" ? "Checked In" : "Incoming";
+}
+
+function selectGuestProfiles(status: GuestProfileStatus): GuestProfile[] {
+  return db
+    .prepare(
+      `
+        SELECT ${getGuestProfileSelectList()}
+        FROM guest_profiles gp
+        LEFT JOIN users u ON u.id = gp.user_id
+        WHERE gp.status = ?
+        ORDER BY datetime(gp.created_at) DESC, gp.id DESC
+      `,
+    )
+    .all(status) as GuestProfile[];
+}
+
 function checkInGuestProfile(id: number): MutationResult {
   const profile = getGuestProfile(id);
   if (!profile) return { changes: 0 };
@@ -616,454 +448,6 @@ function undoGuestProfileCheckIn(id: number): MutationResult {
     .run(id) as MutationResult;
 }
 
-export function getGuestProfileStatus(
-  value?: string,
-): GuestProfileFilterStatus {
-  if (value === "checked_out") return "checked_out";
-  return value === "checked_in" ? "checked_in" : "incoming";
-}
-
-export function getGuestProfileStatusLabel(
-  status: GuestProfileFilterStatus,
-): string {
-  if (status === "checked_out") return "Checked Out";
-  return status === "checked_in" ? "Checked In" : "Incoming";
-}
-
-function parseGuestProfileForm(
-  formData: FormData,
-): ParsedGuestProfileForm {
-  const name = readText(formData, "name");
-  if (!name) return { ok: false, message: "Name is required." };
-
-  const expectedDeliveryDate = readText(formData, "expected_delivery_date");
-  if (expectedDeliveryDate && !isBookingDate(expectedDeliveryDate)) {
-    return { ok: false, message: "Enter a valid EDD." };
-  }
-
-  const roomNumber = readText(formData, "room_number");
-  if (roomNumber && !isGuestRoomNumber(roomNumber)) {
-    return { ok: false, message: "Choose a valid room number." };
-  }
-
-  const addons = parseGuestProfileAddons(formData);
-  if (!addons.ok) return addons;
-
-  return {
-    ok: true,
-    addons: addons.data,
-    data: {
-      name,
-      room_number: roomNumber,
-      ic_no: readText(formData, "ic_no"),
-      handphone_no: readText(formData, "handphone_no"),
-      email: readText(formData, "email"),
-      expected_delivery_date: expectedDeliveryDate,
-      hospital_of_delivery: readText(formData, "hospital_of_delivery"),
-      mode_of_delivery: readText(formData, "mode_of_delivery"),
-      child_count: readText(formData, "child_count"),
-      special_note: readText(formData, "special_note"),
-      husband_name: readText(formData, "husband_name"),
-      husband_ic_no: readText(formData, "husband_ic_no"),
-      husband_handphone_no: readText(formData, "husband_handphone_no"),
-      husband_email: readText(formData, "husband_email"),
-      address: readText(formData, "address"),
-      occupation: readText(formData, "occupation"),
-      occupation_2: readText(formData, "occupation_2"),
-      package_type: readText(formData, "package_type"),
-      package_payable_amount: readText(formData, "package_payable_amount"),
-      deposit_to_pay: readText(formData, "deposit_to_pay"),
-      balance_to_pay: readText(formData, "balance_to_pay"),
-      package_entitlement_snapshot_json: null,
-      package_special_note: readText(formData, "package_special_note"),
-      consultant_name: readText(formData, "consultant_name"),
-      medical_food_notes: readText(formData, "medical_food_notes"),
-      kitchen_notes: readText(formData, "kitchen_notes"),
-    },
-  };
-}
-
-function getPackageSnapshotJsonForSave(
-  packageType: string | null,
-  profile: Pick<
-    GuestProfile,
-    "packageType" | "packageEntitlementSnapshotJson"
-  > | null,
-):
-  | { ok: true; value: string | null }
-  | { ok: false; message: string } {
-  if (!packageType) return { ok: true, value: null };
-
-  const snapshot = getPackageEntitlementSnapshotByName(packageType);
-  if (!snapshot) {
-    return { ok: false, message: "Choose a valid package." };
-  }
-
-  if (
-    profile &&
-    profile.packageType === packageType &&
-    profile.packageEntitlementSnapshotJson
-  ) {
-    return { ok: true, value: profile.packageEntitlementSnapshotJson };
-  }
-
-  return {
-    ok: true,
-    value: serializePackageEntitlementSnapshot(snapshot),
-  };
-}
-
-function parseRequiredGuestAccount(
-  formData: FormData,
-):
-  | { ok: true; username: string; password: string }
-  | { ok: false; message: string } {
-  const password = readPassword(formData);
-  if (!password) {
-    return { ok: false, message: "Guest account password is required." };
-  }
-
-  const username = generateGuestUsername();
-  if (!username.ok) return username;
-
-  return { ok: true, username: username.value, password };
-}
-
-function parseOptionalGuestAccount(
-  formData: FormData,
-  hasLinkedUser: boolean,
-):
-  | { ok: true; username: string | null; password: string | null }
-  | { ok: false; message: string } {
-  const password = readPassword(formData);
-  if (!hasLinkedUser && !password) {
-    return { ok: true, username: null, password: null };
-  }
-  if (hasLinkedUser) {
-    return { ok: true, username: null, password };
-  }
-
-  const username = generateGuestUsername();
-  if (!username.ok) return username;
-
-  return { ok: true, username: username.value, password };
-}
-
-function generateGuestUsername(): GuestUsernameResult {
-  for (let attempt = 0; attempt < GUEST_USERNAME_ATTEMPTS; attempt += 1) {
-    const digits = "0123456789".split("");
-    const firstDigitIndex = randomInt(1, digits.length);
-    let username = digits.splice(firstDigitIndex, 1)[0];
-
-    while (username.length < GUEST_USERNAME_LENGTH) {
-      const digitIndex = randomInt(0, digits.length);
-      username += digits.splice(digitIndex, 1)[0];
-    }
-
-    if (!hasUsername(username)) {
-      return { ok: true, value: username };
-    }
-  }
-
-  return {
-    ok: false,
-    message: "Unable to generate a guest username. Try saving again.",
-  };
-}
-
-function readPassword(formData: FormData): string | null {
-  const value = formData.get("account_password");
-  return typeof value === "string" && value ? value : null;
-}
-
-function parseGuestProfileAddons(
-  formData: FormData,
-):
-  | { ok: true; data: GuestProfileAddonInput[] }
-  | { ok: false; message: string } {
-  const categories = formData.getAll("addon_category");
-  const serviceNames = formData.getAll("addon_service_name");
-  const quantities = formData.getAll("addon_quantity");
-  const priceAmounts = formData.getAll("addon_price_amount");
-  const remarksValues = formData.getAll("addon_remarks");
-  const additionalDays = readFormValue(formData.get("additional_days"));
-  const additionalDaysPriceAmount = readFormValue(
-    formData.get("additional_days_price_amount"),
-  );
-  const additionalDaysRemarks = readFormValue(
-    formData.get("additional_days_remarks"),
-  );
-  const addons: GuestProfileAddonInput[] = [];
-  const addonRowCount = Math.max(
-    categories.length,
-    serviceNames.length,
-    quantities.length,
-    priceAmounts.length,
-    remarksValues.length,
-  );
-
-  if (additionalDays || additionalDaysPriceAmount || additionalDaysRemarks) {
-    if (!additionalDays) {
-      return {
-        ok: false,
-        message: "Additional days of stay is required.",
-      };
-    }
-    if (!additionalDaysPriceAmount) {
-      return {
-        ok: false,
-        message: "Additional days of stay price is required.",
-      };
-    }
-
-    const days = parseAdditionalDays(additionalDays);
-    if (days === null) {
-      return { ok: false, message: "Enter a valid number of additional days." };
-    }
-
-    const priceCents = parseAddonPriceCents(additionalDaysPriceAmount);
-    if (priceCents === null) {
-      return { ok: false, message: "Enter a valid add-on price." };
-    }
-
-    addons.push({
-      category: "custom",
-      serviceName: ADDITIONAL_DAYS_ADDON_NAME,
-      quantity: 1,
-      days,
-      priceCents,
-      remarks: additionalDaysRemarks,
-    });
-  }
-
-  for (let index = 0; index < addonRowCount; index += 1) {
-    const serviceName = readFormValue(serviceNames[index] ?? null);
-    const quantityValue = readFormValue(quantities[index] ?? null);
-    const priceAmount = readFormValue(priceAmounts[index] ?? null);
-    const remarks = readFormValue(remarksValues[index] ?? null);
-    if (!serviceName && !priceAmount && !remarks) continue;
-
-    const category = parseAddonCategory(categories[index] ?? null);
-    if (!category) {
-      return { ok: false, message: "Choose a valid add-on category." };
-    }
-    if (!serviceName) {
-      return { ok: false, message: "Add-on service name is required." };
-    }
-    if (!quantityValue) {
-      return { ok: false, message: "Add-on quantity is required." };
-    }
-    if (!priceAmount) {
-      return { ok: false, message: "Add-on price is required." };
-    }
-
-    const quantity = parseAddonQuantity(quantityValue);
-    if (quantity === null) {
-      return { ok: false, message: "Enter a valid add-on quantity." };
-    }
-
-    const priceCents = parseAddonPriceCents(priceAmount);
-    if (priceCents === null) {
-      return { ok: false, message: "Enter a valid add-on price." };
-    }
-
-    const normalizedServiceName = serviceName.toUpperCase();
-    if (normalizedServiceName === ADDITIONAL_DAYS_ADDON_NAME) {
-      return {
-        ok: false,
-        message: "Use the fixed additional days row for additional days of stay.",
-      };
-    }
-
-    const storedServiceName =
-      category === "sunoki"
-        ? getSunokiAddonServiceName(serviceName)
-        : normalizedServiceName;
-    if (!storedServiceName) {
-      return { ok: false, message: "Choose a valid Sunoki service." };
-    }
-
-    addons.push({
-      category,
-      serviceName: storedServiceName,
-      quantity,
-      days: null,
-      priceCents,
-      remarks,
-    });
-  }
-
-  return { ok: true, data: addons };
-}
-
-function readText(formData: FormData, key: GuestProfileColumn): string | null {
-  return readFormValue(formData.get(key));
-}
-
-function readFormValue(value: FormDataEntryValue | null): string | null {
-  const text = typeof value === "string" ? value.trim() : "";
-  return text || null;
-}
-
-function parseAddonPriceCents(value: string): number | null {
-  if (!/^\d+(\.\d{1,2})?$/.test(value)) return null;
-
-  const [ringgit, sen = ""] = value.split(".");
-  const ringgitAmount = Number(ringgit);
-  const senAmount = Number(sen.padEnd(2, "0"));
-  const totalCents = ringgitAmount * 100 + senAmount;
-
-  return Number.isSafeInteger(totalCents) ? totalCents : null;
-}
-
-function parseAddonCategory(
-  value: FormDataEntryValue | null,
-): GuestProfileAddonCategory | null {
-  if (value === "sunoki" || value === "custom") return value;
-  return null;
-}
-
-function parseAddonQuantity(value: string): number | null {
-  if (!/^\d+$/.test(value)) return null;
-
-  const quantity = Number(value);
-  return Number.isSafeInteger(quantity) && quantity > 0 ? quantity : null;
-}
-
-function getSunokiAddonServiceName(value: string): string | null {
-  return (
-    PACKAGE_SERVICE_COLUMNS.find((column) => column.label === value)?.label ??
-    null
-  );
-}
-
-function parseAdditionalDays(value: string): number | null {
-  if (!/^\d+$/.test(value)) return null;
-
-  const days = Number(value);
-  return Number.isSafeInteger(days) && days > 0 ? days : null;
-}
-
-function insertGuestProfileAddons(
-  profileId: number,
-  addons: GuestProfileAddonInput[],
-): void {
-  if (addons.length === 0) return;
-
-  const insert = db.prepare(
-    `
-      INSERT INTO guest_profile_addons (
-        guest_profile_id,
-        service_name,
-        category,
-        quantity,
-        days,
-        price_cents,
-        remarks
-      )
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `,
-  );
-
-  for (const addon of addons) {
-    insert.run(
-      profileId,
-      addon.serviceName,
-      addon.category,
-      addon.quantity,
-      addon.days,
-      addon.priceCents,
-      addon.remarks,
-    );
-  }
-}
-
-function insertGuestUser(
-  username: string,
-  password: string,
-  stayDates: GuestStayDates,
-): number {
-  const result = db
-    .prepare(
-      `
-        INSERT INTO users (
-          username,
-          password,
-          role,
-          active,
-          check_in_date,
-          check_out_date
-        )
-        VALUES (?, ?, 'guest', 1, ?, ?)
-      `,
-    )
-    .run(
-      username,
-      password,
-      stayDates.checkInDate,
-      stayDates.checkOutDate,
-    ) as InsertResult;
-
-  return Number(result.lastInsertRowid);
-}
-
-function updateGuestUser(
-  userId: number,
-  password: string | null,
-  stayDates: GuestStayDates,
-): void {
-  if (password !== null) {
-    db.prepare(
-      `
-        UPDATE users
-        SET password = ?,
-            check_in_date = ?,
-            check_out_date = ?
-        WHERE id = ?
-      `,
-    ).run(
-      password,
-      stayDates.checkInDate,
-      stayDates.checkOutDate,
-      userId,
-    );
-    return;
-  }
-
-  db.prepare(
-    `
-      UPDATE users
-      SET check_in_date = ?,
-          check_out_date = ?
-      WHERE id = ?
-    `,
-  ).run(stayDates.checkInDate, stayDates.checkOutDate, userId);
-}
-
-function updateGuestUserStayDates(
-  userId: number,
-  stayDates: GuestStayDates,
-): void {
-  db.prepare(
-    `
-      UPDATE users
-      SET check_in_date = ?,
-          check_out_date = ?
-      WHERE id = ?
-    `,
-  ).run(stayDates.checkInDate, stayDates.checkOutDate, userId);
-}
-
-function replaceGuestProfileAddons(
-  profileId: number,
-  addons: GuestProfileAddonInput[],
-): void {
-  db.prepare("DELETE FROM guest_profile_addons WHERE guest_profile_id = ?").run(
-    profileId,
-  );
-  insertGuestProfileAddons(profileId, addons);
-}
-
 function rollbackGuestProfileTransaction(): void {
   try {
     db.exec("ROLLBACK");
@@ -1074,15 +458,6 @@ function rollbackGuestProfileTransaction(): void {
 
 function isValidGuestProfileId(id: number): boolean {
   return Number.isInteger(id) && id > 0;
-}
-
-function isGuestRoomNumber(value: string): boolean {
-  const [level, roomNumber, extra] = value.split("-");
-  return (
-    extra === undefined &&
-    GUEST_ROOM_LEVELS.includes(level) &&
-    GUEST_ROOM_NUMBERS.includes(roomNumber)
-  );
 }
 
 function hasDuplicateIncomingIc(
@@ -1107,63 +482,6 @@ function hasDuplicateIncomingIc(
     | undefined;
 
   return Boolean(row);
-}
-
-type GuestStayDates = {
-  checkInDate: string | null;
-  checkOutDate: string | null;
-};
-
-function getGuestStayDates(
-  checkInDate: string | null,
-  addons: GuestProfileAddonInput[],
-): GuestStayDates {
-  const checkOutDate = getGuestCheckoutDateFromStartDate(checkInDate, addons);
-  if (!checkInDate || !checkOutDate) {
-    return { checkInDate: null, checkOutDate: null };
-  }
-
-  return { checkInDate, checkOutDate };
-}
-
-function getGuestCheckoutDateFromStartDate(
-  checkInDate: string | null,
-  addons: GuestStayAddon[],
-): string | null {
-  if (!checkInDate || !isBookingDate(checkInDate)) {
-    return null;
-  }
-
-  const additionalDays =
-    addons.find((addon) => addon.serviceName === ADDITIONAL_DAYS_ADDON_NAME)
-      ?.days ?? 0;
-
-  return addBookingDays(checkInDate, GUEST_BASE_STAY_DAYS + additionalDays);
-}
-
-function hasUsername(username: string): boolean {
-  const row = db
-    .prepare(
-      `
-        SELECT id
-        FROM users
-        WHERE username = ?
-        LIMIT 1
-      `,
-    )
-    .get(username) as { id: number } | undefined;
-
-  return Boolean(row);
-}
-
-function formatDateTime(date: Date): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  const hour = String(date.getHours()).padStart(2, "0");
-  const minute = String(date.getMinutes()).padStart(2, "0");
-  const second = String(date.getSeconds()).padStart(2, "0");
-  return `${year}-${month}-${day} ${hour}:${minute}:${second}`;
 }
 
 function getGuestProfileSelectList(): string {
