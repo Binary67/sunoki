@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
 import { isAdminRole, type UserRole } from "@/src/lib/roles";
 import BrandBlock, { type BrandingSettings } from "./BrandBlock";
@@ -79,6 +80,13 @@ const LoungeIcon = ({ className }: IconProps) => (
   </svg>
 );
 
+const ServiceIcon = ({ className }: IconProps) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="M6 4h12M7 8h10M8 12h8" />
+    <path d="M9 20c-1.8-2.1-2.3-4.1-1.5-6 1.1 1.3 2.6 1.9 4.5 1.9s3.4-.6 4.5-1.9c.8 1.9.3 3.9-1.5 6" />
+  </svg>
+);
+
 const SettingsIcon = ({ className }: IconProps) => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" className={className}>
     <circle cx="12" cy="12" r="3" />
@@ -98,11 +106,19 @@ const CloseIcon = ({ className }: IconProps) => (
   </svg>
 );
 
-const bookingChildren = [
+const facilityBookingChildren = [
   { label: "Gym", href: "/booking/gym", Icon: GymIcon },
   { label: "Karaoke", href: "/booking/karaoke", Icon: KaraokeIcon },
   { label: "Yoga Studio", href: "/booking/yoga", Icon: YogaIcon },
   { label: "Lounge", href: "/booking/lounge", Icon: LoungeIcon },
+];
+
+const serviceBookingChildren = [
+  {
+    label: "Relaxing Hair Wash",
+    href: "/booking/services",
+    Icon: ServiceIcon,
+  },
 ];
 
 const dataChildren: {
@@ -337,29 +353,16 @@ export default function Sidebar({
 
               {bookingOpen && (
                 <div className="mt-1 ml-5 pl-3 border-l border-black/10 flex flex-col">
-                  {bookingChildren.map(({ label, href, Icon }) => {
-                    const active = pathname === href;
-                    return (
-                      <Link
-                        key={href}
-                        href={href}
-                        className={`relative flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors duration-200 ${
-                          active
-                            ? "text-brand font-medium bg-surface"
-                            : "text-ink/70 hover:text-ink"
-                        }`}
-                      >
-                        <span
-                          aria-hidden="true"
-                          className={`absolute -left-[13px] top-1.5 bottom-1.5 w-0.5 rounded-r bg-brand transition-opacity duration-200 ${
-                            active ? "opacity-100" : "opacity-0"
-                          }`}
-                        />
-                        <Icon className="size-4" />
-                        <span>{label}</span>
-                      </Link>
-                    );
-                  })}
+                  <BookingLinkGroup
+                    items={facilityBookingChildren}
+                    pathname={pathname}
+                    title="Facilities"
+                  />
+                  <BookingLinkGroup
+                    items={serviceBookingChildren}
+                    pathname={pathname}
+                    title="Services"
+                  />
                 </div>
               )}
             </>
@@ -367,5 +370,46 @@ export default function Sidebar({
         </nav>
       </aside>
     </>
+  );
+}
+
+function BookingLinkGroup({
+  items,
+  pathname,
+  title,
+}: {
+  items: { label: string; href: string; Icon: (props: IconProps) => ReactNode }[];
+  pathname: string;
+  title: string;
+}) {
+  return (
+    <div className="mb-2 last:mb-0">
+      <div className="px-3 pb-1 pt-2 text-[10px] font-medium uppercase tracking-[0.14em] text-ink/35">
+        {title}
+      </div>
+      {items.map(({ label, href, Icon }) => {
+        const active = pathname === href;
+        return (
+          <Link
+            key={href}
+            href={href}
+            className={`relative flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors duration-200 ${
+              active
+                ? "bg-surface font-medium text-brand"
+                : "text-ink/70 hover:text-ink"
+            }`}
+          >
+            <span
+              aria-hidden="true"
+              className={`absolute -left-[13px] bottom-1.5 top-1.5 w-0.5 rounded-r bg-brand transition-opacity duration-200 ${
+                active ? "opacity-100" : "opacity-0"
+              }`}
+            />
+            <Icon className="size-4" />
+            <span>{label}</span>
+          </Link>
+        );
+      })}
+    </div>
   );
 }

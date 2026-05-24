@@ -27,6 +27,7 @@ function getSectionLabel(pathname: string): string {
   if (pathname === "/admin/kitchen") return "ADMIN / KITCHEN";
   if (pathname === "/admin/audit-log") return "ADMIN / AUDIT LOG";
   if (pathname === "/admin/personalization") return "ADMIN / PERSONALIZATION";
+  if (pathname === "/booking/services") return "SERVICES / RELAXING HAIR WASH";
 
   const facilityMatch = pathname.match(/^\/booking\/([^/]+)/);
   if (facilityMatch) {

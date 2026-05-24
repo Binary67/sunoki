@@ -115,6 +115,26 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS guest_profile_addons_guest_profile_id_idx
     ON guest_profile_addons(guest_profile_id);
 
+  CREATE TABLE IF NOT EXISTS guest_service_bookings (
+    id               INTEGER PRIMARY KEY,
+    user_id          INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    guest_profile_id INTEGER NOT NULL REFERENCES guest_profiles(id) ON DELETE CASCADE,
+    service_key      TEXT NOT NULL CHECK (service_key IN ('relaxing_hair_wash')),
+    service_name     TEXT NOT NULL,
+    booking_date     TEXT NOT NULL,
+    booking_time     TEXT NOT NULL,
+    status           TEXT NOT NULL DEFAULT 'booked' CHECK (status IN ('booked','cancelled')),
+    cancelled_at     TEXT,
+    created_at       TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
+  CREATE INDEX IF NOT EXISTS guest_service_bookings_user_service_status_idx
+    ON guest_service_bookings(user_id, service_key, status, booking_date, booking_time);
+
+  CREATE UNIQUE INDEX IF NOT EXISTS guest_service_bookings_active_unique
+    ON guest_service_bookings(user_id, service_key, booking_date, booking_time)
+    WHERE status = 'booked';
+
   CREATE TABLE IF NOT EXISTS package_service_entitlements (
     id                      INTEGER PRIMARY KEY,
     package_name            TEXT UNIQUE NOT NULL,
