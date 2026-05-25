@@ -51,6 +51,27 @@ export function parseGuestProfileForm(
     return { ok: false, message: "Type of Package is required." };
   }
 
+  const packagePayableAmount = readText(formData, "package_payable_amount");
+  if (!packagePayableAmount) {
+    return {
+      ok: false,
+      message: "Payable amount for package is required.",
+    };
+  }
+
+  const depositToPay = readText(formData, "deposit_to_pay");
+  if (!depositToPay) {
+    return { ok: false, message: "Deposit to pay is required." };
+  }
+
+  const balanceToPay = readText(formData, "balance_to_pay");
+  if (!balanceToPay) {
+    return {
+      ok: false,
+      message: "Balance to pay during check in is required.",
+    };
+  }
+
   const addons = parseGuestProfileAddons(formData);
   if (!addons.ok) return addons;
 
@@ -76,9 +97,9 @@ export function parseGuestProfileForm(
       occupation: readText(formData, "occupation"),
       occupation_2: readText(formData, "occupation_2"),
       package_type: packageType,
-      package_payable_amount: readText(formData, "package_payable_amount"),
-      deposit_to_pay: readText(formData, "deposit_to_pay"),
-      balance_to_pay: readText(formData, "balance_to_pay"),
+      package_payable_amount: packagePayableAmount,
+      deposit_to_pay: depositToPay,
+      balance_to_pay: balanceToPay,
       package_entitlement_snapshot_json: null,
       package_special_note: readText(formData, "package_special_note"),
       consultant_name: readText(formData, "consultant_name"),

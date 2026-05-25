@@ -134,16 +134,19 @@ export const GUEST_PROFILE_SECTIONS: GuestProfileSection[] = [
       {
         label: "Payable amount for package (RM)",
         name: "package_payable_amount",
+        required: true,
         value: (profile) => profile.packagePayableAmount,
       },
       {
         label: "Deposit to pay (RM)",
         name: "deposit_to_pay",
+        required: true,
         value: (profile) => profile.depositToPay,
       },
       {
         label: "Balance to pay during check in (RM)",
         name: "balance_to_pay",
+        required: true,
         value: (profile) => profile.balanceToPay,
       },
       {

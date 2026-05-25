@@ -1,5 +1,6 @@
 import ExcelJS from "exceljs";
 import { getCurrentUser } from "@/src/lib/auth";
+import { listPackageEntitlementOptions } from "@/src/lib/package-entitlement-options";
 import { isAdminRole } from "@/src/lib/roles";
 import type { GuestProfileColumn } from "@/src/lib/guest-profiles";
 
@@ -27,10 +28,6 @@ const GUEST_IMPORT_COLUMNS = [
   ["address", 16],
   ["occupation", 17],
   ["occupation_2", 18],
-  ["package_type", 19],
-  ["package_payable_amount", 20],
-  ["deposit_to_pay", 21],
-  ["balance_to_pay", 22],
   ["package_special_note", 23],
   ["consultant_name", 24],
   ["medical_food_notes", 25],
@@ -113,6 +110,10 @@ function buildImportedProfile(row: ExcelJS.Row): ImportedGuestProfile {
   const profile = {
     room_number: "",
     expected_delivery_date: readDateCell(row.getCell(7)),
+    package_type: readPackageTypeCell(row.getCell(19)),
+    package_payable_amount: "",
+    deposit_to_pay: "",
+    balance_to_pay: "",
   } as ImportedGuestProfile;
 
   for (const [fieldName, columnNumber] of GUEST_IMPORT_COLUMNS) {
@@ -120,6 +121,24 @@ function buildImportedProfile(row: ExcelJS.Row): ImportedGuestProfile {
   }
 
   return profile;
+}
+
+function readPackageTypeCell(cell: ExcelJS.Cell): string {
+  const importedPackageName = readCellText(cell)
+    .replace(/\s+28\s+days?$/i, "")
+    .trim()
+    .toUpperCase();
+  if (!importedPackageName || importedPackageName === "-") return "";
+
+  const matchedPackage = listPackageEntitlementOptions().find((option) => {
+    const packageName = option.packageName.toUpperCase();
+    return (
+      packageName === importedPackageName ||
+      packageName.startsWith(`${importedPackageName} `)
+    );
+  });
+
+  return matchedPackage?.packageName ?? "";
 }
 
 function readImportText(value: FormDataEntryValue | null): string {
