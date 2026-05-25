@@ -1,7 +1,8 @@
 import { db } from "./db";
+import { ADDITIONAL_DAYS_ADDON_NAME } from "./guest-profile-addon-constants";
 import { PACKAGE_SERVICE_COLUMNS } from "./package-entitlements";
 
-export const ADDITIONAL_DAYS_ADDON_NAME = "ADDITIONAL DAYS OF STAY";
+export { ADDITIONAL_DAYS_ADDON_NAME } from "./guest-profile-addon-constants";
 
 export type GuestProfileAddonCategory = "sunoki" | "custom";
 

@@ -1,3 +1,5 @@
+import "server-only";
+
 import { DatabaseSync } from "node:sqlite";
 import { mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";

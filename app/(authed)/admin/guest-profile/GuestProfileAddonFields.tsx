@@ -2,7 +2,7 @@
 
 import type { Dispatch, ReactNode, SetStateAction } from "react";
 import { useMemo, useState } from "react";
-import { ADDITIONAL_DAYS_ADDON_NAME } from "@/src/lib/guest-profile-addons";
+import { ADDITIONAL_DAYS_ADDON_NAME } from "@/src/lib/guest-profile-addon-constants";
 import { PACKAGE_SERVICE_COLUMNS } from "@/src/lib/package-entitlements";
 
 export type GuestProfileAddonFormValue = {
