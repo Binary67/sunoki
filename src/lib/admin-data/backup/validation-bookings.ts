@@ -1,0 +1,428 @@
+import type { AdminRow } from "../definitions";
+import { indexRowsById } from "./diff";
+import type { BackupImportError, ParsedSheetRow } from "./types";
+import {
+  isTimeValue,
+  readBooleanIntegerValue,
+  validateBookingWithinGuestStay,
+} from "./validation-helpers";
+import {
+  addRowError,
+  readBookingDateValue,
+  readDateTimeValue,
+  readOptionalDateTimeValue,
+  readPositiveIntegerValue,
+  readRequiredTextValue,
+} from "./values";
+
+const RELAXING_HAIR_WASH_SERVICE_KEY = "relaxing_hair_wash";
+const RELAXING_HAIR_WASH_SERVICE_NAME = "Relaxing Hair Wash";
+
+export function validateFacilityBookings(
+  rows: ParsedSheetRow[],
+  users: AdminRow[],
+  timeSlots: AdminRow[],
+  errors: BackupImportError[],
+): AdminRow[] {
+  const normalized: AdminRow[] = [];
+  const ids = new Set<number>();
+  const usersById = indexRowsById(users);
+  const timeSlotIds = new Set(timeSlots.map((row) => Number(row.id)));
+  const uniqueBookings = new Set<string>();
+
+  for (const row of rows) {
+    const id = readPositiveIntegerValue(
+      row,
+      "facility_bookings",
+      "id",
+      "ID",
+      errors,
+    );
+    const userId = readPositiveIntegerValue(
+      row,
+      "facility_bookings",
+      "user_id",
+      "User",
+      errors,
+    );
+    const timeSlotId = readPositiveIntegerValue(
+      row,
+      "facility_bookings",
+      "facility_time_slot_id",
+      "Time slot",
+      errors,
+    );
+    const bookingDate = readBookingDateValue(
+      row,
+      "facility_bookings",
+      "booking_date",
+      "Booking date",
+      errors,
+    );
+    const adminRead = readBooleanIntegerValue(
+      row,
+      "facility_bookings",
+      "admin_read",
+      "Admin read",
+      errors,
+    );
+    const adminDone = readBooleanIntegerValue(
+      row,
+      "facility_bookings",
+      "admin_done",
+      "Admin done",
+      errors,
+    );
+    const adminDoneAt = readOptionalDateTimeValue(
+      row,
+      "facility_bookings",
+      "admin_done_at",
+      "Admin done at",
+      errors,
+    );
+    const createdAt = readDateTimeValue(
+      row,
+      "facility_bookings",
+      "created_at",
+      "Created",
+      errors,
+    );
+
+    if (id !== null) {
+      if (ids.has(id)) {
+        addRowError(
+          errors,
+          row,
+          "facility_bookings",
+          "id",
+          `Duplicate booking ID ${id}.`,
+        );
+      }
+      ids.add(id);
+    }
+
+    const user = userId !== null ? (usersById.get(userId) ?? null) : null;
+    if (userId !== null && !user) {
+      addRowError(
+        errors,
+        row,
+        "facility_bookings",
+        "user_id",
+        `User ID ${userId} is not present in the workbook.`,
+      );
+    }
+
+    if (timeSlotId !== null && !timeSlotIds.has(timeSlotId)) {
+      addRowError(
+        errors,
+        row,
+        "facility_bookings",
+        "facility_time_slot_id",
+        `Time slot ID ${timeSlotId} is not present in the workbook.`,
+      );
+    }
+
+    if (user && user.active !== 1) {
+      addRowError(
+        errors,
+        row,
+        "facility_bookings",
+        "user_id",
+        "Facility bookings must use active users.",
+      );
+    }
+
+    validateBookingWithinGuestStay(
+      row,
+      "facility_bookings",
+      "booking_date",
+      bookingDate,
+      user,
+      errors,
+    );
+
+    if (userId !== null && timeSlotId !== null && bookingDate !== null) {
+      const key = `${userId}:${timeSlotId}:${bookingDate}`;
+      if (uniqueBookings.has(key)) {
+        addRowError(
+          errors,
+          row,
+          "facility_bookings",
+          "booking_date",
+          "User, time slot, and booking date must be unique.",
+        );
+      }
+      uniqueBookings.add(key);
+    }
+
+    normalized.push({
+      id,
+      user_id: userId,
+      facility_time_slot_id: timeSlotId,
+      booking_date: bookingDate,
+      admin_read: adminRead,
+      admin_done: adminDone,
+      admin_done_at: adminDoneAt,
+      created_at: createdAt,
+    });
+  }
+
+  return normalized;
+}
+
+export function validateGuestServiceBookings(
+  rows: ParsedSheetRow[],
+  users: AdminRow[],
+  guestProfiles: AdminRow[],
+  errors: BackupImportError[],
+): AdminRow[] {
+  const normalized: AdminRow[] = [];
+  const ids = new Set<number>();
+  const usersById = indexRowsById(users);
+  const guestProfilesById = indexRowsById(guestProfiles);
+  const uniqueActiveBookings = new Set<string>();
+
+  for (const row of rows) {
+    const id = readPositiveIntegerValue(
+      row,
+      "guest_service_bookings",
+      "id",
+      "ID",
+      errors,
+    );
+    const userId = readPositiveIntegerValue(
+      row,
+      "guest_service_bookings",
+      "user_id",
+      "User",
+      errors,
+    );
+    const guestProfileId = readPositiveIntegerValue(
+      row,
+      "guest_service_bookings",
+      "guest_profile_id",
+      "Guest profile",
+      errors,
+    );
+    const serviceKey = readRequiredTextValue(
+      row,
+      "guest_service_bookings",
+      "service_key",
+      "Service key",
+      errors,
+    );
+    const serviceName = readRequiredTextValue(
+      row,
+      "guest_service_bookings",
+      "service_name",
+      "Service name",
+      errors,
+    );
+    const bookingDate = readBookingDateValue(
+      row,
+      "guest_service_bookings",
+      "booking_date",
+      "Booking date",
+      errors,
+    );
+    const bookingTime = readRequiredTextValue(
+      row,
+      "guest_service_bookings",
+      "booking_time",
+      "Booking time",
+      errors,
+    );
+    const status = readRequiredTextValue(
+      row,
+      "guest_service_bookings",
+      "status",
+      "Status",
+      errors,
+    );
+    const adminRead = readBooleanIntegerValue(
+      row,
+      "guest_service_bookings",
+      "admin_read",
+      "Admin read",
+      errors,
+    );
+    const adminDone = readBooleanIntegerValue(
+      row,
+      "guest_service_bookings",
+      "admin_done",
+      "Admin done",
+      errors,
+    );
+    const adminDoneAt = readOptionalDateTimeValue(
+      row,
+      "guest_service_bookings",
+      "admin_done_at",
+      "Admin done at",
+      errors,
+    );
+    const cancelledAt = readOptionalDateTimeValue(
+      row,
+      "guest_service_bookings",
+      "cancelled_at",
+      "Cancelled at",
+      errors,
+    );
+    const createdAt = readDateTimeValue(
+      row,
+      "guest_service_bookings",
+      "created_at",
+      "Created",
+      errors,
+    );
+
+    if (id !== null) {
+      if (ids.has(id)) {
+        addRowError(
+          errors,
+          row,
+          "guest_service_bookings",
+          "id",
+          `Duplicate service booking ID ${id}.`,
+        );
+      }
+      ids.add(id);
+    }
+
+    const user = userId !== null ? (usersById.get(userId) ?? null) : null;
+    const guestProfile =
+      guestProfileId !== null ? guestProfilesById.get(guestProfileId) : null;
+    if (userId !== null && !user) {
+      addRowError(
+        errors,
+        row,
+        "guest_service_bookings",
+        "user_id",
+        `User ID ${userId} is not present in the workbook.`,
+      );
+    }
+    if (guestProfileId !== null && !guestProfile) {
+      addRowError(
+        errors,
+        row,
+        "guest_service_bookings",
+        "guest_profile_id",
+        `Guest profile ID ${guestProfileId} is not present in the workbook.`,
+      );
+    }
+    if (
+      userId !== null &&
+      guestProfile &&
+      Number(guestProfile.user_id) !== userId
+    ) {
+      addRowError(
+        errors,
+        row,
+        "guest_service_bookings",
+        "guest_profile_id",
+        "Service booking must use the linked guest profile for its user.",
+      );
+    }
+    if (user && user.active !== 1) {
+      addRowError(
+        errors,
+        row,
+        "guest_service_bookings",
+        "user_id",
+        "Service bookings must use active users.",
+      );
+    }
+    if (user && user.role !== "guest") {
+      addRowError(
+        errors,
+        row,
+        "guest_service_bookings",
+        "user_id",
+        "Service bookings must use guest users.",
+      );
+    }
+
+    if (serviceKey !== RELAXING_HAIR_WASH_SERVICE_KEY) {
+      addRowError(
+        errors,
+        row,
+        "guest_service_bookings",
+        "service_key",
+        "Choose a valid service key.",
+      );
+    }
+    if (serviceName !== RELAXING_HAIR_WASH_SERVICE_NAME) {
+      addRowError(
+        errors,
+        row,
+        "guest_service_bookings",
+        "service_name",
+        "Choose a valid service name.",
+      );
+    }
+    if (bookingTime !== null && !isTimeValue(bookingTime)) {
+      addRowError(
+        errors,
+        row,
+        "guest_service_bookings",
+        "booking_time",
+        "Enter a valid booking time.",
+      );
+    }
+    if (status !== "booked" && status !== "cancelled") {
+      addRowError(
+        errors,
+        row,
+        "guest_service_bookings",
+        "status",
+        "Status must be booked or cancelled.",
+      );
+    }
+
+    validateBookingWithinGuestStay(
+      row,
+      "guest_service_bookings",
+      "booking_date",
+      bookingDate,
+      user,
+      errors,
+    );
+
+    if (
+      status === "booked" &&
+      userId !== null &&
+      serviceKey !== null &&
+      bookingDate !== null &&
+      bookingTime !== null
+    ) {
+      const key = `${userId}:${serviceKey}:${bookingDate}:${bookingTime}`;
+      if (uniqueActiveBookings.has(key)) {
+        addRowError(
+          errors,
+          row,
+          "guest_service_bookings",
+          "booking_time",
+          "Active service bookings must be unique by user, service, date, and time.",
+        );
+      }
+      uniqueActiveBookings.add(key);
+    }
+
+    normalized.push({
+      id,
+      user_id: userId,
+      guest_profile_id: guestProfileId,
+      service_key: serviceKey,
+      service_name: serviceName,
+      booking_date: bookingDate,
+      booking_time: bookingTime,
+      status,
+      admin_read: adminRead,
+      admin_done: adminDone,
+      admin_done_at: adminDoneAt,
+      cancelled_at: cancelledAt,
+      created_at: createdAt,
+    });
+  }
+
+  return normalized;
+}
