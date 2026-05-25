@@ -38,7 +38,7 @@ export default async function AdminDataBackupPage({
     <main className="flex-1 px-4 py-6 sm:px-6 sm:py-8 lg:px-10">
       <DataEditorHeader
         title="Backup & Restore"
-        description="Download a full admin data workbook, validate an edited workbook, and apply approved changes to SQLite."
+        description="Download a guest operations workbook, validate an edited workbook, and apply approved changes to SQLite."
       />
       <StatusMessage
         error={
@@ -55,8 +55,8 @@ export default async function AdminDataBackupPage({
               Download Backup
             </h2>
             <p className="mt-1 text-xs leading-5 text-ink/55">
-              Exports users, facility content, time slots, and bookings in the
-              required restore format.
+              Exports guest profiles, add-ons, facility bookings, service
+              bookings, and required user and facility references.
             </p>
           </div>
           <div className="mt-5">
@@ -143,8 +143,8 @@ function BackupDraftPreview({ draft }: { draft: BackupImportDraft }) {
         <>
           <div className="mb-5 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">
             Applying this restore makes the uploaded workbook the source of
-            truth for users, time slots, and bookings. Review the changes before
-            continuing.
+            truth for guest operations data and required references. Review the
+            changes before continuing.
           </div>
           <DiffSummary diff={payload.diff} />
         </>

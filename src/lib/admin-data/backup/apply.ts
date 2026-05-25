@@ -2,7 +2,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { insertAuditLog } from "../audit";
 import {
-  getAdminTableDefinition,
+  isEditableTableName,
   type AdminRow,
   type EditableTableName,
 } from "../definitions";
@@ -12,12 +12,8 @@ import {
   generateBackupWorkbookBuffer,
   getBackupWorkbookFileName,
 } from "./workbook";
+import { getBackupTableDefinition, type BackupTableName } from "./tables";
 import type { BackupRowsByTable, BackupTableDiff } from "./types";
-
-type GuestProfileUserLink = {
-  id: number;
-  userId: number;
-};
 
 export function applyBackupRows(
   actor: User,
@@ -26,89 +22,47 @@ export function applyBackupRows(
   diff: BackupTableDiff[],
 ): void {
   const usersChanged = hasTableChanges(diff, "users");
+  const facilitiesChanged = hasTableChanges(diff, "facilities");
   const timeSlotsChanged = hasTableChanges(diff, "facility_time_slots");
-  const bookingsChanged = hasTableChanges(diff, "facility_bookings");
+  const guestProfilesChanged = hasTableChanges(diff, "guest_profiles");
+  const guestAddonsChanged = hasTableChanges(diff, "guest_profile_addons");
+  const facilityBookingsChanged = hasTableChanges(diff, "facility_bookings");
+  const serviceBookingsChanged = hasTableChanges(diff, "guest_service_bookings");
 
-  if (hasTableChanges(diff, "facilities")) {
-    const updateFacility = db.prepare(
-      `
-        UPDATE facilities
-        SET tagline_1 = ?,
-            tagline_2 = ?,
-            tagline_3 = ?
-        WHERE id = ?
-      `,
-    );
-    for (const row of rows.facilities) {
-      updateFacility.run(row.tagline_1, row.tagline_2, row.tagline_3, row.id);
-    }
-  }
+  const restoreFacilities = facilitiesChanged;
+  const restoreTimeSlots = restoreFacilities || timeSlotsChanged;
+  const restoreGuestProfiles = usersChanged || guestProfilesChanged;
+  const restoreGuestAddons = restoreGuestProfiles || guestAddonsChanged;
+  const restoreFacilityBookings =
+    usersChanged || restoreTimeSlots || facilityBookingsChanged;
+  const restoreServiceBookings =
+    usersChanged || restoreGuestProfiles || serviceBookingsChanged;
 
-  if (hasTableChanges(diff, "package_service_entitlements")) {
-    const table = getAdminTableDefinition("package_service_entitlements");
-    const columns = table.columns
-      .filter((column) => !column.readOnly)
-      .map((column) => column.name);
-    const updatePackage = db.prepare(
-      `
-        UPDATE package_service_entitlements
-        SET ${columns.map((column) => `${column} = ?`).join(", ")}
-        WHERE id = ?
-      `,
-    );
-    for (const row of rows.package_service_entitlements) {
-      updatePackage.run(...columns.map((column) => row[column]), row.id);
-    }
-  }
+  if (restoreServiceBookings) deleteRows("guest_service_bookings");
+  if (restoreFacilityBookings) deleteRows("facility_bookings");
+  if (restoreGuestAddons) deleteRows("guest_profile_addons");
+  if (restoreGuestProfiles) deleteRows("guest_profiles");
+  if (restoreTimeSlots) deleteRows("facility_time_slots");
+  if (restoreFacilities) deleteRows("facilities");
+  if (usersChanged) deleteRows("users");
 
-  if (usersChanged) {
-    const guestProfileUserLinks = getGuestProfileUserLinks(rows.users);
-    db.prepare("DELETE FROM facility_bookings").run();
-    db.prepare("DELETE FROM facility_time_slots").run();
-    db.prepare("DELETE FROM users").run();
-    insertRows("users", rows.users);
-    restoreGuestProfileUserLinks(guestProfileUserLinks);
+  if (usersChanged) insertRows("users", rows.users);
+  if (restoreFacilities) insertRows("facilities", rows.facilities);
+  if (restoreTimeSlots) {
     insertRows("facility_time_slots", rows.facility_time_slots);
+  }
+  if (restoreGuestProfiles) insertRows("guest_profiles", rows.guest_profiles);
+  if (restoreGuestAddons) {
+    insertRows("guest_profile_addons", rows.guest_profile_addons);
+  }
+  if (restoreFacilityBookings) {
     insertRows("facility_bookings", rows.facility_bookings);
-  } else if (timeSlotsChanged) {
-    db.prepare("DELETE FROM facility_bookings").run();
-    db.prepare("DELETE FROM facility_time_slots").run();
-    insertRows("facility_time_slots", rows.facility_time_slots);
-    insertRows("facility_bookings", rows.facility_bookings);
-  } else if (bookingsChanged) {
-    db.prepare("DELETE FROM facility_bookings").run();
-    insertRows("facility_bookings", rows.facility_bookings);
+  }
+  if (restoreServiceBookings) {
+    insertRows("guest_service_bookings", rows.guest_service_bookings);
   }
 
   insertRestoreAuditLogs(actor, beforeSnapshot, rows, diff);
-}
-
-function getGuestProfileUserLinks(users: AdminRow[]): GuestProfileUserLink[] {
-  const userIds = new Set(users.map((user) => user.id).filter(Number.isInteger));
-  const rows = db
-    .prepare(
-      `
-        SELECT
-          id,
-          user_id AS userId
-        FROM guest_profiles
-        WHERE user_id IS NOT NULL
-      `,
-    )
-    .all() as GuestProfileUserLink[];
-
-  return rows.filter((row) => userIds.has(row.userId));
-}
-
-function restoreGuestProfileUserLinks(links: GuestProfileUserLink[]): void {
-  if (links.length === 0) return;
-
-  const update = db.prepare(
-    "UPDATE guest_profiles SET user_id = ? WHERE id = ?",
-  );
-  for (const link of links) {
-    update.run(link.userId, link.id);
-  }
 }
 
 export async function writePreRestoreBackup(
@@ -144,8 +98,13 @@ export function runTransaction(fn: () => void): void {
 
 export class DatabaseChangedDuringApplyError extends Error {}
 
-function insertRows(tableName: EditableTableName, rows: AdminRow[]): void {
-  const table = getAdminTableDefinition(tableName);
+function deleteRows(tableName: BackupTableName): void {
+  const table = getBackupTableDefinition(tableName);
+  db.prepare(`DELETE FROM ${table.name}`).run();
+}
+
+function insertRows(tableName: BackupTableName, rows: AdminRow[]): void {
+  const table = getBackupTableDefinition(tableName);
   const columns = table.columns.map((column) => column.name);
   const placeholders = columns.map(() => "?").join(", ");
   const insert = db.prepare(
@@ -167,6 +126,7 @@ function insertRestoreAuditLogs(
   diff: BackupTableDiff[],
 ): void {
   for (const tableDiff of diff) {
+    if (!isAuditedTableName(tableDiff.tableName)) continue;
     const beforeById = indexRowsById(beforeSnapshot[tableDiff.tableName]);
     const afterById = indexRowsById(targetRows[tableDiff.tableName]);
     for (const change of tableDiff.changes) {
@@ -184,4 +144,10 @@ function insertRestoreAuditLogs(
       );
     }
   }
+}
+
+function isAuditedTableName(
+  tableName: BackupTableName,
+): tableName is Extract<BackupTableName, EditableTableName> {
+  return isEditableTableName(tableName);
 }

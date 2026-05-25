@@ -1,12 +1,11 @@
 import ExcelJS from "exceljs";
-import {
-  EDITABLE_TABLE_NAMES,
-  getAdminTableDefinition,
-  type AdminRow,
-  type AdminRowValue,
-  type EditableTableName,
-} from "../definitions";
+import { type AdminRow, type AdminRowValue } from "../definitions";
 import { formatDateTime, formatFileTimestamp, getColumnWidth } from "./format";
+import {
+  BACKUP_TABLE_NAMES,
+  getBackupTableDefinition,
+  type BackupTableName,
+} from "./tables";
 import type {
   BackupImportError,
   BackupRowsByTable,
@@ -23,8 +22,8 @@ export async function generateBackupWorkbookBuffer(
   workbook.creator = "Sunoki";
   workbook.created = new Date();
 
-  for (const tableName of EDITABLE_TABLE_NAMES) {
-    const table = getAdminTableDefinition(tableName);
+  for (const tableName of BACKUP_TABLE_NAMES) {
+    const table = getBackupTableDefinition(tableName);
     const columns = table.columns.map((column) => column.name);
     const worksheet = workbook.addWorksheet(tableName);
     worksheet.columns = columns.map((columnName) => ({
@@ -51,11 +50,7 @@ export async function generateBackupWorkbookBuffer(
     }
 
     for (const column of table.columns) {
-      if (
-        column.input !== "number" &&
-        column.input !== "packageQuantity" &&
-        column.name !== "id"
-      ) {
+      if (column.valueType !== "integer") {
         worksheet.getColumn(column.name).numFmt = "@";
       }
     }
@@ -66,7 +61,7 @@ export async function generateBackupWorkbookBuffer(
   metadata.addRows([
     ["format_version", BACKUP_FORMAT_VERSION],
     ["generated_at", formatDateTime(new Date())],
-    ["sheets", EDITABLE_TABLE_NAMES.join(",")],
+    ["sheets", BACKUP_TABLE_NAMES.join(",")],
   ]);
 
   const data = (await workbook.xlsx.writeBuffer()) as unknown;
@@ -79,7 +74,7 @@ export async function generateBackupWorkbookBuffer(
 }
 
 export function getBackupWorkbookFileName(
-  prefix = "sunoki-admin-backup",
+  prefix = "sunoki-guest-operations-backup",
 ): string {
   return `${prefix}-${formatFileTimestamp(new Date())}.xlsx`;
 }
@@ -89,12 +84,12 @@ export function parseWorkbookRows(workbook: ExcelJS.Workbook): {
   errors: BackupImportError[];
 } {
   const errors: BackupImportError[] = [];
-  const rows = EDITABLE_TABLE_NAMES.reduce((result, tableName) => {
+  const rows = BACKUP_TABLE_NAMES.reduce((result, tableName) => {
     result[tableName] = [];
     return result;
   }, {} as ParsedRowsByTable);
   const allowedSheetNames = new Set<string>([
-    ...EDITABLE_TABLE_NAMES,
+    ...BACKUP_TABLE_NAMES,
     METADATA_SHEET_NAME,
   ]);
 
@@ -104,7 +99,7 @@ export function parseWorkbookRows(workbook: ExcelJS.Workbook): {
     }
   }
 
-  for (const tableName of EDITABLE_TABLE_NAMES) {
+  for (const tableName of BACKUP_TABLE_NAMES) {
     const worksheet = workbook.getWorksheet(tableName);
     if (!worksheet) {
       errors.push({
@@ -114,7 +109,7 @@ export function parseWorkbookRows(workbook: ExcelJS.Workbook): {
       continue;
     }
 
-    const table = getAdminTableDefinition(tableName);
+    const table = getBackupTableDefinition(tableName);
     const expectedColumns = table.columns.map((column) => column.name);
     if (!hasExactHeader(worksheet, tableName, expectedColumns, errors)) {
       continue;
@@ -165,7 +160,7 @@ export function parseWorkbookRows(workbook: ExcelJS.Workbook): {
 
 function hasExactHeader(
   worksheet: ExcelJS.Worksheet,
-  tableName: EditableTableName,
+  tableName: BackupTableName,
   expectedColumns: string[],
   errors: BackupImportError[],
 ): boolean {
@@ -215,7 +210,7 @@ function hasExactHeader(
 
 function readCellValue(
   cell: ExcelJS.Cell,
-  tableName: EditableTableName,
+  tableName: BackupTableName,
   rowNumber: number,
   columnName: string,
   errors: BackupImportError[],

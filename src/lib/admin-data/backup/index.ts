@@ -1,10 +1,5 @@
 import ExcelJS from "exceljs";
-import {
-  EDITABLE_TABLE_NAMES,
-  getAdminTableDefinition,
-  type AdminRow,
-  type EditableTableName,
-} from "../definitions";
+import { type AdminRow } from "../definitions";
 import { db, type User } from "../../db";
 import {
   applyBackupRows,
@@ -25,6 +20,11 @@ import {
   updateBackupDraft,
 } from "./drafts";
 import { formatDateTime } from "./format";
+import {
+  BACKUP_TABLE_NAMES,
+  getBackupTableDefinition,
+  type BackupTableName,
+} from "./tables";
 import { validateParsedRows } from "./validation";
 import {
   generateBackupWorkbookBuffer as buildBackupWorkbookBuffer,
@@ -55,9 +55,12 @@ export { getBackupImportDraft, getBackupWorkbookFileName };
 const MAX_BACKUP_UPLOAD_BYTES = 5 * 1024 * 1024;
 const SOURCE_OF_TRUTH_TABLES = [
   "users",
+  "guest_profiles",
+  "guest_profile_addons",
   "facility_time_slots",
   "facility_bookings",
-] as const satisfies readonly EditableTableName[];
+  "guest_service_bookings",
+] as const satisfies readonly BackupTableName[];
 
 export async function generateBackupWorkbookBuffer(
   snapshot = getBackupSnapshot(),
@@ -222,8 +225,8 @@ export async function applyBackupImportDraft(
 }
 
 export function getBackupSnapshot(): BackupRowsByTable {
-  return EDITABLE_TABLE_NAMES.reduce((snapshot, tableName) => {
-    const table = getAdminTableDefinition(tableName);
+  return BACKUP_TABLE_NAMES.reduce((snapshot, tableName) => {
+    const table = getBackupTableDefinition(tableName);
     const columns = table.columns.map((column) => column.name);
     snapshot[tableName] = db
       .prepare(
@@ -250,7 +253,7 @@ function buildDraftPayloadFromWorkbook(
     };
   }
 
-  const validation = validateParsedRows(parsed.rows, snapshot);
+  const validation = validateParsedRows(parsed.rows);
   const diff =
     validation.errors.length === 0
       ? buildBackupDiff(validation.rows, snapshot)
@@ -270,14 +273,14 @@ function buildDraftPayloadFromRows(
   rows: BackupRowsByTable,
   snapshot: BackupRowsByTable,
 ): BackupImportDraftPayload {
-  const parsed = EDITABLE_TABLE_NAMES.reduce((result, tableName) => {
+  const parsed = BACKUP_TABLE_NAMES.reduce((result, tableName) => {
     result[tableName] = rows[tableName].map((values, index) => ({
       rowNumber: index + 2,
       values,
     }));
     return result;
   }, {} as ParsedRowsByTable);
-  const validation = validateParsedRows(parsed, snapshot);
+  const validation = validateParsedRows(parsed);
   const diff =
     validation.errors.length === 0
       ? buildBackupDiff(validation.rows, snapshot)

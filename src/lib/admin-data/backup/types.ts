@@ -1,21 +1,18 @@
-import type {
-  AdminRow,
-  AdminRowValue,
-  EditableTableName,
-} from "../definitions";
+import type { AdminRow, AdminRowValue } from "../definitions";
+import type { BackupTableName } from "./tables";
 
 export type ParsedSheetRow = {
   rowNumber: number;
   values: AdminRow;
 };
 
-export type ParsedRowsByTable = Record<EditableTableName, ParsedSheetRow[]>;
+export type ParsedRowsByTable = Record<BackupTableName, ParsedSheetRow[]>;
 
-export type BackupRowsByTable = Record<EditableTableName, AdminRow[]>;
+export type BackupRowsByTable = Record<BackupTableName, AdminRow[]>;
 
 export type BackupImportError = {
   message: string;
-  tableName?: EditableTableName;
+  tableName?: BackupTableName;
   rowNumber?: number;
   columnName?: string;
 };
@@ -33,7 +30,7 @@ export type BackupRowDiff = {
 };
 
 export type BackupTableDiff = {
-  tableName: EditableTableName;
+  tableName: BackupTableName;
   label: string;
   inserted: number;
   updated: number;

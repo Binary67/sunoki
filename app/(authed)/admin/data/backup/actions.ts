@@ -14,12 +14,15 @@ const DATA_PATHS = [
   "/admin/data/users",
   "/admin/data/facilities",
   "/admin/data/backup",
+  "/admin/guest-profile",
+  "/admin/kitchen",
   "/admin/audit-log",
   "/",
   "/booking/karaoke",
   "/booking/gym",
   "/booking/yoga",
   "/booking/lounge",
+  "/booking/services",
 ];
 
 export async function uploadBackupWorkbookAction(

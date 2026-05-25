@@ -1,13 +1,11 @@
 import { createHash } from "node:crypto";
+import { type AdminRow, type AdminRowValue } from "../definitions";
 import {
-  EDITABLE_TABLE_NAMES,
-  getAdminTableDefinition,
-  getAdminTableLabel,
-  isUpdateOnlyAdminTable,
-  type AdminRow,
-  type AdminRowValue,
-  type EditableTableName,
-} from "../definitions";
+  BACKUP_TABLE_NAMES,
+  getBackupTableDefinition,
+  getBackupTableLabel,
+  type BackupTableName,
+} from "./tables";
 import type {
   BackupRowDiff,
   BackupRowsByTable,
@@ -18,8 +16,8 @@ export function buildBackupDiff(
   targetRows: BackupRowsByTable,
   snapshot: BackupRowsByTable,
 ): BackupTableDiff[] {
-  return EDITABLE_TABLE_NAMES.map((tableName) => {
-    const table = getAdminTableDefinition(tableName);
+  return BACKUP_TABLE_NAMES.map((tableName) => {
+    const table = getBackupTableDefinition(tableName);
     const columns = table.columns.map((column) => column.name);
     const currentById = indexRowsById(snapshot[tableName]);
     const targetById = indexRowsById(targetRows[tableName]);
@@ -57,20 +55,18 @@ export function buildBackupDiff(
       }
     }
 
-    if (!isUpdateOnlyAdminTable(tableName)) {
-      for (const current of snapshot[tableName]) {
-        const rowId = Number(current.id);
-        if (!targetById.has(rowId)) {
-          changes.push({
-            kind: "delete",
-            rowId,
-            cells: columns.map((columnName) => ({
-              columnName,
-              before: current[columnName] ?? null,
-              after: null,
-            })),
-          });
-        }
+    for (const current of snapshot[tableName]) {
+      const rowId = Number(current.id);
+      if (!targetById.has(rowId)) {
+        changes.push({
+          kind: "delete",
+          rowId,
+          cells: columns.map((columnName) => ({
+            columnName,
+            before: current[columnName] ?? null,
+            after: null,
+          })),
+        });
       }
     }
 
@@ -81,7 +77,7 @@ export function buildBackupDiff(
 
     return {
       tableName,
-      label: getAdminTableLabel(tableName),
+      label: getBackupTableLabel(tableName),
       inserted: changes.filter((change) => change.kind === "insert").length,
       updated: changes.filter((change) => change.kind === "update").length,
       deleted: changes.filter((change) => change.kind === "delete").length,
@@ -92,9 +88,9 @@ export function buildBackupDiff(
 }
 
 export function buildEmptyDiff(snapshot: BackupRowsByTable): BackupTableDiff[] {
-  return EDITABLE_TABLE_NAMES.map((tableName) => ({
+  return BACKUP_TABLE_NAMES.map((tableName) => ({
     tableName,
-    label: getAdminTableLabel(tableName),
+    label: getBackupTableLabel(tableName),
     inserted: 0,
     updated: 0,
     deleted: 0,
@@ -117,7 +113,7 @@ export function countDraftChanges(diff: BackupTableDiff[]): number {
 
 export function hasTableChanges(
   diff: BackupTableDiff[],
-  tableName: EditableTableName,
+  tableName: BackupTableName,
 ): boolean {
   return Boolean(diff.find((table) => table.tableName === tableName)?.changes.length);
 }

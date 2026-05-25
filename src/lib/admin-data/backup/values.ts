@@ -2,13 +2,13 @@ import { isBookingDate } from "../../booking-dates";
 import {
   FACILITY_TAGLINE_MAX_LENGTH,
   type AdminRowValue,
-  type EditableTableName,
 } from "../definitions";
+import type { BackupTableName } from "./tables";
 import type { BackupImportError, ParsedSheetRow } from "./types";
 
 export function readRequiredTextValue(
   row: ParsedSheetRow,
-  tableName: EditableTableName,
+  tableName: BackupTableName,
   columnName: string,
   label: string,
   errors: BackupImportError[],
@@ -29,7 +29,7 @@ export function readRequiredTextValue(
 
 export function readOptionalTextValue(
   row: ParsedSheetRow,
-  tableName: EditableTableName,
+  tableName: BackupTableName,
   columnName: string,
   label: string,
   errors: BackupImportError[],
@@ -45,7 +45,7 @@ export function readOptionalTextValue(
 
 export function readLimitedOptionalTextValue(
   row: ParsedSheetRow,
-  tableName: EditableTableName,
+  tableName: BackupTableName,
   columnName: string,
   label: string,
   errors: BackupImportError[],
@@ -65,7 +65,7 @@ export function readLimitedOptionalTextValue(
 
 export function readPositiveIntegerValue(
   row: ParsedSheetRow,
-  tableName: EditableTableName,
+  tableName: BackupTableName,
   columnName: string,
   label: string,
   errors: BackupImportError[],
@@ -87,7 +87,7 @@ export function readPositiveIntegerValue(
 
 export function readIntegerValue(
   row: ParsedSheetRow,
-  tableName: EditableTableName,
+  tableName: BackupTableName,
   columnName: string,
   label: string,
   errors: BackupImportError[],
@@ -108,7 +108,7 @@ export function readIntegerValue(
 
 export function readBookingDateValue(
   row: ParsedSheetRow,
-  tableName: EditableTableName,
+  tableName: BackupTableName,
   columnName: string,
   label: string,
   errors: BackupImportError[],
@@ -122,7 +122,7 @@ export function readBookingDateValue(
 
 export function readDateTimeValue(
   row: ParsedSheetRow,
-  tableName: EditableTableName,
+  tableName: BackupTableName,
   columnName: string,
   label: string,
   errors: BackupImportError[],
@@ -140,10 +140,30 @@ export function readDateTimeValue(
   return value;
 }
 
+export function readOptionalDateTimeValue(
+  row: ParsedSheetRow,
+  tableName: BackupTableName,
+  columnName: string,
+  label: string,
+  errors: BackupImportError[],
+): string | null {
+  const value = readOptionalTextValue(row, tableName, columnName, label, errors);
+  if (value && !/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(value)) {
+    addRowError(
+      errors,
+      row,
+      tableName,
+      columnName,
+      `${label} must use YYYY-MM-DD HH:mm:ss.`,
+    );
+  }
+  return value;
+}
+
 export function validateRequiredBookingDate(
   value: string | null,
   row: ParsedSheetRow,
-  tableName: EditableTableName,
+  tableName: BackupTableName,
   columnName: string,
   label: string,
   errors: BackupImportError[],
@@ -160,7 +180,7 @@ export function validateRequiredBookingDate(
 export function addRowError(
   errors: BackupImportError[],
   row: ParsedSheetRow,
-  tableName: EditableTableName,
+  tableName: BackupTableName,
   columnName: string,
   message: string,
 ): void {
