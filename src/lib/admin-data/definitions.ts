@@ -5,6 +5,7 @@ export const EDITABLE_TABLE_NAMES = [
   "facilities",
   "facility_time_slots",
   "facility_bookings",
+  "guest_service_bookings",
   "package_service_entitlements",
 ] as const;
 
@@ -15,6 +16,7 @@ const AUDIT_TABLE_NAMES = [
   "facilities",
   "facility_time_slots",
   "facility_bookings",
+  "guest_service_bookings",
   "package_service_entitlements",
 ] as const;
 
@@ -37,8 +39,10 @@ export type AdminColumnDefinition = {
     | "packageQuantity";
   optionsKey?:
     | "active"
+    | "bookableServices"
     | "celebrationChoiceRules"
     | "facilities"
+    | "guestUsers"
     | "roles"
     | "timeSlots"
     | "users";
@@ -90,6 +94,7 @@ const TABLE_LABELS: Record<AuditTableName, string> = {
   facilities: "Facility Content",
   facility_time_slots: "Time Slots",
   facility_bookings: "Bookings",
+  guest_service_bookings: "Service Bookings",
   package_service_entitlements: "Packages",
 };
 
@@ -208,9 +213,9 @@ const ADMIN_TABLES: Record<EditableTableName, AdminTableDefinition> = {
       { name: "id", label: "ID", readOnly: true },
       {
         name: "user_id",
-        label: "User",
+        label: "Guest",
         input: "select",
-        optionsKey: "users",
+        optionsKey: "guestUsers",
         required: true,
       },
       {
@@ -226,6 +231,41 @@ const ADMIN_TABLES: Record<EditableTableName, AdminTableDefinition> = {
         input: "date",
         required: true,
       },
+      { name: "created_at", label: "Created", readOnly: true },
+    ],
+  },
+  guest_service_bookings: {
+    name: "guest_service_bookings",
+    label: TABLE_LABELS.guest_service_bookings,
+    columns: [
+      { name: "id", label: "ID", readOnly: true },
+      {
+        name: "user_id",
+        label: "Guest",
+        input: "select",
+        optionsKey: "guestUsers",
+        required: true,
+      },
+      {
+        name: "service_key",
+        label: "Service",
+        input: "select",
+        optionsKey: "bookableServices",
+        required: true,
+      },
+      {
+        name: "booking_date",
+        label: "Booking Date",
+        input: "date",
+        required: true,
+      },
+      {
+        name: "booking_time",
+        label: "Booking Time",
+        input: "time",
+        required: true,
+      },
+      { name: "status", label: "Status", readOnly: true },
       { name: "created_at", label: "Created", readOnly: true },
     ],
   },

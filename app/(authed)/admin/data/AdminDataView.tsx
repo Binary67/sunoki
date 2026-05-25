@@ -136,7 +136,9 @@ export function CreateFormSection({
           Create {getCreateLabel(tableName, createMode)}
         </h2>
         <p className="mt-1 text-xs leading-5 text-ink/55">
-          IDs and timestamp defaults are assigned by SQLite.
+          {tableName === "guest_service_bookings"
+            ? "Relaxing Hair Wash is assigned automatically. Guest booking rules still apply."
+            : "IDs and timestamp defaults are assigned by SQLite."}
         </p>
       </div>
       <form action={createAdminRowAction}>
@@ -657,6 +659,8 @@ function getSingularLabel(tableName: EditableTableName): string {
       return "Time Slot";
     case "facility_bookings":
       return "Booking";
+    case "guest_service_bookings":
+      return "Service Booking";
     case "package_service_entitlements":
       return "Package";
   }

@@ -147,28 +147,40 @@ export function getFacilityAvailability(
   };
 }
 
+export type UpcomingBookingType = "facility" | "service";
+
 export type UpcomingBooking = {
+  type: UpcomingBookingType;
   bookingId: number;
-  facilitySlug: string;
-  facilityName: string;
+  name: string;
+  bookingDate: string;
+  startTime: string;
+  durationMinutes: number | null;
+  guestName: string;
+  guestUsername: string;
+  capacityPax: number | null;
+  bookedPax: number | null;
+};
+
+type UpcomingFacilityBookingRow = {
+  bookingId: number;
+  name: string;
   bookingDate: string;
   startTime: string;
   durationMinutes: number;
+  guestName: string | null;
   guestUsername: string;
   capacityPax: number;
   bookedPax: number;
 };
 
-type UpcomingBookingRow = {
+type UpcomingServiceBookingRow = {
   bookingId: number;
-  facilitySlug: string;
-  facilityName: string;
+  name: string;
   bookingDate: string;
   startTime: string;
-  durationMinutes: number;
+  guestName: string | null;
   guestUsername: string;
-  capacityPax: number;
-  bookedPax: number;
 };
 
 function formatNowForSqlite(now: Date): string {
@@ -183,16 +195,16 @@ function formatNowForSqlite(now: Date): string {
 export function getUpcomingBookings(now: Date = new Date()): UpcomingBooking[] {
   const cutoff = formatNowForSqlite(now);
 
-  const rows = db
+  const facilityRows = db
     .prepare(
       `
         SELECT
           b.id              AS bookingId,
-          f.slug            AS facilitySlug,
-          f.name            AS facilityName,
+          f.name            AS name,
           b.booking_date    AS bookingDate,
           s.start_time      AS startTime,
           s.duration_minutes AS durationMinutes,
+          gp.name           AS guestName,
           u.username        AS guestUsername,
           s.capacity_pax    AS capacityPax,
           (
@@ -205,23 +217,67 @@ export function getUpcomingBookings(now: Date = new Date()): UpcomingBooking[] {
         JOIN facility_time_slots s ON s.id = b.facility_time_slot_id
         JOIN facilities f ON f.id = s.facility_id
         JOIN users u ON u.id = b.user_id
+        LEFT JOIN guest_profiles gp ON gp.user_id = b.user_id
         WHERE (b.booking_date || ' ' || s.start_time) >= ?
         ORDER BY b.booking_date ASC, s.start_time ASC, b.id ASC
       `,
     )
-    .all(cutoff) as UpcomingBookingRow[];
+    .all(cutoff) as UpcomingFacilityBookingRow[];
 
-  return rows.map((row) => ({
-    bookingId: Number(row.bookingId),
-    facilitySlug: row.facilitySlug,
-    facilityName: row.facilityName,
-    bookingDate: row.bookingDate,
-    startTime: row.startTime,
-    durationMinutes: Number(row.durationMinutes),
-    guestUsername: row.guestUsername,
-    capacityPax: Number(row.capacityPax),
-    bookedPax: Number(row.bookedPax),
-  }));
+  const serviceRows = db
+    .prepare(
+      `
+        SELECT
+          b.id              AS bookingId,
+          b.service_name    AS name,
+          b.booking_date    AS bookingDate,
+          b.booking_time    AS startTime,
+          gp.name           AS guestName,
+          u.username        AS guestUsername
+        FROM guest_service_bookings b
+        JOIN users u ON u.id = b.user_id
+        LEFT JOIN guest_profiles gp ON gp.id = b.guest_profile_id
+        WHERE b.status = 'booked'
+          AND (b.booking_date || ' ' || b.booking_time) >= ?
+        ORDER BY b.booking_date ASC, b.booking_time ASC, b.id ASC
+      `,
+    )
+    .all(cutoff) as UpcomingServiceBookingRow[];
+
+  return [
+    ...facilityRows.map((row) => ({
+      type: "facility" as const,
+      bookingId: Number(row.bookingId),
+      name: row.name,
+      bookingDate: row.bookingDate,
+      startTime: row.startTime,
+      durationMinutes: Number(row.durationMinutes),
+      guestName: row.guestName ?? row.guestUsername,
+      guestUsername: row.guestUsername,
+      capacityPax: Number(row.capacityPax),
+      bookedPax: Number(row.bookedPax),
+    })),
+    ...serviceRows.map((row) => ({
+      type: "service" as const,
+      bookingId: Number(row.bookingId),
+      name: row.name,
+      bookingDate: row.bookingDate,
+      startTime: row.startTime,
+      durationMinutes: null,
+      guestName: row.guestName ?? row.guestUsername,
+      guestUsername: row.guestUsername,
+      capacityPax: null,
+      bookedPax: null,
+    })),
+  ].sort((a, b) => {
+    const aTime = `${a.bookingDate} ${a.startTime}`;
+    const bTime = `${b.bookingDate} ${b.startTime}`;
+    return (
+      aTime.localeCompare(bTime) ||
+      a.type.localeCompare(b.type) ||
+      a.bookingId - b.bookingId
+    );
+  });
 }
 
 export type CreateFacilityBookingInput = {

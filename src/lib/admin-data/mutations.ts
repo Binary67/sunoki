@@ -11,6 +11,7 @@ import {
 import { selectRowById } from "./queries";
 import { parseFormValues } from "./validation";
 import type { UserRole } from "../roles";
+import { createServiceBooking } from "../service-bookings";
 
 type InsertResult = {
   lastInsertRowid: number | bigint;
@@ -27,6 +28,9 @@ export function createAdminRow(
   }
   const tablePermissionError = validateTableMutation(actor, tableName);
   if (tablePermissionError) return tablePermissionError;
+  if (tableName === "guest_service_bookings") {
+    return createAdminServiceBooking(actor, formData);
+  }
 
   const parsed = parseFormValues(tableName, formData, "create");
   if (!parsed.ok) return { ok: false, message: parsed.message };
@@ -68,6 +72,12 @@ export function updateAdminRow(
   const table = getAdminTableDefinition(tableName);
   if (!Number.isInteger(rowId) || rowId <= 0) {
     return { ok: false, message: "Choose a valid row." };
+  }
+  if (tableName === "guest_service_bookings") {
+    return {
+      ok: false,
+      message: "Service bookings can be created or deleted.",
+    };
   }
   const tablePermissionError = validateTableMutation(actor, tableName);
   if (tablePermissionError) return tablePermissionError;
@@ -208,6 +218,25 @@ export function updateUserPassword(
   } catch {
     return { ok: false, message: "Unable to update password." };
   }
+}
+
+function createAdminServiceBooking(
+  actor: User,
+  formData: FormData,
+): AdminMutationResult {
+  const parsed = parseFormValues("guest_service_bookings", formData, "create");
+  if (!parsed.ok) return { ok: false, message: parsed.message };
+
+  const result = createServiceBooking({
+    auditActor: actor,
+    userId: Number(parsed.values.user_id),
+    serviceKey: String(parsed.values.service_key),
+    bookingDate: String(parsed.values.booking_date),
+    bookingTime: String(parsed.values.booking_time),
+  });
+  if (!result.ok) return { ok: false, message: result.error };
+
+  return { ok: true, message: "Row created." };
 }
 
 function validateUserCreate(

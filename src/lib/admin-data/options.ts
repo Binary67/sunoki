@@ -63,6 +63,12 @@ export function getAdminSelectOptions(): AdminSelectOptions {
       value: String(facility.id),
       label: `${facility.name} (${facility.slug})`,
     })),
+    guestUsers: users
+      .filter((user) => user.role === "guest")
+      .map((user) => ({
+        value: String(user.id),
+        label: `${user.username}${user.active === 1 ? "" : " (inactive)"}`,
+      })),
     roles: [
       { value: "superadmin", label: "Super Admin" },
       { value: "admin", label: "Admin" },

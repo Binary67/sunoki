@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { getCurrentUser } from "@/src/lib/auth";
 import { formatBookingDate as formatDateKey } from "@/src/lib/booking-dates";
 import { getUpcomingBookings } from "@/src/lib/bookings";
@@ -6,14 +7,30 @@ import { listGuestProfiles } from "@/src/lib/guest-profiles";
 import { isAdminRole } from "@/src/lib/roles";
 import RoomOccupancyModal from "./_dashboard/RoomOccupancyModal";
 import RoomOccupancySection from "./_dashboard/RoomOccupancySection";
-import UpcomingFacilitySessions from "./_dashboard/UpcomingFacilitySessions";
+import UpcomingBookings from "./_dashboard/UpcomingBookings";
 import { getRoomOccupancy } from "./_dashboard/room-occupancy";
+
+type DashboardTab = "room-occupancy" | "upcoming-bookings";
 
 type PageProps = {
   searchParams: Promise<{
     room?: string | string[];
+    tab?: string | string[];
   }>;
 };
+
+const DASHBOARD_TABS: { label: string; value: DashboardTab; href: string }[] = [
+  {
+    label: "Room Occupancy",
+    value: "room-occupancy",
+    href: "/?tab=room-occupancy",
+  },
+  {
+    label: "Upcoming Bookings",
+    value: "upcoming-bookings",
+    href: "/?tab=upcoming-bookings",
+  },
+];
 
 export default async function Dashboard({ searchParams }: PageProps) {
   const query = await searchParams;
@@ -25,6 +42,7 @@ export default async function Dashboard({ searchParams }: PageProps) {
   const bookings = getUpcomingBookings();
   const checkedInProfiles = listGuestProfiles("checked_in", today);
   const incomingProfiles = listGuestProfiles("incoming", today);
+  const activeTab = getDashboardTab(getSingleValue(query.tab));
   const roomOccupancy = getRoomOccupancy(
     checkedInProfiles,
     incomingProfiles,
@@ -44,14 +62,18 @@ export default async function Dashboard({ searchParams }: PageProps) {
         </p>
       </div>
 
-      <RoomOccupancySection
-        occupancyByRoom={roomOccupancy.rooms}
-        unassignedCount={roomOccupancy.unassignedCount}
-      />
+      <DashboardTabNav activeTab={activeTab} />
 
-      <UpcomingFacilitySessions bookings={bookings} />
+      {activeTab === "room-occupancy" ? (
+        <RoomOccupancySection
+          occupancyByRoom={roomOccupancy.rooms}
+          unassignedCount={roomOccupancy.unassignedCount}
+        />
+      ) : (
+        <UpcomingBookings bookings={bookings} />
+      )}
 
-      {selectedRoom && selectedRoomDetails && (
+      {activeTab === "room-occupancy" && selectedRoom && selectedRoomDetails && (
         <RoomOccupancyModal
           roomDetails={selectedRoomDetails}
           roomNumber={selectedRoom}
@@ -59,6 +81,30 @@ export default async function Dashboard({ searchParams }: PageProps) {
       )}
     </main>
   );
+}
+
+function DashboardTabNav({ activeTab }: { activeTab: DashboardTab }) {
+  return (
+    <nav className="mb-6 flex flex-wrap gap-2">
+      {DASHBOARD_TABS.map((tab) => (
+        <Link
+          key={tab.value}
+          href={tab.href}
+          className={`rounded-md px-3 py-2 text-sm transition-colors ${
+            tab.value === activeTab
+              ? "bg-brand text-white"
+              : "bg-surface text-ink/70 hover:text-ink"
+          }`}
+        >
+          {tab.label}
+        </Link>
+      ))}
+    </nav>
+  );
+}
+
+function getDashboardTab(value: string | undefined): DashboardTab {
+  return value === "upcoming-bookings" ? value : "room-occupancy";
 }
 
 function getSingleValue(value: string | string[] | undefined): string | undefined {

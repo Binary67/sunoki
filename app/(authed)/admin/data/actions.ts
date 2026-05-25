@@ -33,6 +33,7 @@ export async function createAdminRowAction(formData: FormData): Promise<void> {
   if (result.ok) {
     revalidatePath(getDataPath(tableName));
     revalidatePath(AUDIT_PATH);
+    revalidateBookingPaths(tableName);
   }
   redirectWithMessage(
     tableName,
@@ -53,6 +54,7 @@ export async function updateAdminRowAction(formData: FormData): Promise<void> {
   if (result.ok) {
     revalidatePath(getDataPath(tableName));
     revalidatePath(AUDIT_PATH);
+    revalidateBookingPaths(tableName);
     if (tableName === "facilities") {
       revalidateFacilityBookingPath(tableName, rowId, user);
     }
@@ -98,6 +100,7 @@ export async function deleteAdminRowAction(formData: FormData): Promise<void> {
   if (result.ok) {
     revalidatePath(getDataPath(tableName));
     revalidatePath(AUDIT_PATH);
+    revalidateBookingPaths(tableName);
   }
   redirectWithMessage(tableName, result.ok ? "success" : "error", result.message);
 }
@@ -197,6 +200,17 @@ function revalidateFacilityBookingPath(
   }
 }
 
+function revalidateBookingPaths(tableName: EditableTableName): void {
+  if (tableName !== "facility_bookings" && tableName !== "guest_service_bookings") {
+    return;
+  }
+
+  revalidatePath("/");
+  if (tableName === "guest_service_bookings") {
+    revalidatePath("/booking/services");
+  }
+}
+
 function redirectWithMessage(
   tableName: EditableTableName | null,
   tone: "error" | "success",
@@ -223,7 +237,12 @@ function redirectWithMessage(
 
 function getDataPath(tableName: EditableTableName | null): string {
   if (tableName === "users" || tableName === null) return USERS_DATA_PATH;
-  if (tableName === "package_service_entitlements") return PACKAGES_DATA_PATH;
+  if (
+    tableName === "package_service_entitlements" ||
+    tableName === "guest_service_bookings"
+  ) {
+    return PACKAGES_DATA_PATH;
+  }
   return FACILITIES_DATA_PATH;
 }
 
@@ -242,6 +261,8 @@ function getDataTab(
       return "time-slots";
     case "facility_bookings":
       return "bookings";
+    case "guest_service_bookings":
+      return "service-bookings";
     case "package_service_entitlements":
       return "service-quantities";
   }

@@ -4,6 +4,7 @@ import {
   PACKAGE_SERVICE_COLUMNS,
   UNLIMITED_PACKAGE_SERVICE_QUANTITY,
 } from "../package-entitlements";
+import { RELAXING_HAIR_WASH_SERVICE } from "../service-bookings";
 import type { UserRole } from "../roles";
 import {
   FACILITY_TAGLINE_MAX_LENGTH,
@@ -20,6 +21,10 @@ type BookingUserRow = {
   active: number;
   checkInDate: string | null;
   checkOutDate: string | null;
+};
+
+type ServiceBookingUserRow = BookingUserRow & {
+  guestProfileId: number | null;
 };
 
 export function parseFormValues(
@@ -183,6 +188,45 @@ export function parseFormValues(
         },
       };
     }
+    case "guest_service_bookings": {
+      const userId = readPositiveInteger(formData, "user_id", "Guest");
+      if (!userId.ok) return userId;
+      const bookingDate = readRequiredText(
+        formData,
+        "booking_date",
+        "Booking date",
+      );
+      if (!bookingDate.ok) return bookingDate;
+      if (!isBookingDate(bookingDate.value)) {
+        return { ok: false, message: "Enter a valid booking date." };
+      }
+      const bookingTime = readRequiredText(
+        formData,
+        "booking_time",
+        "Booking time",
+      );
+      if (!bookingTime.ok) return bookingTime;
+      if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(bookingTime.value)) {
+        return { ok: false, message: "Enter a valid booking time." };
+      }
+      const bookingUser = validateServiceBookingUser(
+        userId.value,
+        bookingDate.value,
+      );
+      if (!bookingUser.ok) return bookingUser;
+      return {
+        ok: true,
+        values: {
+          user_id: userId.value,
+          guest_profile_id: bookingUser.guestProfileId,
+          service_key: RELAXING_HAIR_WASH_SERVICE.key,
+          service_name: RELAXING_HAIR_WASH_SERVICE.name,
+          booking_date: bookingDate.value,
+          booking_time: bookingTime.value,
+          status: "booked",
+        },
+      };
+    }
     case "package_service_entitlements": {
       const values: Record<string, AdminRowValue> = {};
 
@@ -342,4 +386,63 @@ function validateUserBookingWindow(
   }
 
   return { ok: true };
+}
+
+function validateServiceBookingUser(
+  userId: number,
+  bookingDate: string,
+): { ok: true; guestProfileId: number } | { ok: false; message: string } {
+  const user = db
+    .prepare(
+      `
+        SELECT
+          u.role,
+          u.active,
+          u.check_in_date AS checkInDate,
+          u.check_out_date AS checkOutDate,
+          gp.id AS guestProfileId
+        FROM users u
+        LEFT JOIN guest_profiles gp ON gp.user_id = u.id
+        WHERE u.id = ?
+      `,
+    )
+    .get(userId) as ServiceBookingUserRow | undefined;
+
+  if (!user) return { ok: false, message: "Choose a valid guest." };
+  if (user.active !== 1) return { ok: false, message: "Guest is inactive." };
+  if (user.role !== "guest") {
+    return { ok: false, message: "Service bookings require a guest user." };
+  }
+  if (!user.guestProfileId) {
+    return {
+      ok: false,
+      message: "The selected guest does not have a linked guest profile.",
+    };
+  }
+  if (
+    !user.checkInDate ||
+    !user.checkOutDate ||
+    !isBookingDate(user.checkInDate) ||
+    !isBookingDate(user.checkOutDate) ||
+    user.checkOutDate < user.checkInDate
+  ) {
+    return {
+      ok: false,
+      message: "The selected guest does not have valid stay dates.",
+    };
+  }
+  if (
+    !isWithinBookingDateRange(
+      bookingDate,
+      user.checkInDate,
+      user.checkOutDate,
+    )
+  ) {
+    return {
+      ok: false,
+      message: "Booking date must be within the guest stay dates.",
+    };
+  }
+
+  return { ok: true, guestProfileId: Number(user.guestProfileId) };
 }

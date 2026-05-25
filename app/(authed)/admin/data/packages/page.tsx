@@ -1,10 +1,12 @@
-import { requireSuperAdminUser } from "@/src/lib/admin-auth";
+import { requireAdminUser } from "@/src/lib/admin-auth";
+import type { EditableTableName } from "@/src/lib/admin-data/definitions";
 import {
   getAdminRowForEdit,
   getAdminTableView,
 } from "@/src/lib/admin-data/queries";
 import {
   AdminTableSection,
+  CreateFormSection,
   DataEditorHeader,
   EditFormSection,
   getEditId,
@@ -14,7 +16,7 @@ import {
   type TabLink,
 } from "../AdminDataView";
 
-type PackagesTab = "service-quantities";
+type PackagesTab = "service-quantities" | "service-bookings";
 
 type PageProps = {
   searchParams: Promise<{
@@ -31,32 +33,57 @@ const PACKAGE_TABS: TabLink<PackagesTab>[] = [
     value: "service-quantities",
     href: "/admin/data/packages?tab=service-quantities",
   },
+  {
+    label: "Service Bookings",
+    value: "service-bookings",
+    href: "/admin/data/packages?tab=service-bookings",
+  },
 ];
 
 export default async function AdminPackagesPage({ searchParams }: PageProps) {
-  const actor = await requireSuperAdminUser();
+  const actor = await requireAdminUser();
   const query = await searchParams;
-  const activeTab = getPackagesTab(getSingleValue(query.tab));
+  const canManagePackages = actor.role === "superadmin";
+  const tabs = canManagePackages
+    ? PACKAGE_TABS
+    : PACKAGE_TABS.filter((tab) => tab.value === "service-bookings");
+  const activeTab = getPackagesTab(
+    getSingleValue(query.tab),
+    canManagePackages,
+  );
   const editId = getEditId(getSingleValue(query.edit));
-  const tableName = "package_service_entitlements";
+  const tableName = getPackagesTableName(activeTab);
   const view = getAdminTableView(tableName, actor);
-  const editRow = editId ? getAdminRowForEdit(tableName, editId, actor) : null;
+  const editRow =
+    activeTab === "service-quantities" && editId
+      ? getAdminRowForEdit(tableName, editId, actor)
+      : null;
 
   return (
     <main className="flex-1 px-4 py-6 sm:px-6 sm:py-8 lg:px-10">
       <DataEditorHeader
         title="Packages"
-        description="Manage package service quantities and the Deluxe Care celebration choice rule."
+        description={
+          canManagePackages
+            ? "Manage package service quantities, the Deluxe Care celebration choice rule, and guest service bookings."
+            : "Manage guest service bookings for package services."
+        }
       />
-      <LocalTabNav activeTab={activeTab} tabs={PACKAGE_TABS} />
+      <LocalTabNav activeTab={activeTab} tabs={tabs} />
       <StatusMessage
         error={getSingleValue(query.error)}
         success={getSingleValue(query.success)}
       />
+      {activeTab === "service-bookings" && (
+        <CreateFormSection
+          tableName={tableName}
+          view={view}
+        />
+      )}
       <EditFormSection
         actor={actor}
-        cancelHref="/admin/data/packages?tab=service-quantities"
-        editId={editId}
+        cancelHref={`/admin/data/packages?tab=${activeTab}`}
+        editId={activeTab === "service-quantities" ? editId : null}
         editRow={editRow}
         tableName={tableName}
         view={view}
@@ -64,8 +91,10 @@ export default async function AdminPackagesPage({ searchParams }: PageProps) {
       <AdminTableSection
         actionMode="records"
         actor={actor}
-        editHref={(rowId) =>
-          `/admin/data/packages?tab=service-quantities&edit=${rowId}`
+        editHref={
+          activeTab === "service-quantities"
+            ? (rowId) => `/admin/data/packages?tab=${activeTab}&edit=${rowId}`
+            : undefined
         }
         tableName={tableName}
         view={view}
@@ -74,6 +103,16 @@ export default async function AdminPackagesPage({ searchParams }: PageProps) {
   );
 }
 
-function getPackagesTab(value: string | undefined): PackagesTab {
-  return value === "service-quantities" ? value : "service-quantities";
+function getPackagesTab(
+  value: string | undefined,
+  canManagePackages: boolean,
+): PackagesTab {
+  if (value === "service-bookings") return value;
+  return canManagePackages ? "service-quantities" : "service-bookings";
+}
+
+function getPackagesTableName(tab: PackagesTab): EditableTableName {
+  return tab === "service-bookings"
+    ? "guest_service_bookings"
+    : "package_service_entitlements";
 }

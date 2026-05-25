@@ -131,7 +131,6 @@ const dataChildren: {
   {
     label: "Packages",
     href: "/admin/data/packages",
-    superadminOnly: true,
   },
   {
     label: "Backup & Restore",

@@ -155,7 +155,7 @@ db.exec(`
     actor_user_id  INTEGER NOT NULL,
     actor_username TEXT NOT NULL,
     operation      TEXT NOT NULL CHECK (operation IN ('insert','update','delete')),
-    table_name     TEXT NOT NULL CHECK (table_name IN ('users','facilities','facility_time_slots','facility_bookings','package_service_entitlements')),
+    table_name     TEXT NOT NULL CHECK (table_name IN ('users','facilities','facility_time_slots','facility_bookings','guest_service_bookings','package_service_entitlements')),
     row_id         INTEGER NOT NULL,
     before_json    TEXT,
     after_json     TEXT,
@@ -170,7 +170,8 @@ const auditLogSchema = db
   .get() as { sql: string } | undefined;
 if (
   auditLogSchema?.sql &&
-  !auditLogSchema.sql.includes("'package_service_entitlements'")
+  (!auditLogSchema.sql.includes("'package_service_entitlements'") ||
+    !auditLogSchema.sql.includes("'guest_service_bookings'"))
 ) {
   db.exec(`
     ALTER TABLE audit_logs RENAME TO audit_logs_old;
@@ -180,7 +181,7 @@ if (
       actor_user_id  INTEGER NOT NULL,
       actor_username TEXT NOT NULL,
       operation      TEXT NOT NULL CHECK (operation IN ('insert','update','delete')),
-      table_name     TEXT NOT NULL CHECK (table_name IN ('users','facilities','facility_time_slots','facility_bookings','package_service_entitlements')),
+      table_name     TEXT NOT NULL CHECK (table_name IN ('users','facilities','facility_time_slots','facility_bookings','guest_service_bookings','package_service_entitlements')),
       row_id         INTEGER NOT NULL,
       before_json    TEXT,
       after_json     TEXT,

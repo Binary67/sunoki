@@ -1,3 +1,4 @@
+import { insertAuditLog } from "./admin-data/audit";
 import { db, type User } from "./db";
 import { isBookingDate, isWithinBookingDateRange } from "./booking-dates";
 import { parsePackageEntitlementSnapshot } from "./package-entitlement-options";
@@ -60,6 +61,7 @@ type ServiceBookingRow = {
 };
 
 export type CreateServiceBookingInput = {
+  auditActor?: User;
   userId: number;
   serviceKey: string;
   bookingDate: string;
@@ -67,7 +69,7 @@ export type CreateServiceBookingInput = {
 };
 
 export type CreateServiceBookingResult =
-  | { ok: true; serviceName: string }
+  | { ok: true; bookingId: number; serviceName: string }
   | { ok: false; error: string };
 
 export function getGuestServiceBookingSummary(
@@ -91,6 +93,7 @@ export function getGuestServiceBookingSummary(
 }
 
 export function createServiceBooking({
+  auditActor,
   userId,
   serviceKey,
   bookingDate,
@@ -201,7 +204,7 @@ export function createServiceBooking({
       };
     }
 
-    db.prepare(
+    const result = db.prepare(
       `
         INSERT INTO guest_service_bookings (
           user_id,
@@ -220,15 +223,61 @@ export function createServiceBooking({
       RELAXING_HAIR_WASH_SERVICE.name,
       bookingDate,
       bookingTime,
-    );
+    ) as { lastInsertRowid: number | bigint };
+
+    if (auditActor) {
+      const after = selectServiceBookingAuditRow(Number(result.lastInsertRowid));
+      if (!after) throw new Error("Inserted service booking could not be loaded.");
+      insertAuditLog(
+        auditActor,
+        "insert",
+        "guest_service_bookings",
+        Number(result.lastInsertRowid),
+        null,
+        after,
+      );
+    }
 
     db.exec("COMMIT");
     inTransaction = false;
-    return { ok: true, serviceName: RELAXING_HAIR_WASH_SERVICE.name };
+    return {
+      ok: true,
+      bookingId: Number(result.lastInsertRowid),
+      serviceName: RELAXING_HAIR_WASH_SERVICE.name,
+    };
   } catch {
     if (inTransaction) db.exec("ROLLBACK");
     return { ok: false, error: "Unable to book this service." };
   }
+}
+
+function selectServiceBookingAuditRow(bookingId: number) {
+  return db
+    .prepare(
+      `
+        SELECT
+          id,
+          user_id,
+          service_name,
+          booking_date,
+          booking_time,
+          status,
+          created_at
+        FROM guest_service_bookings
+        WHERE id = ?
+      `,
+    )
+    .get(bookingId) as
+    | {
+        id: number;
+        user_id: number;
+        service_name: string;
+        booking_date: string;
+        booking_time: string;
+        status: string;
+        created_at: string;
+      }
+    | undefined;
 }
 
 function getServiceBookingUser(userId: number): ServiceBookingUserRow | null {
