@@ -191,6 +191,11 @@ export function parseFormValues(
     case "guest_service_bookings": {
       const userId = readPositiveInteger(formData, "user_id", "Guest");
       if (!userId.ok) return userId;
+      const serviceKey = readRequiredText(formData, "service_key", "Service");
+      if (!serviceKey.ok) return serviceKey;
+      if (serviceKey.value !== RELAXING_HAIR_WASH_SERVICE.key) {
+        return { ok: false, message: "Choose a valid service." };
+      }
       const bookingDate = readRequiredText(
         formData,
         "booking_date",
@@ -219,7 +224,7 @@ export function parseFormValues(
         values: {
           user_id: userId.value,
           guest_profile_id: bookingUser.guestProfileId,
-          service_key: RELAXING_HAIR_WASH_SERVICE.key,
+          service_key: serviceKey.value,
           service_name: RELAXING_HAIR_WASH_SERVICE.name,
           booking_date: bookingDate.value,
           booking_time: bookingTime.value,
@@ -357,7 +362,9 @@ function validateUserBookingWindow(
 
   if (!user) return { ok: false, message: "Choose a valid user." };
   if (user.active !== 1) return { ok: false, message: "User is inactive." };
-  if (user.role !== "guest") return { ok: true };
+  if (user.role !== "guest") {
+    return { ok: false, message: "Bookings require a guest user." };
+  }
 
   if (
     !user.checkInDate ||

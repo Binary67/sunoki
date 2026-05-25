@@ -1,5 +1,6 @@
 import { db } from "../db";
 import type { UserRole } from "../roles";
+import { RELAXING_HAIR_WASH_SERVICE } from "../service-bookings";
 import type { AdminSelectOptions } from "./definitions";
 
 type FacilityOptionRow = {
@@ -10,6 +11,7 @@ type FacilityOptionRow = {
 
 type UserOptionRow = {
   id: number;
+  guestName: string | null;
   username: string;
   role: UserRole;
   active: number;
@@ -30,7 +32,17 @@ export function getAdminSelectOptions(): AdminSelectOptions {
     .all() as FacilityOptionRow[];
   const users = db
     .prepare(
-      "SELECT id, username, role, active FROM users ORDER BY username ASC, id ASC",
+      `
+        SELECT
+          u.id,
+          gp.name AS guestName,
+          u.username,
+          u.role,
+          u.active
+        FROM users u
+        LEFT JOIN guest_profiles gp ON gp.user_id = u.id
+        ORDER BY gp.name ASC, u.username ASC, u.id ASC
+      `,
     )
     .all() as UserOptionRow[];
   const timeSlots = db
@@ -55,6 +67,12 @@ export function getAdminSelectOptions(): AdminSelectOptions {
       { value: "1", label: "Active" },
       { value: "0", label: "Inactive" },
     ],
+    bookableServices: [
+      {
+        value: RELAXING_HAIR_WASH_SERVICE.key,
+        label: RELAXING_HAIR_WASH_SERVICE.name,
+      },
+    ],
     celebrationChoiceRules: [
       { value: "none", label: "None" },
       { value: "choose_one", label: "Choose One" },
@@ -67,7 +85,9 @@ export function getAdminSelectOptions(): AdminSelectOptions {
       .filter((user) => user.role === "guest")
       .map((user) => ({
         value: String(user.id),
-        label: `${user.username}${user.active === 1 ? "" : " (inactive)"}`,
+        label: `${formatGuestLabel(user)}${
+          user.active === 1 ? "" : " (inactive)"
+        }`,
       })),
     roles: [
       { value: "superadmin", label: "Super Admin" },
@@ -88,6 +108,10 @@ export function getAdminSelectOptions(): AdminSelectOptions {
       })`,
     })),
   };
+}
+
+function formatGuestLabel(user: UserOptionRow): string {
+  return user.guestName ? `${user.guestName} (${user.username})` : user.username;
 }
 
 function formatRoleLabel(role: UserRole): string {
