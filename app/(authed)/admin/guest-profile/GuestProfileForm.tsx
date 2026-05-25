@@ -119,6 +119,7 @@ function getRenderedGuestProfileFields(
     label: field.label,
     multiline: field.multiline,
     name: field.name,
+    required: field.required,
     value: profile ? field.value(profile) ?? "" : "",
   }));
 }
@@ -157,7 +158,7 @@ function GuestProfileAccountFields({ profile }: { profile?: GuestProfile }) {
             htmlFor={inputId}
           >
             {hasLinkedAccount ? "New Password" : "Password"}{" "}
-            {!hasLinkedAccount && <span className="text-red-600">*</span>}
+            {!profile && <span className="text-red-600">*</span>}
             <input
               id={inputId}
               name="account_password"
@@ -202,7 +203,7 @@ function GuestProfileInput({
   field: GuestProfileField;
   profile?: GuestProfile;
 }) {
-  const required = field.name === "name";
+  const required = Boolean(field.required);
   const date = field.name === "expected_delivery_date";
   const inputId = `${profile ? `guest-${profile.id}` : "guest-new"}-${
     field.name

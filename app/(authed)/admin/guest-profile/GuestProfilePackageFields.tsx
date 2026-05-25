@@ -9,6 +9,7 @@ export type RenderedGuestProfileField = {
   label: string;
   multiline?: boolean;
   name: GuestProfileColumn;
+  required?: boolean;
   value: string;
 };
 
@@ -80,12 +81,13 @@ function PackageTypeSelect({
 
   return (
     <label className="block text-sm font-medium text-ink/75" htmlFor={inputId}>
-      {field.label}
+      {field.label} {field.required && <span className="text-red-600">*</span>}
       <select
         id={inputId}
         name={field.name}
         value={value}
         onChange={(event) => onChange(event.currentTarget.value)}
+        required={field.required}
         className={`${className} h-10`}
       >
         <option value="">Select package</option>
@@ -116,13 +118,14 @@ function GuestProfilePackageInput({
       }`}
       htmlFor={inputId}
     >
-      {field.label}
+      {field.label} {field.required && <span className="text-red-600">*</span>}
       {field.multiline ? (
         <textarea
           id={inputId}
           name={field.name}
           rows={4}
           defaultValue={field.value}
+          required={field.required}
           className={`${className} min-h-24 py-2`}
         />
       ) : (
@@ -131,6 +134,7 @@ function GuestProfilePackageInput({
           name={field.name}
           type="text"
           defaultValue={field.value}
+          required={field.required}
           className={`${className} h-10`}
         />
       )}

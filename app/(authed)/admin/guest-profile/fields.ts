@@ -7,6 +7,7 @@ export type GuestProfileField = {
   label: string;
   multiline?: boolean;
   name: GuestProfileColumn;
+  required?: boolean;
   value: (profile: GuestProfile) => string | null;
 };
 
@@ -22,6 +23,7 @@ export const GUEST_PROFILE_SECTIONS: GuestProfileSection[] = [
       {
         label: "Name",
         name: "name",
+        required: true,
         value: (profile) => profile.name,
       },
       {
@@ -32,11 +34,13 @@ export const GUEST_PROFILE_SECTIONS: GuestProfileSection[] = [
       {
         label: "IC No.",
         name: "ic_no",
+        required: true,
         value: (profile) => profile.icNo,
       },
       {
         label: "Handphone No.",
         name: "handphone_no",
+        required: true,
         value: (profile) => profile.handphoneNo,
       },
       {
@@ -124,6 +128,7 @@ export const GUEST_PROFILE_SECTIONS: GuestProfileSection[] = [
       {
         label: "Type of Package",
         name: "package_type",
+        required: true,
         value: (profile) => profile.packageType,
       },
       {

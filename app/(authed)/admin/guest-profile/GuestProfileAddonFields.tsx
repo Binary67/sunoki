@@ -161,6 +161,12 @@ function AdditionalDaysFields({
   setAdditionalDaysRemarksOpen: Dispatch<SetStateAction<boolean>>;
   showAdditionalDaysRemarks: boolean;
 }) {
+  const additionalDaysActive = Boolean(
+    additionalDays ||
+      additionalDaysPriceAmount ||
+      additionalDaysRemarks.trim(),
+  );
+
   return (
     <section className="grid gap-3">
       <h3 className="text-sm font-semibold text-ink">Additional Stay</h3>
@@ -200,6 +206,7 @@ function AdditionalDaysFields({
             min="1"
             name="additional_days"
             onChange={(event) => setAdditionalDays(event.target.value)}
+            required={additionalDaysActive}
             step="1"
             type="number"
             value={additionalDays}
@@ -218,6 +225,7 @@ function AdditionalDaysFields({
             onChange={(event) =>
               setAdditionalDaysPriceAmount(event.target.value)
             }
+            required={additionalDaysActive}
             step="0.01"
             type="number"
             value={additionalDaysPriceAmount}
@@ -351,6 +359,12 @@ function AddonRowFields({
   const priceInputId = `${row.id}-price`;
   const remarksInputId = `${row.id}-remarks`;
   const showRemarks = row.remarksOpen || row.remarks.trim().length > 0;
+  const rowActive = Boolean(
+    row.category === "sunoki" ||
+      row.serviceName.trim() ||
+      row.priceAmount ||
+      row.remarks.trim(),
+  );
 
   return (
     <div className="grid gap-3 rounded-md border border-black/5 px-3 py-3 md:grid-cols-[minmax(0,1fr)_7rem_10rem_6.5rem] md:items-end">
@@ -383,6 +397,7 @@ function AddonRowFields({
                 serviceName: event.currentTarget.value,
               })
             }
+            required={rowActive}
             value={row.serviceName}
           >
             {SUNOKI_SERVICE_OPTIONS.map((option) => (
@@ -402,6 +417,7 @@ function AddonRowFields({
               })
             }
             type="text"
+            required={rowActive}
             value={row.serviceName}
           />
         )}
@@ -421,6 +437,7 @@ function AddonRowFields({
               quantity: event.target.value,
             })
           }
+          required={rowActive}
           step="1"
           type="number"
           value={row.quantity}
@@ -441,6 +458,7 @@ function AddonRowFields({
               priceAmount: event.target.value,
             })
           }
+          required={rowActive}
           step="0.01"
           type="number"
           value={row.priceAmount}

@@ -28,6 +28,14 @@ export function parseGuestProfileForm(
   const name = readText(formData, "name");
   if (!name) return { ok: false, message: "Name is required." };
 
+  const icNo = readText(formData, "ic_no");
+  if (!icNo) return { ok: false, message: "IC No. is required." };
+
+  const handphoneNo = readText(formData, "handphone_no");
+  if (!handphoneNo) {
+    return { ok: false, message: "Handphone No. is required." };
+  }
+
   const expectedDeliveryDate = readText(formData, "expected_delivery_date");
   if (expectedDeliveryDate && !isBookingDate(expectedDeliveryDate)) {
     return { ok: false, message: "Enter a valid EDD." };
@@ -36,6 +44,11 @@ export function parseGuestProfileForm(
   const roomNumber = readText(formData, "room_number");
   if (roomNumber && !isGuestRoomNumber(roomNumber)) {
     return { ok: false, message: "Choose a valid room number." };
+  }
+
+  const packageType = readText(formData, "package_type");
+  if (!packageType) {
+    return { ok: false, message: "Type of Package is required." };
   }
 
   const addons = parseGuestProfileAddons(formData);
@@ -47,8 +60,8 @@ export function parseGuestProfileForm(
     data: {
       name,
       room_number: roomNumber,
-      ic_no: readText(formData, "ic_no"),
-      handphone_no: readText(formData, "handphone_no"),
+      ic_no: icNo,
+      handphone_no: handphoneNo,
       email: readText(formData, "email"),
       expected_delivery_date: expectedDeliveryDate,
       hospital_of_delivery: readText(formData, "hospital_of_delivery"),
@@ -62,7 +75,7 @@ export function parseGuestProfileForm(
       address: readText(formData, "address"),
       occupation: readText(formData, "occupation"),
       occupation_2: readText(formData, "occupation_2"),
-      package_type: readText(formData, "package_type"),
+      package_type: packageType,
       package_payable_amount: readText(formData, "package_payable_amount"),
       deposit_to_pay: readText(formData, "deposit_to_pay"),
       balance_to_pay: readText(formData, "balance_to_pay"),
