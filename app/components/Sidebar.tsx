@@ -139,6 +139,12 @@ const dataChildren: {
   },
 ];
 
+function getDisclosureResetKey(pathname: string): string {
+  if (pathname.startsWith("/admin/data")) return "admin-data";
+  if (pathname.startsWith("/booking/")) return "booking";
+  return "default";
+}
+
 export default function Sidebar({
   branding,
   role,
@@ -151,26 +157,8 @@ export default function Sidebar({
   onClose: () => void;
 }) {
   const pathname = usePathname();
-  const inBooking = pathname.startsWith("/booking/");
-  const inData = pathname.startsWith("/admin/data");
-  const [dataOpen, setDataOpen] = useState(inData);
-  const [prevInData, setPrevInData] = useState(inData);
-  const [bookingOpen, setBookingOpen] = useState(inBooking);
-  const [prevInBooking, setPrevInBooking] = useState(inBooking);
+  const disclosureResetKey = getDisclosureResetKey(pathname);
   const prevPathname = useRef(pathname);
-
-  if (inData && !prevInData) {
-    setDataOpen(true);
-  }
-  if (inData !== prevInData) {
-    setPrevInData(inData);
-  }
-  if (inBooking && !prevInBooking) {
-    setBookingOpen(true);
-  }
-  if (inBooking !== prevInBooking) {
-    setPrevInBooking(inBooking);
-  }
 
   useEffect(() => {
     if (prevPathname.current !== pathname) {
@@ -187,14 +175,6 @@ export default function Sidebar({
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, [mobileOpen, onClose]);
-
-  const dashboardActive = pathname === "/";
-  const dataActive = inData;
-  const guestProfileActive = pathname.startsWith("/admin/guest-profile");
-  const kitchenActive = pathname === "/admin/kitchen";
-  const auditActive = pathname === "/admin/audit-log";
-  const personalizationActive = pathname === "/admin/personalization";
-  const isAdmin = isAdminRole(role);
 
   return (
     <>
@@ -222,153 +202,183 @@ export default function Sidebar({
           </button>
         </div>
 
-        <nav className="mt-6 flex min-h-0 flex-1 flex-col">
-          {isAdmin && (
-            <>
-              <div className="flex flex-col">
-                <Link
-                  href="/"
-                  className={`flex items-center gap-3 px-3 py-2.5 rounded-md text-sm transition-colors duration-200 ${
-                    dashboardActive
-                      ? "text-brand font-medium bg-surface"
-                      : "text-ink/70 hover:text-ink"
-                  }`}
-                >
-                  <HomeIcon className="size-4" />
-                  <span>Dashboard</span>
-                </Link>
-                <Link
-                  href="/admin/guest-profile"
-                  className={`flex items-center gap-3 rounded-md px-3 py-2.5 text-sm transition-colors duration-200 ${
-                    guestProfileActive
-                      ? "bg-surface font-medium text-brand"
-                      : "text-ink/70 hover:text-ink"
-                  }`}
-                >
-                  <GuestProfileIcon className="size-4" />
-                  <span>Guest Profile</span>
-                </Link>
-                <Link
-                  href="/admin/kitchen"
-                  className={`flex items-center gap-3 rounded-md px-3 py-2.5 text-sm transition-colors duration-200 ${
-                    kitchenActive
-                      ? "bg-surface font-medium text-brand"
-                      : "text-ink/70 hover:text-ink"
-                  }`}
-                >
-                  <KitchenIcon className="size-4" />
-                  <span>Kitchen</span>
-                </Link>
-                <button
-                  type="button"
-                  onClick={() => setDataOpen((v) => !v)}
-                  aria-expanded={dataOpen}
-                  className={`flex items-center gap-3 px-3 py-2.5 rounded-md text-sm transition-colors duration-200 ${
-                    dataActive
-                      ? "text-brand font-medium bg-surface"
-                      : "text-ink/70 hover:text-ink"
-                  }`}
-                >
-                  <DatabaseIcon className="size-4" />
-                  <span className="flex-1 text-left">Data Editor</span>
-                  <ChevronIcon
-                    className={`size-3.5 text-ink/40 transition-transform ${
-                      dataOpen ? "rotate-90" : ""
-                    }`}
-                  />
-                </button>
-                {dataOpen && (
-                  <div className="mt-1 ml-5 pl-3 border-l border-black/10 flex flex-col">
-                    {dataChildren
-                      .filter((item) => !item.superadminOnly || role === "superadmin")
-                      .map(({ label, href }) => {
-                        const active = pathname === href;
-                        return (
-                          <Link
-                            key={href}
-                            href={href}
-                            className={`relative flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors duration-200 ${
-                              active
-                                ? "text-brand font-medium bg-surface"
-                                : "text-ink/70 hover:text-ink"
-                            }`}
-                          >
-                            <span
-                              aria-hidden="true"
-                              className={`absolute -left-[13px] top-1.5 bottom-1.5 w-0.5 rounded-r bg-brand transition-opacity duration-200 ${
-                                active ? "opacity-100" : "opacity-0"
-                              }`}
-                            />
-                            <span>{label}</span>
-                          </Link>
-                        );
-                      })}
-                  </div>
-                )}
-                <Link
-                  href="/admin/audit-log"
-                  className={`flex items-center gap-3 px-3 py-2.5 rounded-md text-sm transition-colors duration-200 ${
-                    auditActive
-                      ? "text-brand font-medium bg-surface"
-                      : "text-ink/70 hover:text-ink"
-                  }`}
-                >
-                  <LogIcon className="size-4" />
-                  <span>Audit Log</span>
-                </Link>
-              </div>
-              <div className="mt-auto pt-6">
-                <Link
-                  href="/admin/personalization"
-                  className={`flex items-center gap-3 rounded-md px-3 py-2.5 text-sm transition-colors duration-200 ${
-                    personalizationActive
-                      ? "bg-surface font-medium text-brand"
-                      : "text-ink/70 hover:text-ink"
-                  }`}
-                >
-                  <SettingsIcon className="size-4" />
-                  <span>Personalization</span>
-                </Link>
-              </div>
-            </>
-          )}
-
-          {!isAdmin && (
-            <>
-              <button
-                type="button"
-                onClick={() => setBookingOpen((v) => !v)}
-                aria-expanded={bookingOpen}
-                className="flex items-center gap-3 px-3 py-2.5 rounded-md text-sm text-ink/70 hover:text-ink"
-              >
-                <BookingIcon className="size-4" />
-                <span className="flex-1 text-left">Booking</span>
-                <ChevronIcon
-                  className={`size-3.5 text-ink/40 transition-transform ${
-                    bookingOpen ? "rotate-90" : ""
-                  }`}
-                />
-              </button>
-
-              {bookingOpen && (
-                <div className="mt-1 ml-5 pl-3 border-l border-black/10 flex flex-col">
-                  <BookingLinkGroup
-                    items={facilityBookingChildren}
-                    pathname={pathname}
-                    title="Facilities"
-                  />
-                  <BookingLinkGroup
-                    items={serviceBookingChildren}
-                    pathname={pathname}
-                    title="Services"
-                  />
-                </div>
-              )}
-            </>
-          )}
-        </nav>
+        <SidebarNav
+          key={disclosureResetKey}
+          pathname={pathname}
+          role={role}
+        />
       </aside>
     </>
+  );
+}
+
+function SidebarNav({
+  pathname,
+  role,
+}: {
+  pathname: string;
+  role: UserRole;
+}) {
+  const inBooking = pathname.startsWith("/booking/");
+  const inData = pathname.startsWith("/admin/data");
+  const [dataOpen, setDataOpen] = useState(inData);
+  const [bookingOpen, setBookingOpen] = useState(inBooking);
+  const dashboardActive = pathname === "/";
+  const dataActive = inData;
+  const guestProfileActive = pathname.startsWith("/admin/guest-profile");
+  const kitchenActive = pathname === "/admin/kitchen";
+  const auditActive = pathname === "/admin/audit-log";
+  const personalizationActive = pathname === "/admin/personalization";
+  const isAdmin = isAdminRole(role);
+
+  return (
+    <nav className="mt-6 flex min-h-0 flex-1 flex-col">
+      {isAdmin && (
+        <>
+          <div className="flex flex-col">
+            <Link
+              href="/"
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-md text-sm transition-colors duration-200 ${
+                dashboardActive
+                  ? "text-brand font-medium bg-surface"
+                  : "text-ink/70 hover:text-ink"
+              }`}
+            >
+              <HomeIcon className="size-4" />
+              <span>Dashboard</span>
+            </Link>
+            <Link
+              href="/admin/guest-profile"
+              className={`flex items-center gap-3 rounded-md px-3 py-2.5 text-sm transition-colors duration-200 ${
+                guestProfileActive
+                  ? "bg-surface font-medium text-brand"
+                  : "text-ink/70 hover:text-ink"
+              }`}
+            >
+              <GuestProfileIcon className="size-4" />
+              <span>Guest Profile</span>
+            </Link>
+            <Link
+              href="/admin/kitchen"
+              className={`flex items-center gap-3 rounded-md px-3 py-2.5 text-sm transition-colors duration-200 ${
+                kitchenActive
+                  ? "bg-surface font-medium text-brand"
+                  : "text-ink/70 hover:text-ink"
+              }`}
+            >
+              <KitchenIcon className="size-4" />
+              <span>Kitchen</span>
+            </Link>
+            <button
+              type="button"
+              onClick={() => setDataOpen((open) => !open)}
+              aria-expanded={dataOpen}
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-md text-sm transition-colors duration-200 ${
+                dataActive
+                  ? "text-brand font-medium bg-surface"
+                  : "text-ink/70 hover:text-ink"
+              }`}
+            >
+              <DatabaseIcon className="size-4" />
+              <span className="flex-1 text-left">Data Editor</span>
+              <ChevronIcon
+                className={`size-3.5 text-ink/40 transition-transform ${
+                  dataOpen ? "rotate-90" : ""
+                }`}
+              />
+            </button>
+            {dataOpen && (
+              <div className="mt-1 ml-5 pl-3 border-l border-black/10 flex flex-col">
+                {dataChildren
+                  .filter(
+                    (item) => !item.superadminOnly || role === "superadmin",
+                  )
+                  .map(({ label, href }) => {
+                    const active = pathname === href;
+                    return (
+                      <Link
+                        key={href}
+                        href={href}
+                        className={`relative flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors duration-200 ${
+                          active
+                            ? "text-brand font-medium bg-surface"
+                            : "text-ink/70 hover:text-ink"
+                        }`}
+                      >
+                        <span
+                          aria-hidden="true"
+                          className={`absolute -left-[13px] top-1.5 bottom-1.5 w-0.5 rounded-r bg-brand transition-opacity duration-200 ${
+                            active ? "opacity-100" : "opacity-0"
+                          }`}
+                        />
+                        <span>{label}</span>
+                      </Link>
+                    );
+                  })}
+              </div>
+            )}
+            <Link
+              href="/admin/audit-log"
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-md text-sm transition-colors duration-200 ${
+                auditActive
+                  ? "text-brand font-medium bg-surface"
+                  : "text-ink/70 hover:text-ink"
+              }`}
+            >
+              <LogIcon className="size-4" />
+              <span>Audit Log</span>
+            </Link>
+          </div>
+          <div className="mt-auto pt-6">
+            <Link
+              href="/admin/personalization"
+              className={`flex items-center gap-3 rounded-md px-3 py-2.5 text-sm transition-colors duration-200 ${
+                personalizationActive
+                  ? "bg-surface font-medium text-brand"
+                  : "text-ink/70 hover:text-ink"
+              }`}
+            >
+              <SettingsIcon className="size-4" />
+              <span>Personalization</span>
+            </Link>
+          </div>
+        </>
+      )}
+
+      {!isAdmin && (
+        <>
+          <button
+            type="button"
+            onClick={() => setBookingOpen((open) => !open)}
+            aria-expanded={bookingOpen}
+            className="flex items-center gap-3 px-3 py-2.5 rounded-md text-sm text-ink/70 hover:text-ink"
+          >
+            <BookingIcon className="size-4" />
+            <span className="flex-1 text-left">Booking</span>
+            <ChevronIcon
+              className={`size-3.5 text-ink/40 transition-transform ${
+                bookingOpen ? "rotate-90" : ""
+              }`}
+            />
+          </button>
+
+          {bookingOpen && (
+            <div className="mt-1 ml-5 pl-3 border-l border-black/10 flex flex-col">
+              <BookingLinkGroup
+                items={facilityBookingChildren}
+                pathname={pathname}
+                title="Facilities"
+              />
+              <BookingLinkGroup
+                items={serviceBookingChildren}
+                pathname={pathname}
+                title="Services"
+              />
+            </div>
+          )}
+        </>
+      )}
+    </nav>
   );
 }
 
