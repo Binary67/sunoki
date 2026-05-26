@@ -426,6 +426,7 @@ function checkInGuestProfile(id: number): MutationResult {
 
     if (profile.userId) {
       updateGuestUserStayDates(profile.userId, stayDates);
+      setGuestUserAccess(profile.userId, 1);
     }
 
     db.exec("COMMIT");
@@ -437,15 +438,31 @@ function checkInGuestProfile(id: number): MutationResult {
 }
 
 function undoGuestProfileCheckIn(id: number): MutationResult {
-  return db
-    .prepare(
-      `
-        UPDATE guest_profiles
-        SET status = 'incoming'
-        WHERE id = ?
-      `,
-    )
-    .run(id) as MutationResult;
+  const profile = getGuestProfile(id);
+  if (!profile) return { changes: 0 };
+
+  db.exec("BEGIN");
+  try {
+    const result = db
+      .prepare(
+        `
+          UPDATE guest_profiles
+          SET status = 'incoming'
+          WHERE id = ?
+        `,
+      )
+      .run(id) as MutationResult;
+
+    if (profile.userId) {
+      setGuestUserAccess(profile.userId, 0);
+    }
+
+    db.exec("COMMIT");
+    return result;
+  } catch (error) {
+    rollbackGuestProfileTransaction();
+    throw error;
+  }
 }
 
 function rollbackGuestProfileTransaction(): void {
