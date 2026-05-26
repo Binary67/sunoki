@@ -28,6 +28,9 @@ export async function reserveFacilitySlotAction(
   if (!user) {
     return { error: "Sign in before reserving a time slot.", submissionId };
   }
+  if (user.role !== "guest") {
+    return { error: "Only guests can reserve facility slots.", submissionId };
+  }
 
   const facilitySlug = String(formData.get("facility") ?? "");
   const bookingDate = String(formData.get("bookingDate") ?? "");
@@ -61,6 +64,9 @@ export async function cancelFacilityBookingAction(
   const user = await getCurrentUser();
   if (!user) {
     return { error: "Sign in before cancelling a booking.", submissionId };
+  }
+  if (user.role !== "guest") {
+    return { error: "Only guests can cancel facility bookings.", submissionId };
   }
 
   const facilitySlug = String(formData.get("facility") ?? "");

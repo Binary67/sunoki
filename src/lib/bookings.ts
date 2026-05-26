@@ -339,7 +339,7 @@ export function createFacilityBooking({
     if (bookingUser.role !== "guest") {
       db.exec("ROLLBACK");
       inTransaction = false;
-      return { ok: false, error: "Only guests can book facilities." };
+      return { ok: false, error: "Only guests can reserve facility slots." };
     }
 
     const checkInDate = bookingUser.checkInDate;
@@ -503,6 +503,9 @@ export function cancelFacilityBooking({
 }: CancelFacilityBookingInput): CancelFacilityBookingResult {
   if (!isBookingDate(bookingDate) || !Number.isInteger(timeSlotId)) {
     return { ok: false, error: "Choose a valid booking to cancel." };
+  }
+  if (actor.role !== "guest") {
+    return { ok: false, error: "Only guests can cancel facility bookings." };
   }
 
   let inTransaction = false;

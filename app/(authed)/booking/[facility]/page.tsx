@@ -66,6 +66,7 @@ export default async function FacilityPage({
 
   const user = await getCurrentUser();
   if (!user) redirect("/login");
+  if (user.role !== "guest") redirect("/");
 
   const query = await searchParams;
   const bookingWindow = getGuestBookingWindow(user);
