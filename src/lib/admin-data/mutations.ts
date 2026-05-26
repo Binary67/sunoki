@@ -11,6 +11,7 @@ import {
 import { selectRowById } from "./queries";
 import { parseFormValues } from "./validation";
 import type { UserRole } from "../roles";
+import { createFacilityBooking } from "../bookings";
 import { createServiceBooking } from "../service-bookings";
 
 type InsertResult = {
@@ -28,6 +29,9 @@ export function createAdminRow(
   }
   const tablePermissionError = validateTableMutation(actor, tableName);
   if (tablePermissionError) return tablePermissionError;
+  if (tableName === "facility_bookings") {
+    return createAdminFacilityBooking(actor, formData);
+  }
   if (tableName === "guest_service_bookings") {
     return createAdminServiceBooking(actor, formData);
   }
@@ -73,10 +77,13 @@ export function updateAdminRow(
   if (!Number.isInteger(rowId) || rowId <= 0) {
     return { ok: false, message: "Choose a valid row." };
   }
-  if (tableName === "guest_service_bookings") {
+  if (
+    tableName === "facility_bookings" ||
+    tableName === "guest_service_bookings"
+  ) {
     return {
       ok: false,
-      message: "Service bookings can be created or deleted.",
+      message: `${table.label} can be created or deleted.`,
     };
   }
   const tablePermissionError = validateTableMutation(actor, tableName);
@@ -233,6 +240,24 @@ function createAdminServiceBooking(
     serviceKey: String(parsed.values.service_key),
     bookingDate: String(parsed.values.booking_date),
     bookingTime: String(parsed.values.booking_time),
+  });
+  if (!result.ok) return { ok: false, message: result.error };
+
+  return { ok: true, message: "Row created." };
+}
+
+function createAdminFacilityBooking(
+  actor: User,
+  formData: FormData,
+): AdminMutationResult {
+  const parsed = parseFormValues("facility_bookings", formData, "create");
+  if (!parsed.ok) return { ok: false, message: parsed.message };
+
+  const result = createFacilityBooking({
+    auditActor: actor,
+    userId: Number(parsed.values.user_id),
+    bookingDate: String(parsed.values.booking_date),
+    timeSlotId: Number(parsed.values.facility_time_slot_id),
   });
   if (!result.ok) return { ok: false, message: result.error };
 

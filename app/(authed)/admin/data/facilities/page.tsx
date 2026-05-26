@@ -57,7 +57,8 @@ export default async function AdminFacilitiesPage({ searchParams }: PageProps) {
     canManageTimeSlots,
   );
   const tableName = getFacilitiesTableName(activeTab);
-  const editId = getEditId(getSingleValue(query.edit));
+  const editId =
+    activeTab === "bookings" ? null : getEditId(getSingleValue(query.edit));
   const view = getAdminTableView(tableName, actor);
   const editRow = editId ? getAdminRowForEdit(tableName, editId, actor) : null;
 
@@ -91,8 +92,10 @@ export default async function AdminFacilitiesPage({ searchParams }: PageProps) {
       <AdminTableSection
         actionMode="records"
         actor={actor}
-        editHref={(rowId) =>
-          `/admin/data/facilities?tab=${activeTab}&edit=${rowId}`
+        editHref={
+          activeTab === "bookings"
+            ? undefined
+            : (rowId) => `/admin/data/facilities?tab=${activeTab}&edit=${rowId}`
         }
         tableName={tableName}
         view={view}

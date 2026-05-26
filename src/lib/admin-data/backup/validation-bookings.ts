@@ -27,8 +27,9 @@ export function validateFacilityBookings(
   const normalized: AdminRow[] = [];
   const ids = new Set<number>();
   const usersById = indexRowsById(users);
-  const timeSlotIds = new Set(timeSlots.map((row) => Number(row.id)));
+  const timeSlotsById = indexRowsById(timeSlots);
   const uniqueBookings = new Set<string>();
+  const slotDateCounts = new Map<string, number>();
 
   for (const row of rows) {
     const id = readPositiveIntegerValue(
@@ -102,6 +103,8 @@ export function validateFacilityBookings(
     }
 
     const user = userId !== null ? (usersById.get(userId) ?? null) : null;
+    const timeSlot =
+      timeSlotId !== null ? (timeSlotsById.get(timeSlotId) ?? null) : null;
     if (userId !== null && !user) {
       addRowError(
         errors,
@@ -112,7 +115,7 @@ export function validateFacilityBookings(
       );
     }
 
-    if (timeSlotId !== null && !timeSlotIds.has(timeSlotId)) {
+    if (timeSlotId !== null && !timeSlot) {
       addRowError(
         errors,
         row,
@@ -129,6 +132,41 @@ export function validateFacilityBookings(
         "facility_bookings",
         "user_id",
         "Facility bookings must use active users.",
+      );
+    }
+    if (user && user.role !== "guest") {
+      addRowError(
+        errors,
+        row,
+        "facility_bookings",
+        "user_id",
+        "Facility bookings must use guest users.",
+      );
+    }
+
+    if (timeSlot && timeSlot.active !== 1) {
+      addRowError(
+        errors,
+        row,
+        "facility_bookings",
+        "facility_time_slot_id",
+        "Facility bookings must use active time slots.",
+      );
+    }
+
+    if (
+      bookingDate !== null &&
+      timeSlot &&
+      typeof timeSlot.start_time === "string" &&
+      isTimeValue(timeSlot.start_time) &&
+      hasSlotStarted(bookingDate, timeSlot.start_time)
+    ) {
+      addRowError(
+        errors,
+        row,
+        "facility_bookings",
+        "booking_date",
+        "Facility bookings must use upcoming time slots.",
       );
     }
 
@@ -155,6 +193,23 @@ export function validateFacilityBookings(
       uniqueBookings.add(key);
     }
 
+    if (timeSlotId !== null && timeSlot && bookingDate !== null) {
+      const capacity = Number(timeSlot.capacity_pax);
+      const key = `${timeSlotId}:${bookingDate}`;
+      const count = (slotDateCounts.get(key) ?? 0) + 1;
+      slotDateCounts.set(key, count);
+
+      if (Number.isInteger(capacity) && capacity > 0 && count > capacity) {
+        addRowError(
+          errors,
+          row,
+          "facility_bookings",
+          "facility_time_slot_id",
+          "Time slot capacity would be exceeded.",
+        );
+      }
+    }
+
     normalized.push({
       id,
       user_id: userId,
@@ -168,6 +223,16 @@ export function validateFacilityBookings(
   }
 
   return normalized;
+}
+
+function hasSlotStarted(
+  bookingDate: string,
+  startTime: string,
+  now = new Date(),
+): boolean {
+  const [year, month, day] = bookingDate.split("-").map(Number);
+  const [hour, minute] = startTime.split(":").map(Number);
+  return new Date(year, month - 1, day, hour, minute) <= now;
 }
 
 export function validateGuestServiceBookings(

@@ -1,4 +1,5 @@
 import { insertAuditLog } from "./admin-data/audit";
+import type { AdminRow } from "./admin-data/definitions";
 import { db, type User } from "./db";
 import { isBookingDate, isWithinBookingDateRange } from "./booking-dates";
 import type { UserRole } from "./roles";
@@ -281,8 +282,9 @@ export function getUpcomingBookings(now: Date = new Date()): UpcomingBooking[] {
 }
 
 export type CreateFacilityBookingInput = {
+  auditActor?: User;
   userId: number;
-  facilitySlug: string;
+  facilitySlug?: string;
   bookingDate: string;
   timeSlotId: number;
 };
@@ -292,6 +294,7 @@ export type CreateFacilityBookingResult =
   | { ok: false; error: string };
 
 export function createFacilityBooking({
+  auditActor,
   userId,
   facilitySlug,
   bookingDate,
@@ -333,30 +336,34 @@ export function createFacilityBooking({
       return { ok: false, error: "This account is inactive." };
     }
 
-    if (bookingUser.role === "guest") {
-      const checkInDate = bookingUser.checkInDate;
-      const checkOutDate = bookingUser.checkOutDate;
+    if (bookingUser.role !== "guest") {
+      db.exec("ROLLBACK");
+      inTransaction = false;
+      return { ok: false, error: "Only guests can book facilities." };
+    }
 
-      if (
-        !checkInDate ||
-        !checkOutDate ||
-        !isBookingDate(checkInDate) ||
-        !isBookingDate(checkOutDate) ||
-        checkOutDate < checkInDate
-      ) {
-        db.exec("ROLLBACK");
-        inTransaction = false;
-        return {
-          ok: false,
-          error: "Your stay dates are not set up for booking.",
-        };
-      }
+    const checkInDate = bookingUser.checkInDate;
+    const checkOutDate = bookingUser.checkOutDate;
 
-      if (!isWithinBookingDateRange(bookingDate, checkInDate, checkOutDate)) {
-        db.exec("ROLLBACK");
-        inTransaction = false;
-        return { ok: false, error: "Choose a date within your stay dates." };
-      }
+    if (
+      !checkInDate ||
+      !checkOutDate ||
+      !isBookingDate(checkInDate) ||
+      !isBookingDate(checkOutDate) ||
+      checkOutDate < checkInDate
+    ) {
+      db.exec("ROLLBACK");
+      inTransaction = false;
+      return {
+        ok: false,
+        error: "Your stay dates are not set up for booking.",
+      };
+    }
+
+    if (!isWithinBookingDateRange(bookingDate, checkInDate, checkOutDate)) {
+      db.exec("ROLLBACK");
+      inTransaction = false;
+      return { ok: false, error: "Choose a date within your stay dates." };
     }
 
     const slot = db
@@ -369,11 +376,13 @@ export function createFacilityBooking({
           FROM facility_time_slots s
           JOIN facilities f ON f.id = s.facility_id
           WHERE s.id = ?
-            AND f.slug = ?
+            AND (? IS NULL OR f.slug = ?)
             AND s.active = 1
         `,
       )
-      .get(timeSlotId, facilitySlug) as SlotRow | undefined;
+      .get(timeSlotId, facilitySlug ?? null, facilitySlug ?? null) as
+      | SlotRow
+      | undefined;
 
     if (!slot) {
       db.exec("ROLLBACK");
@@ -422,7 +431,7 @@ export function createFacilityBooking({
       return { ok: false, error: "This time slot is no longer available." };
     }
 
-    db.prepare(
+    const result = db.prepare(
       `
         INSERT INTO facility_bookings (
           user_id,
@@ -431,7 +440,21 @@ export function createFacilityBooking({
         )
         VALUES (?, ?, ?)
       `,
-    ).run(userId, timeSlotId, bookingDate);
+    ).run(userId, timeSlotId, bookingDate) as { lastInsertRowid: number | bigint };
+
+    if (auditActor) {
+      const bookingId = Number(result.lastInsertRowid);
+      const after = selectFacilityBookingAuditRow(bookingId);
+      if (!after) throw new Error("Inserted facility booking could not be loaded.");
+      insertAuditLog(
+        auditActor,
+        "insert",
+        "facility_bookings",
+        bookingId,
+        null,
+        after,
+      );
+    }
 
     db.exec("COMMIT");
     inTransaction = false;
@@ -440,6 +463,25 @@ export function createFacilityBooking({
     if (inTransaction) db.exec("ROLLBACK");
     return { ok: false, error: "Unable to reserve this time slot." };
   }
+}
+
+function selectFacilityBookingAuditRow(bookingId: number): AdminRow | null {
+  const row = db
+    .prepare(
+      `
+        SELECT
+          id,
+          user_id,
+          facility_time_slot_id,
+          booking_date,
+          created_at
+        FROM facility_bookings
+        WHERE id = ?
+      `,
+    )
+    .get(bookingId) as AdminRow | undefined;
+
+  return row ? { ...row } : null;
 }
 
 export type CancelFacilityBookingInput = {
