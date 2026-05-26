@@ -2,6 +2,9 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 ## Getting Started
 
+Use Node 24 LTS for local development and deployment. Node 22.5.0 or newer is
+required because this app uses the built-in `node:sqlite` module.
+
 First, run the development server:
 
 ```bash
