@@ -60,6 +60,13 @@ export function validateFacilityBookings(
       "Booking date",
       errors,
     );
+    const status = readRequiredTextValue(
+      row,
+      "facility_bookings",
+      "status",
+      "Status",
+      errors,
+    );
     const adminRead = readBooleanIntegerValue(
       row,
       "facility_bookings",
@@ -79,6 +86,13 @@ export function validateFacilityBookings(
       "facility_bookings",
       "admin_done_at",
       "Admin done at",
+      errors,
+    );
+    const cancelledAt = readOptionalDateTimeValue(
+      row,
+      "facility_bookings",
+      "cancelled_at",
+      "Cancelled at",
       errors,
     );
     const createdAt = readDateTimeValue(
@@ -124,8 +138,17 @@ export function validateFacilityBookings(
         `Time slot ID ${timeSlotId} is not present in the workbook.`,
       );
     }
+    if (status !== "booked" && status !== "cancelled") {
+      addRowError(
+        errors,
+        row,
+        "facility_bookings",
+        "status",
+        "Status must be booked or cancelled.",
+      );
+    }
 
-    if (user && user.active !== 1) {
+    if (status === "booked" && user && user.active !== 1) {
       addRowError(
         errors,
         row,
@@ -144,7 +167,7 @@ export function validateFacilityBookings(
       );
     }
 
-    if (timeSlot && timeSlot.active !== 1) {
+    if (status === "booked" && timeSlot && timeSlot.active !== 1) {
       addRowError(
         errors,
         row,
@@ -155,6 +178,7 @@ export function validateFacilityBookings(
     }
 
     if (
+      status === "booked" &&
       bookingDate !== null &&
       timeSlot &&
       typeof timeSlot.start_time === "string" &&
@@ -170,16 +194,23 @@ export function validateFacilityBookings(
       );
     }
 
-    validateBookingWithinGuestStay(
-      row,
-      "facility_bookings",
-      "booking_date",
-      bookingDate,
-      user,
-      errors,
-    );
+    if (status === "booked") {
+      validateBookingWithinGuestStay(
+        row,
+        "facility_bookings",
+        "booking_date",
+        bookingDate,
+        user,
+        errors,
+      );
+    }
 
-    if (userId !== null && timeSlotId !== null && bookingDate !== null) {
+    if (
+      status === "booked" &&
+      userId !== null &&
+      timeSlotId !== null &&
+      bookingDate !== null
+    ) {
       const key = `${userId}:${timeSlotId}:${bookingDate}`;
       if (uniqueBookings.has(key)) {
         addRowError(
@@ -193,7 +224,12 @@ export function validateFacilityBookings(
       uniqueBookings.add(key);
     }
 
-    if (timeSlotId !== null && timeSlot && bookingDate !== null) {
+    if (
+      status === "booked" &&
+      timeSlotId !== null &&
+      timeSlot &&
+      bookingDate !== null
+    ) {
       const capacity = Number(timeSlot.capacity_pax);
       const key = `${timeSlotId}:${bookingDate}`;
       const count = (slotDateCounts.get(key) ?? 0) + 1;
@@ -215,9 +251,11 @@ export function validateFacilityBookings(
       user_id: userId,
       facility_time_slot_id: timeSlotId,
       booking_date: bookingDate,
+      status,
       admin_read: adminRead,
       admin_done: adminDone,
       admin_done_at: adminDoneAt,
+      cancelled_at: cancelledAt,
       created_at: createdAt,
     });
   }
@@ -387,7 +425,7 @@ export function validateGuestServiceBookings(
         "Service booking must use the linked guest profile for its user.",
       );
     }
-    if (user && user.active !== 1) {
+    if (status === "booked" && user && user.active !== 1) {
       addRowError(
         errors,
         row,
@@ -443,14 +481,16 @@ export function validateGuestServiceBookings(
       );
     }
 
-    validateBookingWithinGuestStay(
-      row,
-      "guest_service_bookings",
-      "booking_date",
-      bookingDate,
-      user,
-      errors,
-    );
+    if (status === "booked") {
+      validateBookingWithinGuestStay(
+        row,
+        "guest_service_bookings",
+        "booking_date",
+        bookingDate,
+        user,
+        errors,
+      );
+    }
 
     if (
       status === "booked" &&

@@ -32,6 +32,7 @@ import { GUEST_PROFILE_SECTIONS, type GuestProfileField } from "../fields";
 import GuestBookingStatusCheckbox from "../GuestBookingStatusCheckbox";
 import GuestProfileDeleteForm from "../GuestProfileDeleteForm";
 import GuestProfileForm from "../GuestProfileForm";
+import GuestProfileToast from "../GuestProfileToast";
 import GuestPackageServicesList from "../GuestPackageServicesList";
 
 type PageProps = {
@@ -67,6 +68,7 @@ export default async function GuestProfileDetailPage({
 
   return (
     <main className="flex-1 px-4 py-6 sm:px-6 sm:py-8 lg:px-10">
+      <GuestProfileToast error={error} success={success} />
       <div className="mb-7 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <Link

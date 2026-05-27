@@ -18,6 +18,7 @@ import { listPackageEntitlementOptions } from "@/src/lib/package-entitlement-opt
 import { createGuestProfileAction } from "./actions";
 import GuestProfileForm from "./GuestProfileForm";
 import GuestProfileSearchList from "./GuestProfileSearchList";
+import GuestProfileToast from "./GuestProfileToast";
 
 type PageProps = {
   searchParams: Promise<{
@@ -65,6 +66,7 @@ export default async function GuestProfilePage({ searchParams }: PageProps) {
 
   return (
     <main className="flex-1 px-4 py-6 sm:px-6 sm:py-8 lg:px-10">
+      <GuestProfileToast error={error} success={success} />
       <div className="mb-7 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="text-xl font-semibold text-ink sm:text-2xl">

@@ -60,10 +60,7 @@ type CountRow = {
 
 type CancelBookingRow = {
   id: number;
-  userId: number;
-  facilityTimeSlotId: number;
   bookingDate: string;
-  createdAt: string;
   startTime: string;
 };
 
@@ -112,6 +109,7 @@ export function getFacilityAvailability(
         LEFT JOIN facility_bookings b
           ON b.facility_time_slot_id = s.id
          AND b.booking_date = ?
+         AND b.status = 'booked'
         WHERE s.facility_id = ?
           AND s.active = 1
         GROUP BY s.id
@@ -213,13 +211,15 @@ export function getUpcomingBookings(now: Date = new Date()): UpcomingBooking[] {
             FROM facility_bookings b2
             WHERE b2.facility_time_slot_id = b.facility_time_slot_id
               AND b2.booking_date = b.booking_date
+              AND b2.status = 'booked'
           ) AS bookedPax
         FROM facility_bookings b
         JOIN facility_time_slots s ON s.id = b.facility_time_slot_id
         JOIN facilities f ON f.id = s.facility_id
         JOIN users u ON u.id = b.user_id
         LEFT JOIN guest_profiles gp ON gp.user_id = b.user_id
-        WHERE (b.booking_date || ' ' || s.start_time) >= ?
+        WHERE b.status = 'booked'
+          AND (b.booking_date || ' ' || s.start_time) >= ?
         ORDER BY b.booking_date ASC, s.start_time ASC, b.id ASC
       `,
     )
@@ -404,6 +404,7 @@ export function createFacilityBooking({
           WHERE user_id = ?
             AND facility_time_slot_id = ?
             AND booking_date = ?
+            AND status = 'booked'
         `,
       )
       .get(userId, timeSlotId, bookingDate);
@@ -421,6 +422,7 @@ export function createFacilityBooking({
           FROM facility_bookings
           WHERE facility_time_slot_id = ?
             AND booking_date = ?
+            AND status = 'booked'
         `,
       )
       .get(timeSlotId, bookingDate) as CountRow;
@@ -474,6 +476,11 @@ function selectFacilityBookingAuditRow(bookingId: number): AdminRow | null {
           user_id,
           facility_time_slot_id,
           booking_date,
+          status,
+          admin_read,
+          admin_done,
+          admin_done_at,
+          cancelled_at,
           created_at
         FROM facility_bookings
         WHERE id = ?
@@ -519,10 +526,7 @@ export function cancelFacilityBooking({
         `
           SELECT
             b.id,
-            b.user_id AS userId,
-            b.facility_time_slot_id AS facilityTimeSlotId,
             b.booking_date AS bookingDate,
-            b.created_at AS createdAt,
             s.start_time AS startTime
           FROM facility_bookings b
           JOIN facility_time_slots s ON s.id = b.facility_time_slot_id
@@ -531,6 +535,7 @@ export function cancelFacilityBooking({
             AND b.facility_time_slot_id = ?
             AND b.booking_date = ?
             AND f.slug = ?
+            AND b.status = 'booked'
         `,
       )
       .get(actor.id, timeSlotId, bookingDate, facilitySlug) as
@@ -552,22 +557,30 @@ export function cancelFacilityBooking({
       };
     }
 
-    const before = {
-      id: Number(booking.id),
-      user_id: Number(booking.userId),
-      facility_time_slot_id: Number(booking.facilityTimeSlotId),
-      booking_date: booking.bookingDate,
-      created_at: booking.createdAt,
-    };
+    const before = selectFacilityBookingAuditRow(booking.id);
+    if (!before) throw new Error("Facility booking could not be loaded.");
 
     db.prepare(
       `
-        DELETE FROM facility_bookings
+        UPDATE facility_bookings
+        SET status = 'cancelled',
+            cancelled_at = datetime('now')
         WHERE id = ?
           AND user_id = ?
+          AND status = 'booked'
       `,
     ).run(booking.id, actor.id);
-    insertAuditLog(actor, "delete", "facility_bookings", booking.id, before, null);
+
+    const after = selectFacilityBookingAuditRow(booking.id);
+    if (!after) throw new Error("Cancelled facility booking could not be loaded.");
+    insertAuditLog(
+      actor,
+      "update",
+      "facility_bookings",
+      booking.id,
+      before,
+      after,
+    );
 
     db.exec("COMMIT");
     inTransaction = false;

@@ -39,14 +39,14 @@ export async function createGuestProfileAction(
 export async function updateGuestProfileAction(
   formData: FormData,
 ): Promise<void> {
-  await requireAdminUser();
+  const user = await requireAdminUser();
 
   const profileId = getProfileId(formData);
   if (!isValidProfileId(profileId)) {
     redirectToGuestProfileList("error", "Choose a valid guest profile.");
   }
 
-  const result = updateGuestProfile(profileId, formData);
+  const result = updateGuestProfile(profileId, formData, user);
   if (result.ok) {
     revalidatePath(GUEST_PROFILE_PATH);
     revalidatePath(`${GUEST_PROFILE_PATH}/${profileId}`);
@@ -56,7 +56,7 @@ export async function updateGuestProfileAction(
   redirectToGuestProfileDetail(
     profileId,
     result.ok ? "success" : "error",
-    result.ok ? "Guest profile updated" : result.message,
+    result.ok ? (result.message ?? "Guest profile updated.") : result.message,
     !result.ok,
   );
 }
@@ -94,7 +94,7 @@ export async function deleteGuestProfileAction(
 export async function setGuestProfileStatusAction(
   formData: FormData,
 ): Promise<void> {
-  await requireAdminUser();
+  const user = await requireAdminUser();
 
   const profileId = getProfileId(formData);
   if (!isValidProfileId(profileId)) {
@@ -110,7 +110,7 @@ export async function setGuestProfileStatusAction(
     );
   }
 
-  const result = setGuestProfileStatus(profileId, status);
+  const result = setGuestProfileStatus(profileId, status, user);
   if (result.ok) {
     revalidatePath(GUEST_PROFILE_PATH);
     revalidatePath(`${GUEST_PROFILE_PATH}/${profileId}`);
@@ -121,9 +121,10 @@ export async function setGuestProfileStatusAction(
     profileId,
     result.ok ? "success" : "error",
     result.ok
-      ? status === "checked_in"
-        ? "Guest checked in"
-        : "Guest check-in undone"
+      ? (result.message ??
+        (status === "checked_in"
+          ? "Guest checked in."
+          : "Guest check-in undone."))
       : result.message,
   );
 }
@@ -131,14 +132,14 @@ export async function setGuestProfileStatusAction(
 export async function toggleGuestProfileUserAccessAction(
   formData: FormData,
 ): Promise<void> {
-  await requireAdminUser();
+  const user = await requireAdminUser();
 
   const profileId = getProfileId(formData);
   if (!isValidProfileId(profileId)) {
     redirectToGuestProfileList("error", "Choose a valid guest profile.");
   }
 
-  const result = toggleGuestProfileUserAccess(profileId);
+  const result = toggleGuestProfileUserAccess(profileId, user);
   if (result.ok) {
     revalidatePath(GUEST_PROFILE_PATH);
     revalidatePath(`${GUEST_PROFILE_PATH}/${profileId}`);

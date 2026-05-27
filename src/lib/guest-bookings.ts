@@ -71,6 +71,7 @@ export function listGuestBookingChecklist(
         JOIN facility_time_slots s ON s.id = b.facility_time_slot_id
         JOIN facilities f ON f.id = s.facility_id
         WHERE b.user_id = ?
+          AND b.status = 'booked'
       `,
     )
     .all(profile.userId) as FacilityBookingRow[];
@@ -133,6 +134,7 @@ export function hasUnreadGuestBookings(profileId: number): boolean {
         SELECT 1 AS unread
         FROM facility_bookings
         WHERE user_id = ?
+          AND status = 'booked'
           AND admin_read = 0
         UNION ALL
         SELECT 1 AS unread
@@ -230,6 +232,7 @@ function getFacilityBookingStatus(
         FROM facility_bookings
         WHERE id = ?
           AND user_id = ?
+          AND status = 'booked'
       `,
     )
     .get(bookingId, userId) as BookingStatusRow | undefined;

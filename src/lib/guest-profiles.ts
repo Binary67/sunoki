@@ -1,5 +1,5 @@
 import { formatBookingDate } from "./booking-dates";
-import { db } from "./db";
+import { db, type User } from "./db";
 import {
   insertGuestProfileAddons,
   listGuestProfileAddons,
@@ -29,6 +29,10 @@ import {
   type GuestProfileFilterStatus,
   type GuestProfileStatus,
 } from "./guest-profile-types";
+import {
+  reconcileFutureGuestBookings,
+  type GuestBookingReconciliationResult,
+} from "./guest-booking-reconciliation";
 
 export {
   formatGuestProfileAddonPrice,
@@ -71,7 +75,7 @@ type GuestProfileCreateResult =
   | { ok: false; message: string };
 
 type GuestProfileMutationResult =
-  | { ok: true }
+  | { ok: true; message?: string }
   | { ok: false; message: string };
 
 export function listGuestProfiles(
@@ -189,6 +193,7 @@ export function createGuestProfile(
 export function updateGuestProfile(
   id: number,
   formData: FormData,
+  actor: User,
 ): GuestProfileMutationResult {
   if (!isValidGuestProfileId(id)) {
     return { ok: false, message: "Choose a valid guest profile." };
@@ -199,6 +204,10 @@ export function updateGuestProfile(
 
   const profile = getGuestProfile(id);
   if (!profile) return { ok: false, message: "Guest profile not found." };
+  const previousStayDates = getGuestStayDates(
+    profile.expectedDeliveryDate,
+    listGuestProfileAddons(id),
+  );
 
   const account = parseOptionalGuestAccount(formData, profile.userId !== null);
   if (!account.ok) return account;
@@ -254,9 +263,24 @@ export function updateGuestProfile(
     }
 
     replaceGuestProfileAddons(id, values.addons);
+    const reconciliation = userId
+      ? reconcileFutureGuestBookings({
+          active: profile.accountActive === 1 ? 1 : 0,
+          actor,
+          stayDates,
+          userId,
+        })
+      : null;
     db.exec("COMMIT");
 
-    return { ok: true };
+    return {
+      ok: true,
+      message: getGuestProfileMutationMessage(
+        "Guest profile updated",
+        reconciliation,
+        hasStayDatesChanged(previousStayDates, stayDates),
+      ),
+    };
   } catch {
     rollbackGuestProfileTransaction();
     return { ok: false, message: "Unable to update guest profile." };
@@ -304,6 +328,7 @@ export function deleteGuestProfile(id: number): GuestProfileMutationResult {
 
 export function toggleGuestProfileUserAccess(
   id: number,
+  actor: User,
 ): GuestProfileAccountMutationResult {
   if (!isValidGuestProfileId(id)) {
     return { ok: false, message: "Choose a valid guest profile." };
@@ -315,17 +340,30 @@ export function toggleGuestProfileUserAccess(
     return { ok: false, message: "This guest profile has no linked account." };
   }
   const active = profile.accountActive === 1 ? 0 : 1;
+  const stayDates = getGuestStayDates(
+    profile.expectedDeliveryDate,
+    listGuestProfileAddons(id),
+  );
 
   try {
     db.exec("BEGIN");
     setGuestUserAccess(profile.userId, active);
+    const reconciliation = reconcileFutureGuestBookings({
+      active,
+      actor,
+      stayDates,
+      userId: profile.userId,
+    });
     db.exec("COMMIT");
     return {
       ok: true,
-      message:
+      message: getGuestProfileMutationMessage(
         active === 1
-          ? "Guest account reactivated."
-          : "Guest account deactivated.",
+          ? "Guest account reactivated"
+          : "Guest account deactivated",
+        reconciliation,
+        active === 1,
+      ),
     };
   } catch {
     rollbackGuestProfileTransaction();
@@ -336,6 +374,7 @@ export function toggleGuestProfileUserAccess(
 export function setGuestProfileStatus(
   id: number,
   status: GuestProfileStatus,
+  actor: User,
 ): GuestProfileMutationResult {
   if (!isValidGuestProfileId(id)) {
     return { ok: false, message: "Choose a valid guest profile." };
@@ -356,14 +395,21 @@ export function setGuestProfileStatus(
 
     const result =
       status === "checked_in"
-        ? checkInGuestProfile(id)
-        : undoGuestProfileCheckIn(id);
+        ? checkInGuestProfile(id, actor)
+        : undoGuestProfileCheckIn(id, actor);
 
     if (Number(result.changes) === 0) {
       return { ok: false, message: "Guest profile not found." };
     }
 
-    return { ok: true };
+    return {
+      ok: true,
+      message: getGuestProfileMutationMessage(
+        status === "checked_in" ? "Guest checked in" : "Guest check-in undone",
+        result.reconciliation,
+        status === "checked_in",
+      ),
+    };
   } catch {
     return {
       ok: false,
@@ -403,13 +449,17 @@ function selectGuestProfiles(status: GuestProfileStatus): GuestProfile[] {
     .all(status) as GuestProfile[];
 }
 
-function checkInGuestProfile(id: number): MutationResult {
+function checkInGuestProfile(
+  id: number,
+  actor: User,
+): MutationResult & { reconciliation: GuestBookingReconciliationResult | null } {
   const profile = getGuestProfile(id);
-  if (!profile) return { changes: 0 };
+  if (!profile) return { changes: 0, reconciliation: null };
 
   const checkInDate = formatBookingDate(new Date());
   const addons = listGuestProfileAddons(id);
   const stayDates = getGuestStayDates(checkInDate, addons);
+  let reconciliation: GuestBookingReconciliationResult | null = null;
 
   db.exec("BEGIN");
   try {
@@ -427,19 +477,33 @@ function checkInGuestProfile(id: number): MutationResult {
     if (profile.userId) {
       updateGuestUserStayDates(profile.userId, stayDates);
       setGuestUserAccess(profile.userId, 1);
+      reconciliation = reconcileFutureGuestBookings({
+        active: 1,
+        actor,
+        stayDates,
+        userId: profile.userId,
+      });
     }
 
     db.exec("COMMIT");
-    return result;
+    return { ...result, reconciliation };
   } catch (error) {
     rollbackGuestProfileTransaction();
     throw error;
   }
 }
 
-function undoGuestProfileCheckIn(id: number): MutationResult {
+function undoGuestProfileCheckIn(
+  id: number,
+  actor: User,
+): MutationResult & { reconciliation: GuestBookingReconciliationResult | null } {
   const profile = getGuestProfile(id);
-  if (!profile) return { changes: 0 };
+  if (!profile) return { changes: 0, reconciliation: null };
+  const stayDates = getGuestStayDates(
+    profile.expectedDeliveryDate,
+    listGuestProfileAddons(id),
+  );
+  let reconciliation: GuestBookingReconciliationResult | null = null;
 
   db.exec("BEGIN");
   try {
@@ -455,10 +519,16 @@ function undoGuestProfileCheckIn(id: number): MutationResult {
 
     if (profile.userId) {
       setGuestUserAccess(profile.userId, 0);
+      reconciliation = reconcileFutureGuestBookings({
+        active: 0,
+        actor,
+        stayDates,
+        userId: profile.userId,
+      });
     }
 
     db.exec("COMMIT");
-    return result;
+    return { ...result, reconciliation };
   } catch (error) {
     rollbackGuestProfileTransaction();
     throw error;
@@ -499,6 +569,49 @@ function hasDuplicateIncomingIc(
     | undefined;
 
   return Boolean(row);
+}
+
+function getGuestProfileMutationMessage(
+  baseMessage: string,
+  reconciliation: GuestBookingReconciliationResult | null,
+  includeRestoreNotice: boolean,
+): string {
+  const details: string[] = [];
+  const cancelledCount =
+    (reconciliation?.facilityBookingsCancelled ?? 0) +
+    (reconciliation?.serviceBookingsCancelled ?? 0);
+
+  if (cancelledCount > 0) {
+    const bookingNoun = cancelledCount === 1 ? "booking was" : "bookings were";
+    const pronoun = cancelledCount === 1 ? "it is" : "they are";
+    details.push(
+      `${cancelledCount} future ${bookingNoun} cancelled because ${pronoun} no longer valid.`,
+    );
+  }
+
+  if (
+    includeRestoreNotice &&
+    reconciliation &&
+    reconciliation.futureCancelledBookingsRetained > 0
+  ) {
+    details.push(
+      "Cancelled bookings are not restored automatically. Rebook them if needed.",
+    );
+  }
+
+  return details.length > 0
+    ? `${baseMessage}. ${details.join(" ")}`
+    : `${baseMessage}.`;
+}
+
+function hasStayDatesChanged(
+  previousStayDates: { checkInDate: string | null; checkOutDate: string | null },
+  stayDates: { checkInDate: string | null; checkOutDate: string | null },
+): boolean {
+  return (
+    previousStayDates.checkInDate !== stayDates.checkInDate ||
+    previousStayDates.checkOutDate !== stayDates.checkOutDate
+  );
 }
 
 function getGuestProfileSelectList(): string {

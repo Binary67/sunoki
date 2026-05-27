@@ -231,6 +231,8 @@ const ADMIN_TABLES: Record<EditableTableName, AdminTableDefinition> = {
         input: "date",
         required: true,
       },
+      { name: "status", label: "Status", readOnly: true },
+      { name: "cancelled_at", label: "Cancelled At", readOnly: true },
       { name: "created_at", label: "Created", readOnly: true },
     ],
   },

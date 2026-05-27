@@ -1,5 +1,3 @@
-import "server-only";
-
 import { DatabaseSync } from "node:sqlite";
 import { mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -65,12 +63,17 @@ db.exec(`
     user_id               INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     facility_time_slot_id INTEGER NOT NULL REFERENCES facility_time_slots(id) ON DELETE CASCADE,
     booking_date          TEXT NOT NULL,
+    status                TEXT NOT NULL DEFAULT 'booked' CHECK (status IN ('booked','cancelled')),
     admin_read            INTEGER NOT NULL DEFAULT 0 CHECK (admin_read IN (0, 1)),
     admin_done            INTEGER NOT NULL DEFAULT 0 CHECK (admin_done IN (0, 1)),
     admin_done_at         TEXT,
-    created_at            TEXT NOT NULL DEFAULT (datetime('now')),
-    UNIQUE (user_id, facility_time_slot_id, booking_date)
+    cancelled_at          TEXT,
+    created_at            TEXT NOT NULL DEFAULT (datetime('now'))
   );
+
+  CREATE UNIQUE INDEX IF NOT EXISTS facility_bookings_active_unique
+    ON facility_bookings(user_id, facility_time_slot_id, booking_date)
+    WHERE status = 'booked';
 
   CREATE TABLE IF NOT EXISTS guest_profiles (
     id                     INTEGER PRIMARY KEY,
