@@ -1,38 +1,57 @@
-This is a [Next.js](https://nextjs.org) project for Sunoki.
+## Sunoki
 
-## Getting Started
+Sunoki is a Next.js app for facility booking, guest profile operations, admin
+data management, and backup/restore workflows.
 
-Use Node 24 LTS for local development and deployment. Node 22.5.0 or newer is
-required because this app uses the built-in `node:sqlite` module.
+## Runtime
 
-After cloning the repo, install dependencies from the committed lockfile, seed
-the local SQLite data, and start the development server:
+Use Node 24.x for local development and deployment. The app uses the built-in
+`node:sqlite` module and expects a writable local filesystem for SQLite data.
+
+The committed `.node-version` file pins the local runtime target to Node 24.
+
+## Local Setup
+
+Install dependencies from the committed lockfile, seed the local SQLite data,
+and start the development server:
 
 ```bash
-git clone <repo-url>
-cd sunoki
 npm ci
 npm run seed
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open `http://localhost:3000` in your browser.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Local Data
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+The SQLite database is created at `data/sunoki.db` relative to the project
+working directory. The `data/` directory is gitignored and must not be committed.
 
-## Learn More
+Running `npm run seed` creates local development data:
 
-To learn more about Next.js, take a look at the following resources:
+- Admin users:
+  - `superadmin` / `superadmin123`
+  - `admin` / `admin123`
+- Facility records and default time slots.
+- Package entitlement defaults, reset to the values in code.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+The seeded credentials are for local development only. Do not use them for
+deployed environments.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Backup And Restore
 
-## Deploy on Vercel
+Admin backup exports and imports use workbook files. Before a restore is
+applied, the app writes an automatic pre-restore backup under `data/backups`.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Because backup files are under `data/`, they are local runtime data and are not
+tracked by git.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Deployment Notes
+
+Deployments must run on Node 24.x and provide persistent writable storage for
+the `data/` directory. A deployment with ephemeral serverless storage is not a
+correct fit unless `data/` is backed by a persistent mounted volume.
+
+Do not deploy with the local seed credentials. Provision production users and
+data through the intended admin workflow or a controlled data restore.
