@@ -1,8 +1,10 @@
 import { insertAuditLog } from "./admin-data/audit";
 import { db, type User } from "./db";
 import { isBookingDate, isWithinBookingDateRange } from "./booking-dates";
+import { GUEST_BOOKING_CHECK_IN_REQUIRED_MESSAGE } from "./guest-booking-access";
 import { parsePackageEntitlementSnapshot } from "./package-entitlement-options";
 import { UNLIMITED_PACKAGE_SERVICE_QUANTITY } from "./package-entitlements";
+import type { GuestProfileStatus } from "./guest-profile-types";
 import type { UserRole } from "./roles";
 
 export const RELAXING_HAIR_WASH_SERVICE = {
@@ -41,6 +43,7 @@ type ServiceBookingUserRow = {
 
 type GuestProfileServiceRow = {
   id: number;
+  status: GuestProfileStatus;
   packageEntitlementSnapshotJson: string | null;
 };
 
@@ -79,7 +82,7 @@ export function getGuestServiceBookingSummary(
   if (user.role !== "guest") return null;
 
   const profile = getGuestProfileForServiceBooking(user.id);
-  if (!profile) return null;
+  if (!profile || profile.status !== "checked_in") return null;
 
   const entitlement = getRelaxingHairWashEntitlement(user.id, profile.id, profile);
   const bookings = listActiveServiceBookings(user.id, now);
@@ -131,6 +134,19 @@ export function createServiceBooking({
       inTransaction = false;
       return { ok: false, error: "Only guests can book services." };
     }
+
+    const profile = getGuestProfileForServiceBooking(userId);
+    if (!profile) {
+      db.exec("ROLLBACK");
+      inTransaction = false;
+      return { ok: false, error: "Your guest profile is not set up." };
+    }
+    if (profile.status !== "checked_in") {
+      db.exec("ROLLBACK");
+      inTransaction = false;
+      return { ok: false, error: GUEST_BOOKING_CHECK_IN_REQUIRED_MESSAGE };
+    }
+
     if (
       !bookingUser.checkInDate ||
       !bookingUser.checkOutDate ||
@@ -155,13 +171,6 @@ export function createServiceBooking({
       db.exec("ROLLBACK");
       inTransaction = false;
       return { ok: false, error: "Choose a date within your stay dates." };
-    }
-
-    const profile = getGuestProfileForServiceBooking(userId);
-    if (!profile) {
-      db.exec("ROLLBACK");
-      inTransaction = false;
-      return { ok: false, error: "Your guest profile is not set up." };
     }
 
     const entitlement = getRelaxingHairWashEntitlement(
@@ -306,6 +315,7 @@ function getGuestProfileForServiceBooking(
       `
         SELECT
           id,
+          status,
           package_entitlement_snapshot_json AS packageEntitlementSnapshotJson
         FROM guest_profiles
         WHERE user_id = ?

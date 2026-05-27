@@ -2,6 +2,10 @@ import { insertAuditLog } from "./admin-data/audit";
 import type { AdminRow } from "./admin-data/definitions";
 import { db, type User } from "./db";
 import { isBookingDate, isWithinBookingDateRange } from "./booking-dates";
+import {
+  GUEST_BOOKING_CHECK_IN_REQUIRED_MESSAGE,
+  getGuestBookingProfileStatus,
+} from "./guest-booking-access";
 import type { UserRole } from "./roles";
 
 export type FacilitySlotAvailability = {
@@ -340,6 +344,12 @@ export function createFacilityBooking({
       db.exec("ROLLBACK");
       inTransaction = false;
       return { ok: false, error: "Only guests can reserve facility slots." };
+    }
+
+    if (getGuestBookingProfileStatus(userId) !== "checked_in") {
+      db.exec("ROLLBACK");
+      inTransaction = false;
+      return { ok: false, error: GUEST_BOOKING_CHECK_IN_REQUIRED_MESSAGE };
     }
 
     const checkInDate = bookingUser.checkInDate;
