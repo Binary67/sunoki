@@ -1,20 +1,19 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+This is a [Next.js](https://nextjs.org) project for Sunoki.
 
 ## Getting Started
 
 Use Node 24 LTS for local development and deployment. Node 22.5.0 or newer is
 required because this app uses the built-in `node:sqlite` module.
 
-First, run the development server:
+After cloning the repo, install dependencies from the committed lockfile, seed
+the local SQLite data, and start the development server:
 
 ```bash
+git clone <repo-url>
+cd sunoki
+npm ci
+npm run seed
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
