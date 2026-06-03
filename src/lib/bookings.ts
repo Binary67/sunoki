@@ -5,10 +5,12 @@ import { isBookingDate, isWithinBookingDateRange } from "./booking-dates";
 import type { UserRole } from "./roles";
 import type { ServiceBookingKey } from "./service-bookings";
 
-type FacilityRow = {
+export type FacilityBookingOption = {
   id: number;
   name: string;
 };
+
+type FacilityRow = FacilityBookingOption;
 
 type FacilityBookingUserRow = {
   role: UserRole;
@@ -77,6 +79,7 @@ type UpcomingServiceBookingRow = {
 
 export type UpcomingBookingFilters = {
   bookingDate?: string;
+  facilityIds?: number[];
   serviceKeys?: ServiceBookingKey[];
 };
 
@@ -94,13 +97,17 @@ export function getUpcomingBookings(
   now: Date = new Date(),
 ): UpcomingBooking[] {
   const cutoff = formatNowForSqlite(now);
+  const facilityIds = filters.facilityIds ?? [];
   const serviceKeys = filters.serviceKeys ?? [];
-  const includeFacilities = serviceKeys.length === 0;
+  const hasFacilityFilters = facilityIds.length > 0;
+  const hasServiceFilters = serviceKeys.length > 0;
+  const includeFacilities = !hasServiceFilters || hasFacilityFilters;
+  const includeServices = !hasFacilityFilters || hasServiceFilters;
   const facilityWhere = [
     "b.status = 'booked'",
     "(b.booking_date || ' ' || b.booking_time) >= ?",
   ];
-  const facilityParams = [cutoff];
+  const facilityParams: (string | number)[] = [cutoff];
   const serviceWhere = [
     "b.status = 'booked'",
     "(b.booking_date || ' ' || b.booking_time) >= ?",
@@ -112,6 +119,13 @@ export function getUpcomingBookings(
     facilityParams.push(filters.bookingDate);
     serviceWhere.push("b.booking_date = ?");
     serviceParams.push(filters.bookingDate);
+  }
+
+  if (facilityIds.length > 0) {
+    facilityWhere.push(
+      `b.facility_id IN (${facilityIds.map(() => "?").join(", ")})`,
+    );
+    facilityParams.push(...facilityIds);
   }
 
   if (serviceKeys.length > 0) {
@@ -145,9 +159,10 @@ export function getUpcomingBookings(
         .all(...facilityParams) as UpcomingFacilityBookingRow[])
     : [];
 
-  const serviceRows = db
-    .prepare(
-      `
+  const serviceRows: UpcomingServiceBookingRow[] = includeServices
+    ? (db
+        .prepare(
+          `
         SELECT
           b.id              AS bookingId,
           b.service_key     AS serviceKey,
@@ -164,8 +179,9 @@ export function getUpcomingBookings(
         WHERE ${serviceWhere.join("\n          AND ")}
         ORDER BY b.booking_date ASC, b.booking_time ASC, b.id ASC
       `,
-    )
-    .all(...serviceParams) as UpcomingServiceBookingRow[];
+        )
+        .all(...serviceParams) as UpcomingServiceBookingRow[])
+    : [];
 
   return [
     ...facilityRows.map((row) => ({
@@ -201,6 +217,17 @@ export function getUpcomingBookings(
       a.bookingId - b.bookingId
     );
   });
+}
+
+export function listFacilityBookingOptions(): FacilityBookingOption[] {
+  return (
+    db
+      .prepare("SELECT id, name FROM facilities ORDER BY name ASC, id ASC")
+      .all() as FacilityRow[]
+  ).map((facility) => ({
+    id: Number(facility.id),
+    name: facility.name,
+  }));
 }
 
 export type CreateFacilityBookingInput = {

@@ -5,7 +5,11 @@ import {
   formatBookingDate as formatDateKey,
   isBookingDate,
 } from "@/src/lib/booking-dates";
-import { getUpcomingBookings } from "@/src/lib/bookings";
+import {
+  getUpcomingBookings,
+  listFacilityBookingOptions,
+  type FacilityBookingOption,
+} from "@/src/lib/bookings";
 import { listGuestProfiles } from "@/src/lib/guest-profiles";
 import { isAdminRole } from "@/src/lib/roles";
 import {
@@ -22,6 +26,7 @@ type DashboardTab = "room-occupancy" | "upcoming-bookings";
 type PageProps = {
   searchParams: Promise<{
     date?: string | string[];
+    facility?: string | string[];
     room?: string | string[];
     service?: string | string[];
     tab?: string | string[];
@@ -50,8 +55,14 @@ export default async function Dashboard({ searchParams }: PageProps) {
   const today = formatDateKey(new Date());
   const selectedBookingDate = getBookingDateFilter(getSingleValue(query.date));
   const selectedServiceKeys = getServiceKeyFilters(getValues(query.service));
+  const facilityOptions = listFacilityBookingOptions();
+  const selectedFacilityIds = getFacilityIdFilters(
+    getValues(query.facility),
+    facilityOptions,
+  );
   const bookings = getUpcomingBookings({
     bookingDate: selectedBookingDate,
+    facilityIds: selectedFacilityIds,
     serviceKeys: selectedServiceKeys,
   });
   const checkedInProfiles = listGuestProfiles("checked_in", today);
@@ -88,8 +99,10 @@ export default async function Dashboard({ searchParams }: PageProps) {
           bookings={bookings}
           filters={{
             bookingDate: selectedBookingDate,
+            facilityIds: selectedFacilityIds,
             serviceKeys: selectedServiceKeys,
           }}
+          facilityOptions={facilityOptions}
           serviceOptions={BOOKABLE_PACKAGE_SERVICES}
           today={today}
         />
@@ -161,4 +174,14 @@ function getServiceKeyFilters(values: string[]): ServiceBookingKey[] {
   return BOOKABLE_PACKAGE_SERVICES.filter((service) =>
     requestedValues.has(service.key),
   ).map((service) => service.key);
+}
+
+function getFacilityIdFilters(
+  values: string[],
+  facilityOptions: FacilityBookingOption[],
+): number[] {
+  const requestedValues = new Set(values);
+  return facilityOptions
+    .filter((facility) => requestedValues.has(String(facility.id)))
+    .map((facility) => facility.id);
 }

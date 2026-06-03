@@ -1,6 +1,9 @@
 import Link from "next/link";
 import CalendarDateField from "@/app/components/CalendarDateField";
-import type { UpcomingBooking } from "@/src/lib/bookings";
+import type {
+  FacilityBookingOption,
+  UpcomingBooking,
+} from "@/src/lib/bookings";
 import type {
   BookablePackageService,
   ServiceBookingKey,
@@ -8,22 +11,29 @@ import type {
 
 type UpcomingBookingFilterState = {
   bookingDate?: string;
+  facilityIds: number[];
   serviceKeys: ServiceBookingKey[];
 };
 
 export default function UpcomingBookings({
   bookings,
+  facilityOptions,
   filters,
   serviceOptions,
   today,
 }: {
   bookings: UpcomingBooking[];
+  facilityOptions: FacilityBookingOption[];
   filters: UpcomingBookingFilterState;
   serviceOptions: BookablePackageService[];
   today: string;
 }) {
+  const selectedFacilityCount = filters.facilityIds.length;
   const selectedServiceCount = filters.serviceKeys.length;
-  const hasActiveFilters = Boolean(filters.bookingDate) || selectedServiceCount > 0;
+  const selectedBookingFilterCount =
+    selectedServiceCount + selectedFacilityCount;
+  const hasActiveFilters =
+    Boolean(filters.bookingDate) || selectedBookingFilterCount > 0;
 
   return (
     <section>
@@ -53,8 +63,10 @@ export default function UpcomingBookings({
         <details className="group relative">
           <summary className="flex h-9 cursor-pointer list-none items-center gap-2 rounded-md border border-black/10 bg-white px-3 text-sm text-ink/75 shadow-sm shadow-black/[0.02] hover:text-ink [&::-webkit-details-marker]:hidden">
             <span>
-              Services
-              {selectedServiceCount > 0 ? ` (${selectedServiceCount})` : ""}
+              Service / Facility
+              {selectedBookingFilterCount > 0
+                ? ` (${selectedBookingFilterCount})`
+                : ""}
             </span>
             <span
               aria-hidden="true"
@@ -63,11 +75,11 @@ export default function UpcomingBookings({
           </summary>
 
           <div className="absolute left-0 z-20 mt-2 w-80 max-w-[calc(100vw-2rem)] rounded-lg border border-black/10 bg-white p-2 shadow-lg shadow-black/10">
-            <fieldset>
-              <legend className="px-2 py-1 text-xs font-medium uppercase tracking-[0.12em] text-ink/45">
-                Services
-              </legend>
-              <div className="max-h-72 overflow-y-auto">
+            <div className="max-h-72 overflow-y-auto">
+              <fieldset>
+                <legend className="px-2 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-ink/50">
+                  Services
+                </legend>
                 {serviceOptions.map((service) => (
                   <label
                     className="flex items-start gap-2 rounded-md px-2 py-1.5 text-sm text-ink/75 hover:bg-surface"
@@ -83,8 +95,29 @@ export default function UpcomingBookings({
                     <span>{service.name}</span>
                   </label>
                 ))}
-              </div>
-            </fieldset>
+              </fieldset>
+
+              <fieldset className="mt-2 border-t border-black/5 pt-2">
+                <legend className="px-2 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-ink/50">
+                  Facilities
+                </legend>
+                {facilityOptions.map((facility) => (
+                  <label
+                    className="flex items-start gap-2 rounded-md px-2 py-1.5 text-sm text-ink/75 hover:bg-surface"
+                    key={facility.id}
+                  >
+                    <input
+                      className="mt-0.5 h-4 w-4 rounded border-black/20 text-brand focus:ring-brand/20"
+                      defaultChecked={filters.facilityIds.includes(facility.id)}
+                      name="facility"
+                      type="checkbox"
+                      value={facility.id}
+                    />
+                    <span>{facility.name}</span>
+                  </label>
+                ))}
+              </fieldset>
+            </div>
           </div>
         </details>
 
