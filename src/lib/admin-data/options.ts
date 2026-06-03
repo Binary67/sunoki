@@ -1,6 +1,6 @@
 import { db } from "../db";
 import type { UserRole } from "../roles";
-import { RELAXING_HAIR_WASH_SERVICE } from "../service-bookings";
+import { BOOKABLE_PACKAGE_SERVICES } from "../service-bookings";
 import type { AdminSelectOptions } from "./definitions";
 
 type FacilityOptionRow = {
@@ -67,12 +67,10 @@ export function getAdminSelectOptions(): AdminSelectOptions {
       { value: "1", label: "Active" },
       { value: "0", label: "Inactive" },
     ],
-    bookableServices: [
-      {
-        value: RELAXING_HAIR_WASH_SERVICE.key,
-        label: RELAXING_HAIR_WASH_SERVICE.name,
-      },
-    ],
+    bookableServices: BOOKABLE_PACKAGE_SERVICES.map((service) => ({
+      value: service.key,
+      label: service.name,
+    })),
     celebrationChoiceRules: [
       { value: "none", label: "None" },
       { value: "choose_one", label: "Choose One" },

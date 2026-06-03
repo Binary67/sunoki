@@ -2,15 +2,48 @@ import { insertAuditLog } from "./admin-data/audit";
 import { db, type User } from "./db";
 import { isBookingDate, isWithinBookingDateRange } from "./booking-dates";
 import { parsePackageEntitlementSnapshot } from "./package-entitlement-options";
-import { UNLIMITED_PACKAGE_SERVICE_QUANTITY } from "./package-entitlements";
+import {
+  PACKAGE_SERVICE_COLUMNS,
+  UNLIMITED_PACKAGE_SERVICE_QUANTITY,
+  type PackageServiceColumnName,
+} from "./package-entitlements";
 import type { UserRole } from "./roles";
 
-export const RELAXING_HAIR_WASH_SERVICE = {
-  key: "relaxing_hair_wash",
-  name: "Relaxing Hair Wash",
-} as const;
+export type ServiceBookingKey = PackageServiceColumnName;
 
-export type ServiceBookingKey = typeof RELAXING_HAIR_WASH_SERVICE.key;
+export type BookablePackageService = {
+  key: ServiceBookingKey;
+  name: string;
+};
+
+export const BOOKABLE_PACKAGE_SERVICES: BookablePackageService[] =
+  PACKAGE_SERVICE_COLUMNS.map((column) => ({
+    key: column.name,
+    name: column.label,
+  }));
+
+export const RELAXING_HAIR_WASH_SERVICE = requireBookablePackageService(
+  "relaxing_hair_wash",
+);
+
+export function getBookablePackageService(
+  serviceKey: string,
+): BookablePackageService | null {
+  return (
+    BOOKABLE_PACKAGE_SERVICES.find((service) => service.key === serviceKey) ??
+    null
+  );
+}
+
+function requireBookablePackageService(
+  serviceKey: string,
+): BookablePackageService {
+  const service = getBookablePackageService(serviceKey);
+  if (!service) {
+    throw new Error("Package service is not configured.");
+  }
+  return service;
+}
 
 export type GuestServiceBooking = {
   id: number;
@@ -81,12 +114,18 @@ export function getGuestServiceBookingSummary(
   const profile = getGuestProfileForServiceBooking(user.id);
   if (!profile) return null;
 
-  const entitlement = getRelaxingHairWashEntitlement(user.id, profile.id, profile);
-  const bookings = listActiveServiceBookings(user.id, now);
+  const service = RELAXING_HAIR_WASH_SERVICE;
+  const entitlement = getServiceEntitlement(
+    user.id,
+    profile.id,
+    profile,
+    service,
+  );
+  const bookings = listActiveServiceBookings(user.id, service.key, now);
 
   return {
-    serviceKey: RELAXING_HAIR_WASH_SERVICE.key,
-    serviceName: RELAXING_HAIR_WASH_SERVICE.name,
+    serviceKey: service.key,
+    serviceName: service.name,
     ...entitlement,
     bookings,
   };
@@ -99,7 +138,8 @@ export function createServiceBooking({
   bookingDate,
   bookingTime,
 }: CreateServiceBookingInput): CreateServiceBookingResult {
-  if (serviceKey !== RELAXING_HAIR_WASH_SERVICE.key) {
+  const service = getBookablePackageService(serviceKey);
+  if (!service) {
     return { ok: false, error: "Choose a valid service." };
   }
   if (!isBookingDate(bookingDate) || !isBookingTime(bookingTime)) {
@@ -164,10 +204,11 @@ export function createServiceBooking({
       return { ok: false, error: "Your guest profile is not set up." };
     }
 
-    const entitlement = getRelaxingHairWashEntitlement(
+    const entitlement = getServiceEntitlement(
       userId,
       profile.id,
       profile,
+      service,
     );
     if (
       entitlement.remainingQuantity !== null &&
@@ -177,8 +218,7 @@ export function createServiceBooking({
       inTransaction = false;
       return {
         ok: false,
-        error:
-          "You have used all Relaxing Hair Wash sessions. Please inform admin to add more in your guest profile.",
+        error: `You have used all ${service.name} sessions. Please inform admin to add more in your guest profile.`,
       };
     }
 
@@ -194,7 +234,7 @@ export function createServiceBooking({
             AND status = 'booked'
         `,
       )
-      .get(userId, serviceKey, bookingDate, bookingTime);
+      .get(userId, service.key, bookingDate, bookingTime);
     if (existing) {
       db.exec("ROLLBACK");
       inTransaction = false;
@@ -219,8 +259,8 @@ export function createServiceBooking({
     ).run(
       userId,
       profile.id,
-      RELAXING_HAIR_WASH_SERVICE.key,
-      RELAXING_HAIR_WASH_SERVICE.name,
+      service.key,
+      service.name,
       bookingDate,
       bookingTime,
     ) as { lastInsertRowid: number | bigint };
@@ -243,7 +283,7 @@ export function createServiceBooking({
     return {
       ok: true,
       bookingId: Number(result.lastInsertRowid),
-      serviceName: RELAXING_HAIR_WASH_SERVICE.name,
+      serviceName: service.name,
     };
   } catch {
     if (inTransaction) db.exec("ROLLBACK");
@@ -316,24 +356,28 @@ function getGuestProfileForServiceBooking(
   return row ?? null;
 }
 
-function getRelaxingHairWashEntitlement(
+function getServiceEntitlement(
   userId: number,
   guestProfileId: number,
   profile: GuestProfileServiceRow,
+  service: BookablePackageService,
 ): Omit<GuestServiceBookingSummary, "serviceKey" | "serviceName" | "bookings"> {
   const snapshot = parsePackageEntitlementSnapshot(
     profile.packageEntitlementSnapshotJson,
   );
   const packageQuantity =
     snapshot?.services.find(
-      (service) => service.name === RELAXING_HAIR_WASH_SERVICE.key,
+      (snapshotService) => snapshotService.name === service.key,
     )?.quantity ?? 0;
-  const purchasedPerkQuantity = getPurchasedPerkQuantity(guestProfileId);
+  const purchasedPerkQuantity = getPurchasedPerkQuantity(
+    guestProfileId,
+    service.name,
+  );
   const totalQuantity =
     packageQuantity === UNLIMITED_PACKAGE_SERVICE_QUANTITY
       ? UNLIMITED_PACKAGE_SERVICE_QUANTITY
       : packageQuantity + purchasedPerkQuantity;
-  const usedQuantity = getActiveServiceBookingCount(userId);
+  const usedQuantity = getActiveServiceBookingCount(userId, service.key);
   const remainingQuantity =
     totalQuantity === UNLIMITED_PACKAGE_SERVICE_QUANTITY
       ? null
@@ -348,7 +392,10 @@ function getRelaxingHairWashEntitlement(
   };
 }
 
-function getPurchasedPerkQuantity(guestProfileId: number): number {
+function getPurchasedPerkQuantity(
+  guestProfileId: number,
+  serviceName: string,
+): number {
   const row = db
     .prepare(
       `
@@ -359,14 +406,17 @@ function getPurchasedPerkQuantity(guestProfileId: number): number {
           AND service_name = ?
       `,
     )
-    .get(guestProfileId, RELAXING_HAIR_WASH_SERVICE.name) as
+    .get(guestProfileId, serviceName) as
     | QuantityRow
     | undefined;
 
   return Number(row?.quantity ?? 0);
 }
 
-function getActiveServiceBookingCount(userId: number): number {
+function getActiveServiceBookingCount(
+  userId: number,
+  serviceKey: ServiceBookingKey,
+): number {
   const row = db
     .prepare(
       `
@@ -377,13 +427,14 @@ function getActiveServiceBookingCount(userId: number): number {
           AND status = 'booked'
       `,
     )
-    .get(userId, RELAXING_HAIR_WASH_SERVICE.key) as CountRow;
+    .get(userId, serviceKey) as CountRow;
 
   return Number(row.count);
 }
 
 function listActiveServiceBookings(
   userId: number,
+  serviceKey: ServiceBookingKey,
   now: Date,
 ): GuestServiceBooking[] {
   const rows = db
@@ -402,7 +453,7 @@ function listActiveServiceBookings(
         ORDER BY booking_date ASC, booking_time ASC, id ASC
       `,
     )
-    .all(userId, RELAXING_HAIR_WASH_SERVICE.key) as ServiceBookingRow[];
+    .all(userId, serviceKey) as ServiceBookingRow[];
 
   return rows.map((row) => ({
     id: Number(row.id),

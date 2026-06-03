@@ -1,5 +1,3 @@
-import "server-only";
-
 import { DatabaseSync } from "node:sqlite";
 import { mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -21,6 +19,24 @@ const packageServiceColumnSql = PACKAGE_SERVICE_COLUMNS.map(
   (column) =>
     `${column.name} INTEGER NOT NULL DEFAULT 0 CHECK (${column.name} >= -1)`,
 ).join(",\n    ");
+const packageServiceKeySql = PACKAGE_SERVICE_COLUMNS.map(
+  (column) => `'${column.name}'`,
+).join(", ");
+const guestServiceBookingColumnSql = `
+    id               INTEGER PRIMARY KEY,
+    user_id          INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    guest_profile_id INTEGER NOT NULL REFERENCES guest_profiles(id) ON DELETE CASCADE,
+    service_key      TEXT NOT NULL CHECK (service_key IN (${packageServiceKeySql})),
+    service_name     TEXT NOT NULL,
+    booking_date     TEXT NOT NULL,
+    booking_time     TEXT NOT NULL,
+    status           TEXT NOT NULL DEFAULT 'booked' CHECK (status IN ('booked','cancelled')),
+    admin_read       INTEGER NOT NULL DEFAULT 0 CHECK (admin_read IN (0, 1)),
+    admin_done       INTEGER NOT NULL DEFAULT 0 CHECK (admin_done IN (0, 1)),
+    admin_done_at    TEXT,
+    cancelled_at     TEXT,
+    created_at       TEXT NOT NULL DEFAULT (datetime('now'))
+`;
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS branding_settings (
@@ -121,19 +137,7 @@ db.exec(`
     ON guest_profile_addons(guest_profile_id);
 
   CREATE TABLE IF NOT EXISTS guest_service_bookings (
-    id               INTEGER PRIMARY KEY,
-    user_id          INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    guest_profile_id INTEGER NOT NULL REFERENCES guest_profiles(id) ON DELETE CASCADE,
-    service_key      TEXT NOT NULL CHECK (service_key IN ('relaxing_hair_wash')),
-    service_name     TEXT NOT NULL,
-    booking_date     TEXT NOT NULL,
-    booking_time     TEXT NOT NULL,
-    status           TEXT NOT NULL DEFAULT 'booked' CHECK (status IN ('booked','cancelled')),
-    admin_read       INTEGER NOT NULL DEFAULT 0 CHECK (admin_read IN (0, 1)),
-    admin_done       INTEGER NOT NULL DEFAULT 0 CHECK (admin_done IN (0, 1)),
-    admin_done_at    TEXT,
-    cancelled_at     TEXT,
-    created_at       TEXT NOT NULL DEFAULT (datetime('now'))
+${guestServiceBookingColumnSql}
   );
 
   CREATE INDEX IF NOT EXISTS guest_service_bookings_user_service_status_idx
@@ -266,6 +270,66 @@ if (
   !guestServiceBookingColumns.some((column) => column.name === "admin_done_at")
 ) {
   db.exec("ALTER TABLE guest_service_bookings ADD COLUMN admin_done_at TEXT;");
+}
+
+const guestServiceBookingSchema = db
+  .prepare(
+    "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'guest_service_bookings'",
+  )
+  .get() as { sql: string } | undefined;
+if (
+  guestServiceBookingSchema?.sql &&
+  !PACKAGE_SERVICE_COLUMNS.every((column) =>
+    guestServiceBookingSchema.sql.includes(`'${column.name}'`),
+  )
+) {
+  db.exec(`
+    ALTER TABLE guest_service_bookings RENAME TO guest_service_bookings_old;
+
+    CREATE TABLE guest_service_bookings (
+${guestServiceBookingColumnSql}
+    );
+
+    INSERT INTO guest_service_bookings (
+      id,
+      user_id,
+      guest_profile_id,
+      service_key,
+      service_name,
+      booking_date,
+      booking_time,
+      status,
+      admin_read,
+      admin_done,
+      admin_done_at,
+      cancelled_at,
+      created_at
+    )
+    SELECT
+      id,
+      user_id,
+      guest_profile_id,
+      service_key,
+      service_name,
+      booking_date,
+      booking_time,
+      status,
+      admin_read,
+      admin_done,
+      admin_done_at,
+      cancelled_at,
+      created_at
+    FROM guest_service_bookings_old;
+
+    DROP TABLE guest_service_bookings_old;
+
+    CREATE INDEX IF NOT EXISTS guest_service_bookings_user_service_status_idx
+      ON guest_service_bookings(user_id, service_key, status, booking_date, booking_time);
+
+    CREATE UNIQUE INDEX IF NOT EXISTS guest_service_bookings_active_unique
+      ON guest_service_bookings(user_id, service_key, booking_date, booking_time)
+      WHERE status = 'booked';
+  `);
 }
 
 const guestProfileColumns = db

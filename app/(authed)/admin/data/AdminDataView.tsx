@@ -137,7 +137,7 @@ export function CreateFormSection({
         </h2>
         <p className="mt-1 text-xs leading-5 text-ink/55">
           {tableName === "guest_service_bookings"
-            ? "Relaxing Hair Wash is assigned automatically. Guest booking rules still apply."
+            ? "Package service availability and guest booking rules still apply."
             : "IDs and timestamp defaults are assigned by SQLite."}
         </p>
       </div>

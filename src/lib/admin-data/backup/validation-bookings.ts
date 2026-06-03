@@ -14,9 +14,7 @@ import {
   readPositiveIntegerValue,
   readRequiredTextValue,
 } from "./values";
-
-const RELAXING_HAIR_WASH_SERVICE_KEY = "relaxing_hair_wash";
-const RELAXING_HAIR_WASH_SERVICE_NAME = "Relaxing Hair Wash";
+import { getBookablePackageService } from "../../service-bookings";
 
 export function validateFacilityBookings(
   rows: ParsedSheetRow[],
@@ -406,7 +404,9 @@ export function validateGuestServiceBookings(
       );
     }
 
-    if (serviceKey !== RELAXING_HAIR_WASH_SERVICE_KEY) {
+    const service =
+      serviceKey !== null ? getBookablePackageService(serviceKey) : null;
+    if (serviceKey !== null && !service) {
       addRowError(
         errors,
         row,
@@ -415,13 +415,13 @@ export function validateGuestServiceBookings(
         "Choose a valid service key.",
       );
     }
-    if (serviceName !== RELAXING_HAIR_WASH_SERVICE_NAME) {
+    if (service && serviceName !== service.name) {
       addRowError(
         errors,
         row,
         "guest_service_bookings",
         "service_name",
-        "Choose a valid service name.",
+        "Service name must match the service key.",
       );
     }
     if (bookingTime !== null && !isTimeValue(bookingTime)) {

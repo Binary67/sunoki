@@ -4,7 +4,7 @@ import {
   PACKAGE_SERVICE_COLUMNS,
   UNLIMITED_PACKAGE_SERVICE_QUANTITY,
 } from "../package-entitlements";
-import { RELAXING_HAIR_WASH_SERVICE } from "../service-bookings";
+import { getBookablePackageService } from "../service-bookings";
 import type { UserRole } from "../roles";
 import {
   FACILITY_TAGLINE_MAX_LENGTH,
@@ -193,7 +193,8 @@ export function parseFormValues(
       if (!userId.ok) return userId;
       const serviceKey = readRequiredText(formData, "service_key", "Service");
       if (!serviceKey.ok) return serviceKey;
-      if (serviceKey.value !== RELAXING_HAIR_WASH_SERVICE.key) {
+      const service = getBookablePackageService(serviceKey.value);
+      if (!service) {
         return { ok: false, message: "Choose a valid service." };
       }
       const bookingDate = readRequiredText(
@@ -224,8 +225,8 @@ export function parseFormValues(
         values: {
           user_id: userId.value,
           guest_profile_id: bookingUser.guestProfileId,
-          service_key: serviceKey.value,
-          service_name: RELAXING_HAIR_WASH_SERVICE.name,
+          service_key: service.key,
+          service_name: service.name,
           booking_date: bookingDate.value,
           booking_time: bookingTime.value,
           status: "booked",
