@@ -64,6 +64,53 @@ export function listGuestProfileAddons(
     .all(profileId, ADDITIONAL_DAYS_ADDON_NAME) as GuestProfileAddon[];
 }
 
+export function listGuestProfileAddonsByProfileIds(
+  profileIds: number[],
+): Map<number, GuestProfileAddon[]> {
+  const validProfileIds = getValidProfileIds(profileIds);
+  const addonsByProfileId = new Map<number, GuestProfileAddon[]>();
+  if (validProfileIds.length === 0) return addonsByProfileId;
+
+  const placeholders = validProfileIds.map(() => "?").join(", ");
+  const rows = db
+    .prepare(
+      `
+        SELECT
+          id,
+          guest_profile_id AS guestProfileId,
+          service_name AS serviceName,
+          category,
+          quantity,
+          days,
+          price_cents AS priceCents,
+          remarks,
+          created_at AS createdAt
+        FROM guest_profile_addons
+        WHERE guest_profile_id IN (${placeholders})
+        ORDER BY
+          guest_profile_id ASC,
+          CASE
+            WHEN service_name = ? THEN 0
+            WHEN category = 'sunoki' THEN 1
+            ELSE 2
+          END,
+          id ASC
+      `,
+    )
+    .all(...validProfileIds, ADDITIONAL_DAYS_ADDON_NAME) as GuestProfileAddon[];
+
+  for (const row of rows) {
+    const addons = addonsByProfileId.get(row.guestProfileId);
+    if (addons) {
+      addons.push(row);
+    } else {
+      addonsByProfileId.set(row.guestProfileId, [row]);
+    }
+  }
+
+  return addonsByProfileId;
+}
+
 export function formatGuestProfileAddonPrice(priceCents: number): string {
   const whole = Math.floor(priceCents / 100).toLocaleString("en-MY");
   const fraction = String(priceCents % 100).padStart(2, "0");
@@ -253,6 +300,14 @@ function getAddonQuantity(
   addon: Pick<GuestProfileAddon, "serviceName" | "quantity">,
 ): number {
   return addon.serviceName === ADDITIONAL_DAYS_ADDON_NAME ? 1 : addon.quantity;
+}
+
+function getValidProfileIds(profileIds: number[]): number[] {
+  return [
+    ...new Set(
+      profileIds.filter((profileId) => Number.isInteger(profileId) && profileId > 0),
+    ),
+  ];
 }
 
 function readFormValue(value: FormDataEntryValue | null): string | null {

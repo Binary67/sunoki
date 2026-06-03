@@ -52,7 +52,38 @@ export default async function Dashboard({ searchParams }: PageProps) {
   if (!isAdminRole(user.role)) return <GuestHome />;
 
   const query = await searchParams;
+  const activeTab = getDashboardTab(getSingleValue(query.tab));
   const today = formatDateKey(new Date());
+
+  if (activeTab === "room-occupancy") {
+    const checkedInProfiles = listGuestProfiles("checked_in", today);
+    const incomingProfiles = listGuestProfiles("incoming", today);
+    const roomOccupancy = getRoomOccupancy(
+      checkedInProfiles,
+      incomingProfiles,
+      today,
+    );
+    const selectedRoom = getSingleValue(query.room);
+    const selectedRoomDetails = selectedRoom
+      ? roomOccupancy.rooms.get(selectedRoom)
+      : undefined;
+
+    return (
+      <DashboardFrame activeTab={activeTab}>
+        <RoomOccupancySection
+          occupancyByRoom={roomOccupancy.rooms}
+          unassignedCount={roomOccupancy.unassignedCount}
+        />
+        {selectedRoom && selectedRoomDetails && (
+          <RoomOccupancyModal
+            roomDetails={selectedRoomDetails}
+            roomNumber={selectedRoom}
+          />
+        )}
+      </DashboardFrame>
+    );
+  }
+
   const selectedBookingDate = getBookingDateFilter(getSingleValue(query.date));
   const selectedServiceKeys = getServiceKeyFilters(getValues(query.service));
   const facilityOptions = listFacilityBookingOptions();
@@ -65,19 +96,31 @@ export default async function Dashboard({ searchParams }: PageProps) {
     facilityIds: selectedFacilityIds,
     serviceKeys: selectedServiceKeys,
   });
-  const checkedInProfiles = listGuestProfiles("checked_in", today);
-  const incomingProfiles = listGuestProfiles("incoming", today);
-  const activeTab = getDashboardTab(getSingleValue(query.tab));
-  const roomOccupancy = getRoomOccupancy(
-    checkedInProfiles,
-    incomingProfiles,
-    today,
-  );
-  const selectedRoom = getSingleValue(query.room);
-  const selectedRoomDetails = selectedRoom
-    ? roomOccupancy.rooms.get(selectedRoom)
-    : undefined;
 
+  return (
+    <DashboardFrame activeTab={activeTab}>
+      <UpcomingBookings
+        bookings={bookings}
+        filters={{
+          bookingDate: selectedBookingDate,
+          facilityIds: selectedFacilityIds,
+          serviceKeys: selectedServiceKeys,
+        }}
+        facilityOptions={facilityOptions}
+        serviceOptions={BOOKABLE_PACKAGE_SERVICES}
+        today={today}
+      />
+    </DashboardFrame>
+  );
+}
+
+function DashboardFrame({
+  activeTab,
+  children,
+}: {
+  activeTab: DashboardTab;
+  children: React.ReactNode;
+}) {
   return (
     <main className="flex-1 px-4 sm:px-6 lg:px-10 py-6 sm:py-8">
       <div className="mb-10">
@@ -89,31 +132,7 @@ export default async function Dashboard({ searchParams }: PageProps) {
 
       <DashboardTabNav activeTab={activeTab} />
 
-      {activeTab === "room-occupancy" ? (
-        <RoomOccupancySection
-          occupancyByRoom={roomOccupancy.rooms}
-          unassignedCount={roomOccupancy.unassignedCount}
-        />
-      ) : (
-        <UpcomingBookings
-          bookings={bookings}
-          filters={{
-            bookingDate: selectedBookingDate,
-            facilityIds: selectedFacilityIds,
-            serviceKeys: selectedServiceKeys,
-          }}
-          facilityOptions={facilityOptions}
-          serviceOptions={BOOKABLE_PACKAGE_SERVICES}
-          today={today}
-        />
-      )}
-
-      {activeTab === "room-occupancy" && selectedRoom && selectedRoomDetails && (
-        <RoomOccupancyModal
-          roomDetails={selectedRoomDetails}
-          roomNumber={selectedRoom}
-        />
-      )}
+      {children}
     </main>
   );
 }

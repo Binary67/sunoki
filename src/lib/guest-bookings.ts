@@ -34,6 +34,10 @@ type FacilityBookingRow = {
   adminDoneAt: string | null;
 };
 
+type FacilityBookingByProfileRow = FacilityBookingRow & {
+  profileId: number;
+};
+
 type ServiceBookingRow = {
   id: number;
   name: string;
@@ -42,6 +46,10 @@ type ServiceBookingRow = {
   adminRead: number;
   adminDone: number;
   adminDoneAt: string | null;
+};
+
+type ServiceBookingByProfileRow = ServiceBookingRow & {
+  profileId: number;
 };
 
 export type UpdateGuestBookingStatusResult =
@@ -92,33 +100,82 @@ export function listGuestBookingChecklist(
     .all(profileId) as ServiceBookingRow[];
 
   return [
-    ...facilityBookings.map((booking) => ({
-      id: Number(booking.id),
-      type: "facility" as const,
-      name: booking.name,
-      bookingDate: booking.bookingDate,
-      bookingTime: booking.bookingTime,
-      detail: null,
-      isRead: booking.adminRead === 1,
-      isDone: booking.adminDone === 1,
-      doneAt: booking.adminDoneAt,
-    })),
-    ...serviceBookings.map((booking) => ({
-      id: Number(booking.id),
-      type: "service" as const,
-      name: booking.name,
-      bookingDate: booking.bookingDate,
-      bookingTime: booking.bookingTime,
-      detail: null,
-      isRead: booking.adminRead === 1,
-      isDone: booking.adminDone === 1,
-      doneAt: booking.adminDoneAt,
-    })),
-  ].sort((a, b) => {
-    const aTime = `${a.bookingDate} ${a.bookingTime}`;
-    const bTime = `${b.bookingDate} ${b.bookingTime}`;
-    return aTime.localeCompare(bTime) || a.type.localeCompare(b.type) || a.id - b.id;
-  });
+    ...facilityBookings.map(mapFacilityBookingChecklistItem),
+    ...serviceBookings.map(mapServiceBookingChecklistItem),
+  ].sort(compareGuestBookingChecklistItems);
+}
+
+export function listGuestBookingChecklistsByProfileIds(
+  profileIds: number[],
+): Map<number, GuestBookingChecklistItem[]> {
+  const validProfileIds = getValidProfileIds(profileIds);
+  const bookingsByProfileId = new Map<number, GuestBookingChecklistItem[]>();
+  if (validProfileIds.length === 0) return bookingsByProfileId;
+
+  const placeholders = validProfileIds.map(() => "?").join(", ");
+  const facilityBookings = db
+    .prepare(
+      `
+        SELECT
+          gp.id AS profileId,
+          b.id,
+          f.name,
+          b.booking_date AS bookingDate,
+          b.booking_time AS bookingTime,
+          b.admin_read AS adminRead,
+          b.admin_done AS adminDone,
+          b.admin_done_at AS adminDoneAt
+        FROM guest_profiles gp
+        JOIN facility_bookings b ON b.user_id = gp.user_id
+        JOIN facilities f ON f.id = b.facility_id
+        WHERE gp.id IN (${placeholders})
+          AND b.status = 'booked'
+      `,
+    )
+    .all(...validProfileIds) as FacilityBookingByProfileRow[];
+
+  const serviceBookings = db
+    .prepare(
+      `
+        SELECT
+          gp.id AS profileId,
+          b.id,
+          b.service_name AS name,
+          b.booking_date AS bookingDate,
+          b.booking_time AS bookingTime,
+          b.admin_read AS adminRead,
+          b.admin_done AS adminDone,
+          b.admin_done_at AS adminDoneAt
+        FROM guest_profiles gp
+        JOIN guest_service_bookings b ON b.guest_profile_id = gp.id
+        WHERE gp.id IN (${placeholders})
+          AND gp.user_id IS NOT NULL
+          AND b.status = 'booked'
+      `,
+    )
+    .all(...validProfileIds) as ServiceBookingByProfileRow[];
+
+  for (const booking of facilityBookings) {
+    addBookingChecklistItem(
+      bookingsByProfileId,
+      booking.profileId,
+      mapFacilityBookingChecklistItem(booking),
+    );
+  }
+
+  for (const booking of serviceBookings) {
+    addBookingChecklistItem(
+      bookingsByProfileId,
+      booking.profileId,
+      mapServiceBookingChecklistItem(booking),
+    );
+  }
+
+  for (const bookings of bookingsByProfileId.values()) {
+    bookings.sort(compareGuestBookingChecklistItems);
+  }
+
+  return bookingsByProfileId;
 }
 
 export function hasUnreadGuestBookings(profileId: number): boolean {
@@ -145,6 +202,40 @@ export function hasUnreadGuestBookings(profileId: number): boolean {
     .get(profile.userId, profileId) as { unread: number } | undefined;
 
   return Boolean(row);
+}
+
+export function listUnreadGuestBookingProfileIds(profileIds: number[]): Set<number> {
+  const validProfileIds = getValidProfileIds(profileIds);
+  const unreadProfileIds = new Set<number>();
+  if (validProfileIds.length === 0) return unreadProfileIds;
+
+  const placeholders = validProfileIds.map(() => "?").join(", ");
+  const rows = db
+    .prepare(
+      `
+        SELECT gp.id AS profileId
+        FROM guest_profiles gp
+        JOIN facility_bookings b ON b.user_id = gp.user_id
+        WHERE gp.id IN (${placeholders})
+          AND b.status = 'booked'
+          AND b.admin_read = 0
+        UNION
+        SELECT gp.id AS profileId
+        FROM guest_profiles gp
+        JOIN guest_service_bookings b ON b.guest_profile_id = gp.id
+        WHERE gp.id IN (${placeholders})
+          AND gp.user_id IS NOT NULL
+          AND b.status = 'booked'
+          AND b.admin_read = 0
+      `,
+    )
+    .all(...validProfileIds, ...validProfileIds) as { profileId: number }[];
+
+  for (const row of rows) {
+    unreadProfileIds.add(Number(row.profileId));
+  }
+
+  return unreadProfileIds;
 }
 
 export function updateGuestBookingStatus({
@@ -214,6 +305,68 @@ function getGuestProfileUser(profileId: number): GuestProfileUserRow | null {
     .get(profileId) as GuestProfileUserRow | undefined;
 
   return row ?? null;
+}
+
+function mapFacilityBookingChecklistItem(
+  booking: FacilityBookingRow,
+): GuestBookingChecklistItem {
+  return {
+    id: Number(booking.id),
+    type: "facility",
+    name: booking.name,
+    bookingDate: booking.bookingDate,
+    bookingTime: booking.bookingTime,
+    detail: null,
+    isRead: booking.adminRead === 1,
+    isDone: booking.adminDone === 1,
+    doneAt: booking.adminDoneAt,
+  };
+}
+
+function mapServiceBookingChecklistItem(
+  booking: ServiceBookingRow,
+): GuestBookingChecklistItem {
+  return {
+    id: Number(booking.id),
+    type: "service",
+    name: booking.name,
+    bookingDate: booking.bookingDate,
+    bookingTime: booking.bookingTime,
+    detail: null,
+    isRead: booking.adminRead === 1,
+    isDone: booking.adminDone === 1,
+    doneAt: booking.adminDoneAt,
+  };
+}
+
+function addBookingChecklistItem(
+  bookingsByProfileId: Map<number, GuestBookingChecklistItem[]>,
+  profileId: number,
+  booking: GuestBookingChecklistItem,
+): void {
+  const bookings = bookingsByProfileId.get(profileId);
+  if (bookings) {
+    bookings.push(booking);
+  } else {
+    bookingsByProfileId.set(profileId, [booking]);
+  }
+}
+
+function compareGuestBookingChecklistItems(
+  a: GuestBookingChecklistItem,
+  b: GuestBookingChecklistItem,
+): number {
+  const aTime = `${a.bookingDate} ${a.bookingTime}`;
+  const bTime = `${b.bookingDate} ${b.bookingTime}`;
+  return aTime.localeCompare(bTime) || a.type.localeCompare(b.type) || a.id - b.id;
+}
+
+function getValidProfileIds(profileIds: number[]): number[] {
+  return [
+    ...new Set(
+      profileIds.filter((profileId) => Number.isInteger(profileId) && profileId > 0),
+    ),
+  ];
 }
 
 function getFacilityBookingStatus(
