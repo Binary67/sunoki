@@ -11,6 +11,7 @@ export default function BookingClient({
   minBookableDate,
   currentDateValue,
   currentTimeValue,
+  canBook,
   availability,
 }: {
   facilitySlug: FacilitySlug;
@@ -19,6 +20,7 @@ export default function BookingClient({
   minBookableDate: string;
   currentDateValue: string;
   currentTimeValue: string;
+  canBook: boolean;
   availability: FacilityAvailability;
 }) {
   return (
@@ -39,6 +41,7 @@ export default function BookingClient({
           selectedDateValue={selectedDateValue}
           currentDateValue={currentDateValue}
           currentTimeValue={currentTimeValue}
+          canBook={canBook}
           slots={availability.slots}
         />
       </aside>

@@ -2,6 +2,10 @@ import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/src/lib/auth";
 import { formatBookingDate, isBookingDate } from "@/src/lib/booking-dates";
 import type { User } from "@/src/lib/db";
+import {
+  GUEST_BOOKING_CHECK_IN_REQUIRED_MESSAGE,
+  getGuestBookingProfileStatus,
+} from "@/src/lib/guest-booking-access";
 import { getGuestServiceBookingSummary } from "@/src/lib/service-bookings";
 import ServiceBookingClient from "./ServiceBookingClient";
 
@@ -38,21 +42,27 @@ export default async function ServicesPage() {
   const currentTimeValue = `${String(now.getHours()).padStart(2, "0")}:${String(
     now.getMinutes(),
   ).padStart(2, "0")}`;
+  const profileStatus = getGuestBookingProfileStatus(user.id);
+
+  if (profileStatus !== "checked_in") {
+    return (
+      <UnavailableServicesMessage
+        message={
+          profileStatus === null
+            ? "Your guest profile is not set up for service booking. Please inform admin."
+            : GUEST_BOOKING_CHECK_IN_REQUIRED_MESSAGE
+        }
+      />
+    );
+  }
+
   const summary = getGuestServiceBookingSummary(user, now);
 
   if (!summary) {
     return (
-      <main className="flex-1 px-4 py-6 sm:px-6 sm:py-8 lg:px-10">
-        <div className="max-w-3xl">
-          <h1 className="text-xl font-semibold text-ink sm:text-2xl">
-            Services
-          </h1>
-          <p className="mt-3 rounded-lg border border-black/5 bg-white px-4 py-5 text-sm leading-6 text-ink/60">
-            Your guest profile is not set up for service booking. Please inform
-            admin.
-          </p>
-        </div>
-      </main>
+      <UnavailableServicesMessage
+        message="Your guest profile is not set up for service booking. Please inform admin."
+      />
     );
   }
 
@@ -64,5 +74,20 @@ export default async function ServicesPage() {
       minBookableDate={minBookableDate}
       summary={summary}
     />
+  );
+}
+
+function UnavailableServicesMessage({ message }: { message: string }) {
+  return (
+    <main className="flex-1 px-4 py-6 sm:px-6 sm:py-8 lg:px-10">
+      <div className="max-w-3xl">
+        <h1 className="text-xl font-semibold text-ink sm:text-2xl">
+          Services
+        </h1>
+        <p className="mt-3 rounded-lg border border-black/5 bg-white px-4 py-5 text-sm leading-6 text-ink/60">
+          {message}
+        </p>
+      </div>
+    </main>
   );
 }

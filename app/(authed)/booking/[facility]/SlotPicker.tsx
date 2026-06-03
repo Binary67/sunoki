@@ -76,12 +76,14 @@ export default function SlotPicker({
   selectedDateValue,
   currentDateValue,
   currentTimeValue,
+  canBook,
   slots,
 }: {
   facilitySlug: FacilitySlug;
   selectedDateValue: string;
   currentDateValue: string;
   currentTimeValue: string;
+  canBook: boolean;
   slots: FacilitySlotAvailability[];
 }) {
   const { showToast } = useToast();
@@ -162,6 +164,7 @@ export default function SlotPicker({
   const selectedDateLabel = formatDateLabel(selectedDateValue);
   const selectedSlotRecord = slots.find((slot) => slot.id === selectedSlot);
   const canReserveSelectedSlot =
+    canBook &&
     selectedSlotRecord?.isAvailable === true &&
     selectedSlotRecord.currentUserBookingId === null;
   const slotsByPeriod = bucketSlotsByPeriod(slots);
@@ -172,6 +175,11 @@ export default function SlotPicker({
       <div className="mt-1 text-xs text-ink/55">
         Selected Date: <span className="text-ink/80">{selectedDateLabel}</span>
       </div>
+      {!canBook && (
+        <p className="mt-4 rounded-md bg-surface px-3 py-3 text-sm leading-6 text-ink/60">
+          Booking is available after check-in.
+        </p>
+      )}
 
       <div className="mt-5 flex flex-col gap-3">
         {PERIOD_ORDER.map((period) => {
@@ -228,7 +236,7 @@ export default function SlotPicker({
                       slot.currentUserBookingId !== null;
                     const fullForOthers =
                       !slot.isAvailable && !bookedByCurrentUser;
-                    const unavailable = fullForOthers || started;
+                    const unavailable = fullForOthers || started || !canBook;
                     const selected = selectedSlot === slot.id;
                     return (
                       <li
@@ -281,6 +289,8 @@ export default function SlotPicker({
                           >
                             {bookedByCurrentUser
                               ? "Booked"
+                              : !canBook
+                                ? "After check-in"
                               : unavailable
                               ? started
                                 ? "Closed"
@@ -336,7 +346,9 @@ export default function SlotPicker({
                               }`}
                             >
                               {unavailable
-                                ? started
+                                ? !canBook
+                                  ? "Locked"
+                                  : started
                                   ? "Closed"
                                   : "Full"
                                 : selected

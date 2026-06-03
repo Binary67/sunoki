@@ -7,6 +7,7 @@ import {
   isBookingDate,
 } from "@/src/lib/booking-dates";
 import type { User } from "@/src/lib/db";
+import { getGuestBookingProfileStatus } from "@/src/lib/guest-booking-access";
 import BookingClient from "./BookingClient";
 import { FACILITIES, type FacilitySlug } from "./facility-content";
 
@@ -68,6 +69,7 @@ export default async function FacilityPage({
   if (!user) redirect("/login");
   if (user.role !== "guest") redirect("/");
 
+  const canBook = getGuestBookingProfileStatus(user.id) === "checked_in";
   const query = await searchParams;
   const bookingWindow = getGuestBookingWindow(user);
   const now = new Date();
@@ -97,6 +99,7 @@ export default async function FacilityPage({
       minBookableDate={minBookableDate}
       currentDateValue={todayDate}
       currentTimeValue={currentTimeValue}
+      canBook={canBook}
       availability={availability}
     />
   );
