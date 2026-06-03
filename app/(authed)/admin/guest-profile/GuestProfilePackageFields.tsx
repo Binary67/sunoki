@@ -6,7 +6,6 @@ import {
   formatPackageServiceQuantity,
   getPackageServiceEnabledFieldName,
   getPackageServiceQuantityFieldName,
-  isAvailablePackageServiceQuantity,
   UNLIMITED_PACKAGE_SERVICE_QUANTITY,
   type PackageEntitlementSnapshot,
   type PackageServiceColumnName,
@@ -180,9 +179,6 @@ function GuestPackageServicesEditor({
   }
 
   const hasChoiceRule = packageSnapshot.celebrationChoiceRule === "choose_one";
-  const availableServices = packageSnapshot.services.filter((service) =>
-    isAvailablePackageServiceQuantity(service.quantity),
-  );
 
   return (
     <div className={className}>
@@ -196,13 +192,13 @@ function GuestPackageServicesEditor({
           </span>
         )}
       </div>
-      {availableServices.length === 0 ? (
+      {packageSnapshot.services.length === 0 ? (
         <p className="text-sm leading-6 text-ink/55">
-          No services are included for this package.
+          No services are configured for this package.
         </p>
       ) : (
         <ul className="grid gap-3">
-          {availableServices.map((service) => {
+          {packageSnapshot.services.map((service) => {
             const valueService = valueSnapshot?.services.find(
               (candidate) => candidate.name === service.name,
             );

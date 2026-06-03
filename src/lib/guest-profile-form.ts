@@ -10,7 +10,6 @@ import {
 import {
   getPackageServiceEnabledFieldName,
   getPackageServiceQuantityFieldName,
-  isAvailablePackageServiceQuantity,
   UNLIMITED_PACKAGE_SERVICE_QUANTITY,
   type PackageServiceColumnName,
   type PackageServiceSnapshotItem,
@@ -131,11 +130,6 @@ export function getPackageSnapshotJsonForSave(
 
   const services: PackageServiceSnapshotItem[] = [];
   for (const service of snapshot.services) {
-    if (!isAvailablePackageServiceQuantity(service.quantity)) {
-      services.push({ ...service, quantity: 0 });
-      continue;
-    }
-
     const enabled =
       formData.get(getPackageServiceEnabledFieldName(service.name)) === "1";
     if (!enabled) {
