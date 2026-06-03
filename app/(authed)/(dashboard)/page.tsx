@@ -12,10 +12,10 @@ import {
   BOOKABLE_PACKAGE_SERVICES,
   type ServiceBookingKey,
 } from "@/src/lib/service-bookings";
-import RoomOccupancyModal from "./_dashboard/RoomOccupancyModal";
-import RoomOccupancySection from "./_dashboard/RoomOccupancySection";
-import UpcomingBookings from "./_dashboard/UpcomingBookings";
-import { getRoomOccupancy } from "./_dashboard/room-occupancy";
+import RoomOccupancyModal from "../_dashboard/RoomOccupancyModal";
+import RoomOccupancySection from "../_dashboard/RoomOccupancySection";
+import UpcomingBookings from "../_dashboard/UpcomingBookings";
+import { getRoomOccupancy } from "../_dashboard/room-occupancy";
 
 type DashboardTab = "room-occupancy" | "upcoming-bookings";
 
