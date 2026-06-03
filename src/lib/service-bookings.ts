@@ -25,6 +25,25 @@ export const BOOKABLE_PACKAGE_SERVICES: BookablePackageService[] =
     name: column.label,
   }));
 
+export const KITCHEN_PREP_SERVICE_KEYS = [
+  "double_boiled_chicken_essence",
+  "double_boiled_bird_nest",
+  "daddy_meal",
+] as const satisfies readonly ServiceBookingKey[];
+
+export type KitchenPrepServiceKey = (typeof KITCHEN_PREP_SERVICE_KEYS)[number];
+
+export type KitchenPrepService = {
+  key: KitchenPrepServiceKey;
+  name: string;
+};
+
+export const KITCHEN_PREP_SERVICES: KitchenPrepService[] =
+  KITCHEN_PREP_SERVICE_KEYS.map((serviceKey) => ({
+    key: serviceKey,
+    name: requireBookablePackageService(serviceKey).name,
+  }));
+
 export const RELAXING_HAIR_WASH_SERVICE = requireBookablePackageService(
   "relaxing_hair_wash",
 );
@@ -68,6 +87,23 @@ export type GuestServiceBookingSummary = {
   bookings: GuestServiceBooking[];
 };
 
+export type KitchenServicePrepBooking = {
+  id: number;
+  guestProfileId: number;
+  guestName: string;
+  roomNumber: string | null;
+  serviceKey: KitchenPrepServiceKey;
+  serviceName: string;
+  bookingDate: string;
+  bookingTime: string;
+};
+
+export type KitchenServicePrepBookingFilters = {
+  bookingDate?: string;
+  roomNumber?: string;
+  serviceKeys?: readonly KitchenPrepServiceKey[];
+};
+
 type ServiceBookingUserRow = {
   role: UserRole;
   active: number;
@@ -92,6 +128,17 @@ type CountRow = {
 type ServiceBookingRow = {
   id: number;
   serviceKey: ServiceBookingKey;
+  serviceName: string;
+  bookingDate: string;
+  bookingTime: string;
+};
+
+type KitchenServicePrepBookingRow = {
+  id: number;
+  guestProfileId: number;
+  guestName: string;
+  roomNumber: string | null;
+  serviceKey: KitchenPrepServiceKey;
   serviceName: string;
   bookingDate: string;
   bookingTime: string;
@@ -146,6 +193,68 @@ export function getGuestServiceBookingSummary(
     ...entitlement,
     bookings,
   };
+}
+
+export function listKitchenServicePrepBookings({
+  bookingDate,
+  roomNumber,
+  serviceKeys,
+}: KitchenServicePrepBookingFilters): KitchenServicePrepBooking[] {
+  if (bookingDate !== undefined && !isBookingDate(bookingDate)) return [];
+
+  const selectedServiceKeys = getKitchenPrepServiceKeys(serviceKeys);
+  const conditions = [
+    "b.status = 'booked'",
+    `b.service_key IN (${selectedServiceKeys.map(() => "?").join(", ")})`,
+  ];
+  const params: string[] = [...selectedServiceKeys];
+
+  if (bookingDate) {
+    conditions.push("b.booking_date = ?");
+    params.push(bookingDate);
+  }
+
+  if (roomNumber) {
+    conditions.push("gp.room_number = ?");
+    params.push(roomNumber);
+  }
+
+  const rows = db
+    .prepare(
+      `
+        SELECT
+          b.id AS id,
+          b.guest_profile_id AS guestProfileId,
+          gp.name AS guestName,
+          gp.room_number AS roomNumber,
+          b.service_key AS serviceKey,
+          b.service_name AS serviceName,
+          b.booking_date AS bookingDate,
+          b.booking_time AS bookingTime
+        FROM guest_service_bookings b
+        JOIN guest_profiles gp ON gp.id = b.guest_profile_id
+        WHERE ${conditions.join("\n          AND ")}
+        ORDER BY
+          b.booking_date ASC,
+          gp.room_number IS NULL,
+          gp.room_number ASC,
+          gp.name COLLATE NOCASE ASC,
+          b.booking_time ASC,
+          b.id ASC
+      `,
+    )
+    .all(...params) as KitchenServicePrepBookingRow[];
+
+  return rows.map((row) => ({
+    id: Number(row.id),
+    guestProfileId: Number(row.guestProfileId),
+    guestName: row.guestName,
+    roomNumber: row.roomNumber,
+    serviceKey: row.serviceKey,
+    serviceName: row.serviceName,
+    bookingDate: row.bookingDate,
+    bookingTime: row.bookingTime,
+  }));
 }
 
 export function createServiceBooking({
@@ -703,4 +812,17 @@ function hasServiceBookingStarted(
   const [year, month, day] = bookingDate.split("-").map(Number);
   const [hour, minute] = bookingTime.split(":").map(Number);
   return new Date(year, month - 1, day, hour, minute) <= now;
+}
+
+function getKitchenPrepServiceKeys(
+  serviceKeys: readonly KitchenPrepServiceKey[] | undefined,
+): KitchenPrepServiceKey[] {
+  if (!serviceKeys || serviceKeys.length === 0) {
+    return [...KITCHEN_PREP_SERVICE_KEYS];
+  }
+
+  const requestedServiceKeys = new Set(serviceKeys);
+  return KITCHEN_PREP_SERVICE_KEYS.filter((serviceKey) =>
+    requestedServiceKeys.has(serviceKey),
+  );
 }

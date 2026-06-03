@@ -21,6 +21,7 @@ const USERS_DATA_PATH = "/admin/data/users";
 const FACILITIES_DATA_PATH = "/admin/data/facilities";
 const PACKAGES_DATA_PATH = "/admin/data/packages";
 const AUDIT_PATH = "/admin/audit-log";
+const KITCHEN_PATH = "/admin/kitchen";
 
 export async function createAdminRowAction(formData: FormData): Promise<void> {
   const tableName = getTableName(formData);
@@ -190,6 +191,9 @@ function revalidateBookingPaths(tableName: EditableTableName): void {
   }
 
   revalidatePath("/");
+  if (tableName === "guest_service_bookings") {
+    revalidatePath(KITCHEN_PATH);
+  }
 }
 
 function redirectWithMessage(

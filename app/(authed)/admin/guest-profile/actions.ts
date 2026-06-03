@@ -19,6 +19,7 @@ import {
 } from "@/src/lib/guest-profiles";
 
 const GUEST_PROFILE_PATH = "/admin/guest-profile";
+const KITCHEN_PATH = "/admin/kitchen";
 const USERS_DATA_PATH = "/admin/data/users";
 
 export async function createGuestProfileAction(
@@ -32,6 +33,7 @@ export async function createGuestProfileAction(
   }
 
   revalidatePath(GUEST_PROFILE_PATH);
+  revalidatePath(KITCHEN_PATH);
   revalidatePath(USERS_DATA_PATH);
   redirectToGuestProfileList("success", "Guest profile saved");
 }
@@ -50,6 +52,7 @@ export async function updateGuestProfileAction(
   if (result.ok) {
     revalidatePath(GUEST_PROFILE_PATH);
     revalidatePath(`${GUEST_PROFILE_PATH}/${profileId}`);
+    revalidatePath(KITCHEN_PATH);
     revalidatePath(USERS_DATA_PATH);
   }
 
@@ -84,6 +87,7 @@ export async function deleteGuestProfileAction(
   if (result.ok) {
     revalidatePath(GUEST_PROFILE_PATH);
     revalidatePath(`${GUEST_PROFILE_PATH}/${profileId}`);
+    revalidatePath(KITCHEN_PATH);
     revalidatePath(USERS_DATA_PATH);
     redirectToGuestProfileList("success", "Guest profile deleted", false, status);
   }
@@ -114,6 +118,7 @@ export async function setGuestProfileStatusAction(
   if (result.ok) {
     revalidatePath(GUEST_PROFILE_PATH);
     revalidatePath(`${GUEST_PROFILE_PATH}/${profileId}`);
+    revalidatePath(KITCHEN_PATH);
     revalidatePath(USERS_DATA_PATH);
   }
 
