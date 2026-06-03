@@ -8,9 +8,16 @@ import {
   serializePackageEntitlementSnapshot,
 } from "./package-entitlement-options";
 import {
+  getPackageServiceEnabledFieldName,
+  getPackageServiceQuantityFieldName,
+  isAvailablePackageServiceQuantity,
+  UNLIMITED_PACKAGE_SERVICE_QUANTITY,
+  type PackageServiceColumnName,
+  type PackageServiceSnapshotItem,
+} from "./package-entitlements";
+import {
   GUEST_ROOM_LEVELS,
   GUEST_ROOM_NUMBERS,
-  type GuestProfile,
   type GuestProfileColumn,
 } from "./guest-profile-types";
 
@@ -111,10 +118,7 @@ export function parseGuestProfileForm(
 
 export function getPackageSnapshotJsonForSave(
   packageType: string | null,
-  profile: Pick<
-    GuestProfile,
-    "packageType" | "packageEntitlementSnapshotJson"
-  > | null,
+  formData: FormData,
 ):
   | { ok: true; value: string | null }
   | { ok: false; message: string } {
@@ -125,17 +129,36 @@ export function getPackageSnapshotJsonForSave(
     return { ok: false, message: "Choose a valid package." };
   }
 
-  if (
-    profile &&
-    profile.packageType === packageType &&
-    profile.packageEntitlementSnapshotJson
-  ) {
-    return { ok: true, value: profile.packageEntitlementSnapshotJson };
+  const services: PackageServiceSnapshotItem[] = [];
+  for (const service of snapshot.services) {
+    if (!isAvailablePackageServiceQuantity(service.quantity)) {
+      services.push({ ...service, quantity: 0 });
+      continue;
+    }
+
+    const enabled =
+      formData.get(getPackageServiceEnabledFieldName(service.name)) === "1";
+    if (!enabled) {
+      services.push({ ...service, quantity: 0 });
+      continue;
+    }
+
+    const quantity = readPackageServiceQuantity(
+      formData,
+      service.name,
+      service.label,
+    );
+    if (!quantity.ok) return quantity;
+
+    services.push({ ...service, quantity: quantity.value });
   }
 
   return {
     ok: true,
-    value: serializePackageEntitlementSnapshot(snapshot),
+    value: serializePackageEntitlementSnapshot({
+      ...snapshot,
+      services,
+    }),
   };
 }
 
@@ -146,6 +169,34 @@ function readText(formData: FormData, key: GuestProfileColumn): string | null {
 function readFormValue(value: FormDataEntryValue | null): string | null {
   const text = typeof value === "string" ? value.trim() : "";
   return text || null;
+}
+
+function readPackageServiceQuantity(
+  formData: FormData,
+  serviceName: PackageServiceColumnName,
+  label: string,
+):
+  | { ok: true; value: number }
+  | { ok: false; message: string } {
+  const raw = formData.get(getPackageServiceQuantityFieldName(serviceName));
+  const text = typeof raw === "string" ? raw.trim() : "";
+  if (!text) {
+    return { ok: false, message: `${label} quantity is required.` };
+  }
+
+  const quantity = Number(text);
+  if (!Number.isInteger(quantity)) {
+    return { ok: false, message: `${label} quantity must be a whole number.` };
+  }
+
+  if (quantity === UNLIMITED_PACKAGE_SERVICE_QUANTITY || quantity > 0) {
+    return { ok: true, value: quantity };
+  }
+
+  return {
+    ok: false,
+    message: `${label} quantity must be at least 1, or unlimited.`,
+  };
 }
 
 function isGuestRoomNumber(value: string): boolean {

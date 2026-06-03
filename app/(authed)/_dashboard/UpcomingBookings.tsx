@@ -58,7 +58,11 @@ export default function UpcomingBookings({
                   <td className="px-5 py-3 text-ink/80">
                     {booking.type === "facility"
                       ? `${booking.bookedPax} / ${booking.capacityPax} pax`
-                      : "Arrange service"}
+                      : booking.isDone
+                        ? "Done"
+                        : booking.isRead
+                          ? "Read"
+                          : "Unread"}
                   </td>
                 </tr>
               ))}

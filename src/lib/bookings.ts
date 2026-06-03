@@ -161,6 +161,8 @@ export type UpcomingBooking = {
   guestUsername: string;
   capacityPax: number | null;
   bookedPax: number | null;
+  isRead: boolean | null;
+  isDone: boolean | null;
 };
 
 type UpcomingFacilityBookingRow = {
@@ -182,6 +184,8 @@ type UpcomingServiceBookingRow = {
   startTime: string;
   guestName: string | null;
   guestUsername: string;
+  adminRead: number;
+  adminDone: number;
 };
 
 function formatNowForSqlite(now: Date): string {
@@ -234,7 +238,9 @@ export function getUpcomingBookings(now: Date = new Date()): UpcomingBooking[] {
           b.booking_date    AS bookingDate,
           b.booking_time    AS startTime,
           gp.name           AS guestName,
-          u.username        AS guestUsername
+          u.username        AS guestUsername,
+          b.admin_read      AS adminRead,
+          b.admin_done      AS adminDone
         FROM guest_service_bookings b
         JOIN users u ON u.id = b.user_id
         LEFT JOIN guest_profiles gp ON gp.id = b.guest_profile_id
@@ -257,6 +263,8 @@ export function getUpcomingBookings(now: Date = new Date()): UpcomingBooking[] {
       guestUsername: row.guestUsername,
       capacityPax: Number(row.capacityPax),
       bookedPax: Number(row.bookedPax),
+      isRead: null,
+      isDone: null,
     })),
     ...serviceRows.map((row) => ({
       type: "service" as const,
@@ -269,6 +277,8 @@ export function getUpcomingBookings(now: Date = new Date()): UpcomingBooking[] {
       guestUsername: row.guestUsername,
       capacityPax: null,
       bookedPax: null,
+      isRead: row.adminRead === 1,
+      isDone: row.adminDone === 1,
     })),
   ].sort((a, b) => {
     const aTime = `${a.bookingDate} ${a.startTime}`;

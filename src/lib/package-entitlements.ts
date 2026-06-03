@@ -140,6 +140,22 @@ export function formatPackageServiceQuantity(quantity: number): string {
   return String(quantity);
 }
 
+export function getPackageServiceEnabledFieldName(
+  serviceName: PackageServiceColumnName,
+): string {
+  return `package_service_enabled_${serviceName}`;
+}
+
+export function getPackageServiceQuantityFieldName(
+  serviceName: PackageServiceColumnName,
+): string {
+  return `package_service_quantity_${serviceName}`;
+}
+
+export function isAvailablePackageServiceQuantity(quantity: number): boolean {
+  return quantity > 0 || quantity === UNLIMITED_PACKAGE_SERVICE_QUANTITY;
+}
+
 function packageServices(
   values: readonly number[],
 ): Record<PackageServiceColumnName, number> {

@@ -152,7 +152,7 @@ export function createGuestProfile(
 
   const packageSnapshot = getPackageSnapshotJsonForSave(
     values.data.package_type,
-    null,
+    formData,
   );
   if (!packageSnapshot.ok) return packageSnapshot;
   values.data.package_entitlement_snapshot_json = packageSnapshot.value;
@@ -212,7 +212,7 @@ export function updateGuestProfile(
 
   const packageSnapshot = getPackageSnapshotJsonForSave(
     values.data.package_type,
-    profile,
+    formData,
   );
   if (!packageSnapshot.ok) return packageSnapshot;
   values.data.package_entitlement_snapshot_json = packageSnapshot.value;
