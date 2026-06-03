@@ -20,7 +20,16 @@ type PageProps = {
     date?: string | string[];
     room?: string | string[];
     service?: string | string[];
+    tab?: string | string[];
   }>;
+};
+
+type KitchenTab = "service-prep" | "guest-profile-notes";
+
+type KitchenTabLink = {
+  href: string;
+  label: string;
+  value: KitchenTab;
 };
 
 type KitchenServicePrepGroup = {
@@ -36,9 +45,22 @@ const GUEST_ROOM_OPTIONS = GUEST_ROOM_LEVELS.flatMap((level) =>
   GUEST_ROOM_NUMBERS.map((roomNumber) => `${level}-${roomNumber}`),
 );
 const GUEST_ROOM_SET = new Set(GUEST_ROOM_OPTIONS);
+const KITCHEN_TABS: KitchenTabLink[] = [
+  {
+    href: "/admin/kitchen?tab=service-prep",
+    label: "Kitchen Service Prep",
+    value: "service-prep",
+  },
+  {
+    href: "/admin/kitchen?tab=guest-profile-notes",
+    label: "Guest Profile Kitchen Notes",
+    value: "guest-profile-notes",
+  },
+];
 
 export default async function KitchenPage({ searchParams }: PageProps) {
   const query = await searchParams;
+  const activeTab = getKitchenTab(getSingleValue(query.tab));
   const selectedBookingDate = getBookingDateFilter(getSingleValue(query.date));
   const selectedServiceKeys = getServiceKeyFilters(getValues(query.service));
   const selectedRoomNumber = getRoomNumberFilter(getSingleValue(query.room));
@@ -166,6 +188,8 @@ export default async function KitchenPage({ searchParams }: PageProps) {
         {hasPrintableContent && <PrintKitchenNotesButton />}
       </div>
 
+      <KitchenTabNav activeTab={activeTab} />
+
       <section className="kitchen-print-only">
         <section className="kitchen-print-section">
           <h1 className="kitchen-print-heading">
@@ -220,7 +244,8 @@ export default async function KitchenPage({ searchParams }: PageProps) {
         </section>
       </section>
 
-      <section className="kitchen-screen-only mb-8">
+      {activeTab === "service-prep" && (
+      <section className="kitchen-screen-only">
         <div className="mb-4 flex flex-col gap-1">
           <h2 className="text-base font-semibold text-ink">
             Kitchen Service Prep
@@ -236,6 +261,7 @@ export default async function KitchenPage({ searchParams }: PageProps) {
           className="mb-5 flex flex-wrap items-center gap-2"
           method="get"
         >
+          <input type="hidden" name="tab" value="service-prep" />
           <CalendarDateField
             buttonClassName="flex h-9 w-[15.5rem] items-center gap-2 rounded-md border border-black/10 bg-white px-3 text-left text-sm text-ink shadow-sm shadow-black/[0.02] outline-none transition-colors hover:bg-white/90 focus:border-brand focus:ring-2 focus:ring-brand/15"
             defaultValue={selectedBookingDate ?? ""}
@@ -309,7 +335,7 @@ export default async function KitchenPage({ searchParams }: PageProps) {
           {hasActiveFilters && (
             <Link
               className="flex h-9 items-center rounded-md px-3 text-sm font-medium text-ink/55 hover:bg-surface hover:text-ink"
-              href="/admin/kitchen"
+              href="/admin/kitchen?tab=service-prep"
             >
               Clear
             </Link>
@@ -360,7 +386,9 @@ export default async function KitchenPage({ searchParams }: PageProps) {
           </div>
         )}
       </section>
+      )}
 
+      {activeTab === "guest-profile-notes" && (
       <section className="kitchen-screen-only">
         <div className="mb-4 flex flex-col gap-1">
           <h2 className="text-base font-semibold text-ink">
@@ -398,7 +426,28 @@ export default async function KitchenPage({ searchParams }: PageProps) {
           </div>
         )}
       </section>
+      )}
     </main>
+  );
+}
+
+function KitchenTabNav({ activeTab }: { activeTab: KitchenTab }) {
+  return (
+    <nav className="kitchen-screen-only mb-6 flex flex-wrap gap-2">
+      {KITCHEN_TABS.map((tab) => (
+        <Link
+          className={`rounded-md px-3 py-2 text-sm transition-colors ${
+            tab.value === activeTab
+              ? "bg-brand text-white"
+              : "bg-surface text-ink/70 hover:text-ink"
+          }`}
+          href={tab.href}
+          key={tab.value}
+        >
+          {tab.label}
+        </Link>
+      ))}
+    </nav>
   );
 }
 
@@ -441,6 +490,10 @@ function getServiceKeyFilters(values: string[]): KitchenPrepServiceKey[] {
   return selectedServiceKeys.length > 0
     ? selectedServiceKeys
     : [...KITCHEN_PREP_SERVICE_KEYS];
+}
+
+function getKitchenTab(value: string | undefined): KitchenTab {
+  return value === "guest-profile-notes" ? value : "service-prep";
 }
 
 function getBookingDateFilter(value: string | undefined): string | undefined {
