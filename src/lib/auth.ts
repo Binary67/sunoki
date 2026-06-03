@@ -1,5 +1,6 @@
 import { createHash, randomBytes } from "node:crypto";
 import { cookies } from "next/headers";
+import { cache } from "react";
 import { formatBookingDate, isBookingDate } from "./booking-dates";
 import { db, type User, type UserWithPassword } from "./db";
 
@@ -301,7 +302,7 @@ export function getUserById(id: number): User | null {
   return row ? { ...row } : null;
 }
 
-export async function getCurrentUser(): Promise<User | null> {
+export const getCurrentUser = cache(async (): Promise<User | null> => {
   const store = await cookies();
   const token = store.get(SESSION_COOKIE)?.value;
   if (!token) return null;
@@ -343,4 +344,4 @@ export async function getCurrentUser(): Promise<User | null> {
   };
 
   return hasValidGuestCheckout(user, now) ? user : null;
-}
+});
