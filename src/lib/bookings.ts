@@ -3,6 +3,7 @@ import type { AdminRow } from "./admin-data/definitions";
 import { db, type User } from "./db";
 import { isBookingDate, isWithinBookingDateRange } from "./booking-dates";
 import type { UserRole } from "./roles";
+import type { ServiceBookingKey } from "./service-bookings";
 
 export type FacilitySlotAvailability = {
   id: number;
@@ -153,6 +154,7 @@ export type UpcomingBookingType = "facility" | "service";
 export type UpcomingBooking = {
   type: UpcomingBookingType;
   bookingId: number;
+  serviceKey: ServiceBookingKey | null;
   name: string;
   bookingDate: string;
   startTime: string;
@@ -179,6 +181,7 @@ type UpcomingFacilityBookingRow = {
 
 type UpcomingServiceBookingRow = {
   bookingId: number;
+  serviceKey: ServiceBookingKey;
   name: string;
   bookingDate: string;
   startTime: string;
@@ -186,6 +189,11 @@ type UpcomingServiceBookingRow = {
   guestUsername: string;
   adminRead: number;
   adminDone: number;
+};
+
+export type UpcomingBookingFilters = {
+  bookingDate?: string;
+  serviceKeys?: ServiceBookingKey[];
 };
 
 function formatNowForSqlite(now: Date): string {
@@ -197,12 +205,39 @@ function formatNowForSqlite(now: Date): string {
   return `${year}-${month}-${day} ${hour}:${minute}`;
 }
 
-export function getUpcomingBookings(now: Date = new Date()): UpcomingBooking[] {
+export function getUpcomingBookings(
+  filters: UpcomingBookingFilters = {},
+  now: Date = new Date(),
+): UpcomingBooking[] {
   const cutoff = formatNowForSqlite(now);
+  const serviceKeys = filters.serviceKeys ?? [];
+  const includeFacilities = serviceKeys.length === 0;
+  const facilityWhere = ["(b.booking_date || ' ' || s.start_time) >= ?"];
+  const facilityParams = [cutoff];
+  const serviceWhere = [
+    "b.status = 'booked'",
+    "(b.booking_date || ' ' || b.booking_time) >= ?",
+  ];
+  const serviceParams = [cutoff];
 
-  const facilityRows = db
-    .prepare(
-      `
+  if (filters.bookingDate) {
+    facilityWhere.push("b.booking_date = ?");
+    facilityParams.push(filters.bookingDate);
+    serviceWhere.push("b.booking_date = ?");
+    serviceParams.push(filters.bookingDate);
+  }
+
+  if (serviceKeys.length > 0) {
+    serviceWhere.push(
+      `b.service_key IN (${serviceKeys.map(() => "?").join(", ")})`,
+    );
+    serviceParams.push(...serviceKeys);
+  }
+
+  const facilityRows: UpcomingFacilityBookingRow[] = includeFacilities
+    ? (db
+        .prepare(
+          `
         SELECT
           b.id              AS bookingId,
           f.name            AS name,
@@ -223,17 +258,19 @@ export function getUpcomingBookings(now: Date = new Date()): UpcomingBooking[] {
         JOIN facilities f ON f.id = s.facility_id
         JOIN users u ON u.id = b.user_id
         LEFT JOIN guest_profiles gp ON gp.user_id = b.user_id
-        WHERE (b.booking_date || ' ' || s.start_time) >= ?
+        WHERE ${facilityWhere.join("\n          AND ")}
         ORDER BY b.booking_date ASC, s.start_time ASC, b.id ASC
       `,
-    )
-    .all(cutoff) as UpcomingFacilityBookingRow[];
+        )
+        .all(...facilityParams) as UpcomingFacilityBookingRow[])
+    : [];
 
   const serviceRows = db
     .prepare(
       `
         SELECT
           b.id              AS bookingId,
+          b.service_key     AS serviceKey,
           b.service_name    AS name,
           b.booking_date    AS bookingDate,
           b.booking_time    AS startTime,
@@ -244,17 +281,17 @@ export function getUpcomingBookings(now: Date = new Date()): UpcomingBooking[] {
         FROM guest_service_bookings b
         JOIN users u ON u.id = b.user_id
         LEFT JOIN guest_profiles gp ON gp.id = b.guest_profile_id
-        WHERE b.status = 'booked'
-          AND (b.booking_date || ' ' || b.booking_time) >= ?
+        WHERE ${serviceWhere.join("\n          AND ")}
         ORDER BY b.booking_date ASC, b.booking_time ASC, b.id ASC
       `,
     )
-    .all(cutoff) as UpcomingServiceBookingRow[];
+    .all(...serviceParams) as UpcomingServiceBookingRow[];
 
   return [
     ...facilityRows.map((row) => ({
       type: "facility" as const,
       bookingId: Number(row.bookingId),
+      serviceKey: null,
       name: row.name,
       bookingDate: row.bookingDate,
       startTime: row.startTime,
@@ -269,6 +306,7 @@ export function getUpcomingBookings(now: Date = new Date()): UpcomingBooking[] {
     ...serviceRows.map((row) => ({
       type: "service" as const,
       bookingId: Number(row.bookingId),
+      serviceKey: row.serviceKey,
       name: row.name,
       bookingDate: row.bookingDate,
       startTime: row.startTime,

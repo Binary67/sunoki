@@ -1,10 +1,17 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getCurrentUser } from "@/src/lib/auth";
-import { formatBookingDate as formatDateKey } from "@/src/lib/booking-dates";
+import {
+  formatBookingDate as formatDateKey,
+  isBookingDate,
+} from "@/src/lib/booking-dates";
 import { getUpcomingBookings } from "@/src/lib/bookings";
 import { listGuestProfiles } from "@/src/lib/guest-profiles";
 import { isAdminRole } from "@/src/lib/roles";
+import {
+  BOOKABLE_PACKAGE_SERVICES,
+  type ServiceBookingKey,
+} from "@/src/lib/service-bookings";
 import RoomOccupancyModal from "./_dashboard/RoomOccupancyModal";
 import RoomOccupancySection from "./_dashboard/RoomOccupancySection";
 import UpcomingBookings from "./_dashboard/UpcomingBookings";
@@ -14,7 +21,9 @@ type DashboardTab = "room-occupancy" | "upcoming-bookings";
 
 type PageProps = {
   searchParams: Promise<{
+    date?: string | string[];
     room?: string | string[];
+    service?: string | string[];
     tab?: string | string[];
   }>;
 };
@@ -39,7 +48,12 @@ export default async function Dashboard({ searchParams }: PageProps) {
   if (!isAdminRole(user.role)) redirect("/booking/karaoke");
 
   const today = formatDateKey(new Date());
-  const bookings = getUpcomingBookings();
+  const selectedBookingDate = getBookingDateFilter(getSingleValue(query.date));
+  const selectedServiceKeys = getServiceKeyFilters(getValues(query.service));
+  const bookings = getUpcomingBookings({
+    bookingDate: selectedBookingDate,
+    serviceKeys: selectedServiceKeys,
+  });
   const checkedInProfiles = listGuestProfiles("checked_in", today);
   const incomingProfiles = listGuestProfiles("incoming", today);
   const activeTab = getDashboardTab(getSingleValue(query.tab));
@@ -70,7 +84,15 @@ export default async function Dashboard({ searchParams }: PageProps) {
           unassignedCount={roomOccupancy.unassignedCount}
         />
       ) : (
-        <UpcomingBookings bookings={bookings} />
+        <UpcomingBookings
+          bookings={bookings}
+          filters={{
+            bookingDate: selectedBookingDate,
+            serviceKeys: selectedServiceKeys,
+          }}
+          serviceOptions={BOOKABLE_PACKAGE_SERVICES}
+          today={today}
+        />
       )}
 
       {activeTab === "room-occupancy" && selectedRoom && selectedRoomDetails && (
@@ -109,4 +131,20 @@ function getDashboardTab(value: string | undefined): DashboardTab {
 
 function getSingleValue(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value;
+}
+
+function getValues(value: string | string[] | undefined): string[] {
+  if (value === undefined) return [];
+  return Array.isArray(value) ? value : [value];
+}
+
+function getBookingDateFilter(value: string | undefined): string | undefined {
+  return value && isBookingDate(value) ? value : undefined;
+}
+
+function getServiceKeyFilters(values: string[]): ServiceBookingKey[] {
+  const requestedValues = new Set(values);
+  return BOOKABLE_PACKAGE_SERVICES.filter((service) =>
+    requestedValues.has(service.key),
+  ).map((service) => service.key);
 }
