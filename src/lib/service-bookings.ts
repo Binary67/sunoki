@@ -1,4 +1,5 @@
 import { insertAuditLog } from "./admin-data/audit";
+import type { AdminRow } from "./admin-data/definitions";
 import { db, type User } from "./db";
 import { isBookingDate, isWithinBookingDateRange } from "./booking-dates";
 import { GUEST_BOOKING_CHECK_IN_REQUIRED_MESSAGE } from "./guest-booking-access";
@@ -105,6 +106,19 @@ export type CreateServiceBookingInput = {
 };
 
 export type CreateServiceBookingResult =
+  | { ok: true; bookingId: number; serviceName: string }
+  | { ok: false; error: string };
+
+export type UpdateServiceBookingInput = {
+  auditActor: User;
+  bookingId: number;
+  userId: number;
+  serviceKey: string;
+  bookingDate: string;
+  bookingTime: string;
+};
+
+export type UpdateServiceBookingResult =
   | { ok: true; bookingId: number; serviceName: string }
   | { ok: false; error: string };
 
@@ -300,33 +314,220 @@ export function createServiceBooking({
   }
 }
 
-function selectServiceBookingAuditRow(bookingId: number) {
-  return db
+export function updateServiceBooking({
+  auditActor,
+  bookingId,
+  userId,
+  serviceKey,
+  bookingDate,
+  bookingTime,
+}: UpdateServiceBookingInput): UpdateServiceBookingResult {
+  const service = getBookablePackageService(serviceKey);
+  if (!service) {
+    return { ok: false, error: "Choose a valid service." };
+  }
+  if (
+    !Number.isInteger(bookingId) ||
+    !Number.isInteger(userId) ||
+    !isBookingDate(bookingDate) ||
+    !isBookingTime(bookingTime)
+  ) {
+    return { ok: false, error: "Choose a valid service date and time." };
+  }
+  if (hasServiceBookingStarted(bookingDate, bookingTime)) {
+    return { ok: false, error: "Choose an upcoming service date and time." };
+  }
+
+  let inTransaction = false;
+
+  try {
+    db.exec("BEGIN IMMEDIATE");
+    inTransaction = true;
+
+    const before = selectServiceBookingAuditRow(bookingId);
+    if (!before) {
+      db.exec("ROLLBACK");
+      inTransaction = false;
+      return { ok: false, error: "Booking not found." };
+    }
+    if (before.status !== "booked") {
+      db.exec("ROLLBACK");
+      inTransaction = false;
+      return { ok: false, error: "Only booked service bookings can be edited." };
+    }
+
+    const bookingUser = getServiceBookingUser(userId);
+    if (!bookingUser) {
+      db.exec("ROLLBACK");
+      inTransaction = false;
+      return { ok: false, error: "Choose a valid guest." };
+    }
+    if (bookingUser.active !== 1) {
+      db.exec("ROLLBACK");
+      inTransaction = false;
+      return { ok: false, error: "Guest is inactive." };
+    }
+    if (bookingUser.role !== "guest") {
+      db.exec("ROLLBACK");
+      inTransaction = false;
+      return { ok: false, error: "Service bookings require a guest user." };
+    }
+
+    const profile = getGuestProfileForServiceBooking(userId);
+    if (!profile) {
+      db.exec("ROLLBACK");
+      inTransaction = false;
+      return {
+        ok: false,
+        error: "The selected guest does not have a linked guest profile.",
+      };
+    }
+    if (profile.status !== "checked_in") {
+      db.exec("ROLLBACK");
+      inTransaction = false;
+      return { ok: false, error: GUEST_BOOKING_CHECK_IN_REQUIRED_MESSAGE };
+    }
+
+    if (
+      !bookingUser.checkInDate ||
+      !bookingUser.checkOutDate ||
+      !isBookingDate(bookingUser.checkInDate) ||
+      !isBookingDate(bookingUser.checkOutDate) ||
+      bookingUser.checkOutDate < bookingUser.checkInDate
+    ) {
+      db.exec("ROLLBACK");
+      inTransaction = false;
+      return {
+        ok: false,
+        error: "The selected guest does not have valid stay dates.",
+      };
+    }
+    if (
+      !isWithinBookingDateRange(
+        bookingDate,
+        bookingUser.checkInDate,
+        bookingUser.checkOutDate,
+      )
+    ) {
+      db.exec("ROLLBACK");
+      inTransaction = false;
+      return { ok: false, error: "Booking date must be within the guest stay dates." };
+    }
+
+    const entitlement = getServiceEntitlement(
+      userId,
+      profile.id,
+      profile,
+      service,
+      bookingId,
+    );
+    if (
+      entitlement.remainingQuantity !== null &&
+      entitlement.remainingQuantity <= 0
+    ) {
+      db.exec("ROLLBACK");
+      inTransaction = false;
+      return {
+        ok: false,
+        error: `The selected guest has used all ${service.name} sessions.`,
+      };
+    }
+
+    const existing = db
+      .prepare(
+        `
+          SELECT id
+          FROM guest_service_bookings
+          WHERE user_id = ?
+            AND service_key = ?
+            AND booking_date = ?
+            AND booking_time = ?
+            AND status = 'booked'
+            AND id != ?
+        `,
+      )
+      .get(
+        userId,
+        service.key,
+        bookingDate,
+        bookingTime,
+        bookingId,
+      ) as { id: number } | undefined;
+    if (existing) {
+      db.exec("ROLLBACK");
+      inTransaction = false;
+      return {
+        ok: false,
+        error: "This guest already booked this service date and time.",
+      };
+    }
+
+    db.prepare(
+      `
+        UPDATE guest_service_bookings
+        SET user_id = ?,
+            guest_profile_id = ?,
+            service_key = ?,
+            service_name = ?,
+            booking_date = ?,
+            booking_time = ?
+        WHERE id = ?
+      `,
+    ).run(
+      userId,
+      profile.id,
+      service.key,
+      service.name,
+      bookingDate,
+      bookingTime,
+      bookingId,
+    );
+
+    const after = selectServiceBookingAuditRow(bookingId);
+    if (!after) throw new Error("Updated service booking could not be loaded.");
+    insertAuditLog(
+      auditActor,
+      "update",
+      "guest_service_bookings",
+      bookingId,
+      before,
+      after,
+    );
+
+    db.exec("COMMIT");
+    inTransaction = false;
+    return { ok: true, bookingId, serviceName: service.name };
+  } catch {
+    if (inTransaction) db.exec("ROLLBACK");
+    return { ok: false, error: "Unable to update this service booking." };
+  }
+}
+
+function selectServiceBookingAuditRow(bookingId: number): AdminRow | null {
+  const row = db
     .prepare(
       `
         SELECT
           id,
           user_id,
+          guest_profile_id,
+          service_key,
           service_name,
           booking_date,
           booking_time,
           status,
+          admin_read,
+          admin_done,
+          admin_done_at,
+          cancelled_at,
           created_at
         FROM guest_service_bookings
         WHERE id = ?
       `,
     )
-    .get(bookingId) as
-    | {
-        id: number;
-        user_id: number;
-        service_name: string;
-        booking_date: string;
-        booking_time: string;
-        status: string;
-        created_at: string;
-      }
-    | undefined;
+    .get(bookingId) as AdminRow | undefined;
+
+  return row ? { ...row } : null;
 }
 
 function getServiceBookingUser(userId: number): ServiceBookingUserRow | null {
@@ -371,6 +572,7 @@ function getServiceEntitlement(
   guestProfileId: number,
   profile: GuestProfileServiceRow,
   service: BookablePackageService,
+  excludeBookingId?: number,
 ): Omit<GuestServiceBookingSummary, "serviceKey" | "serviceName" | "bookings"> {
   const snapshot = parsePackageEntitlementSnapshot(
     profile.packageEntitlementSnapshotJson,
@@ -387,7 +589,11 @@ function getServiceEntitlement(
     packageQuantity === UNLIMITED_PACKAGE_SERVICE_QUANTITY
       ? UNLIMITED_PACKAGE_SERVICE_QUANTITY
       : packageQuantity + purchasedPerkQuantity;
-  const usedQuantity = getActiveServiceBookingCount(userId, service.key);
+  const usedQuantity = getActiveServiceBookingCount(
+    userId,
+    service.key,
+    excludeBookingId,
+  );
   const remainingQuantity =
     totalQuantity === UNLIMITED_PACKAGE_SERVICE_QUANTITY
       ? null
@@ -426,7 +632,12 @@ function getPurchasedPerkQuantity(
 function getActiveServiceBookingCount(
   userId: number,
   serviceKey: ServiceBookingKey,
+  excludeBookingId?: number,
 ): number {
+  const excludeClause = excludeBookingId ? "AND id != ?" : "";
+  const params = excludeBookingId
+    ? [userId, serviceKey, excludeBookingId]
+    : [userId, serviceKey];
   const row = db
     .prepare(
       `
@@ -435,9 +646,10 @@ function getActiveServiceBookingCount(
         WHERE user_id = ?
           AND service_key = ?
           AND status = 'booked'
+          ${excludeClause}
       `,
     )
-    .get(userId, serviceKey) as CountRow;
+    .get(...params) as CountRow;
 
   return Number(row.count);
 }

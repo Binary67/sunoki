@@ -45,8 +45,7 @@ export default async function AdminFacilitiesPage({ searchParams }: PageProps) {
   const query = await searchParams;
   const activeTab = getFacilitiesTab(getSingleValue(query.tab));
   const tableName = getFacilitiesTableName(activeTab);
-  const editId =
-    activeTab === "bookings" ? null : getEditId(getSingleValue(query.edit));
+  const editId = getEditId(getSingleValue(query.edit));
   const view = getAdminTableView(tableName, actor);
   const editRow = editId ? getAdminRowForEdit(tableName, editId, actor) : null;
 
@@ -77,9 +76,7 @@ export default async function AdminFacilitiesPage({ searchParams }: PageProps) {
         actionMode="records"
         actor={actor}
         editHref={
-          activeTab === "bookings"
-            ? undefined
-            : (rowId) => `/admin/data/facilities?tab=${activeTab}&edit=${rowId}`
+          (rowId) => `/admin/data/facilities?tab=${activeTab}&edit=${rowId}`
         }
         tableName={tableName}
         view={view}

@@ -11,8 +11,11 @@ import {
 import { selectRowById } from "./queries";
 import { parseFormValues } from "./validation";
 import type { UserRole } from "../roles";
-import { createFacilityBooking } from "../bookings";
-import { createServiceBooking } from "../service-bookings";
+import { createFacilityBooking, updateFacilityBooking } from "../bookings";
+import {
+  createServiceBooking,
+  updateServiceBooking,
+} from "../service-bookings";
 
 type InsertResult = {
   lastInsertRowid: number | bigint;
@@ -77,17 +80,14 @@ export function updateAdminRow(
   if (!Number.isInteger(rowId) || rowId <= 0) {
     return { ok: false, message: "Choose a valid row." };
   }
-  if (
-    tableName === "facility_bookings" ||
-    tableName === "guest_service_bookings"
-  ) {
-    return {
-      ok: false,
-      message: `${table.label} can be created or deleted.`,
-    };
-  }
   const tablePermissionError = validateTableMutation(actor, tableName);
   if (tablePermissionError) return tablePermissionError;
+  if (tableName === "facility_bookings") {
+    return updateAdminFacilityBooking(actor, rowId, formData);
+  }
+  if (tableName === "guest_service_bookings") {
+    return updateAdminServiceBooking(actor, rowId, formData);
+  }
 
   const parsed = parseFormValues(tableName, formData, "update");
   if (!parsed.ok) return { ok: false, message: parsed.message };
@@ -263,6 +263,48 @@ function createAdminFacilityBooking(
   if (!result.ok) return { ok: false, message: result.error };
 
   return { ok: true, message: "Row created." };
+}
+
+function updateAdminServiceBooking(
+  actor: User,
+  rowId: number,
+  formData: FormData,
+): AdminMutationResult {
+  const parsed = parseFormValues("guest_service_bookings", formData, "update");
+  if (!parsed.ok) return { ok: false, message: parsed.message };
+
+  const result = updateServiceBooking({
+    auditActor: actor,
+    bookingId: rowId,
+    userId: Number(parsed.values.user_id),
+    serviceKey: String(parsed.values.service_key),
+    bookingDate: String(parsed.values.booking_date),
+    bookingTime: String(parsed.values.booking_time),
+  });
+  if (!result.ok) return { ok: false, message: result.error };
+
+  return { ok: true, message: "Row updated." };
+}
+
+function updateAdminFacilityBooking(
+  actor: User,
+  rowId: number,
+  formData: FormData,
+): AdminMutationResult {
+  const parsed = parseFormValues("facility_bookings", formData, "update");
+  if (!parsed.ok) return { ok: false, message: parsed.message };
+
+  const result = updateFacilityBooking({
+    auditActor: actor,
+    bookingId: rowId,
+    userId: Number(parsed.values.user_id),
+    facilityId: Number(parsed.values.facility_id),
+    bookingDate: String(parsed.values.booking_date),
+    bookingTime: String(parsed.values.booking_time),
+  });
+  if (!result.ok) return { ok: false, message: result.error };
+
+  return { ok: true, message: "Row updated." };
 }
 
 function validateUserCreate(

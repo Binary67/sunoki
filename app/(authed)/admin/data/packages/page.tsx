@@ -1,9 +1,5 @@
 import { requireAdminUser } from "@/src/lib/admin-auth";
-import {
-  getAdminTableDefinition,
-  type EditableTableName,
-} from "@/src/lib/admin-data/definitions";
-import { getAdminSelectOptions } from "@/src/lib/admin-data/options";
+import type { EditableTableName } from "@/src/lib/admin-data/definitions";
 import {
   getAdminRowForEdit,
   getAdminTableView,
@@ -57,18 +53,8 @@ export default async function AdminPackagesPage({ searchParams }: PageProps) {
   );
   const editId = getEditId(getSingleValue(query.edit));
   const tableName = getPackagesTableName(activeTab);
-  const showRecordsTable = activeTab === "service-quantities";
-  const view = showRecordsTable
-    ? getAdminTableView(tableName, actor)
-    : {
-        table: getAdminTableDefinition(tableName),
-        rows: [],
-        selectOptions: getAdminSelectOptions(),
-      };
-  const editRow =
-    showRecordsTable && editId
-      ? getAdminRowForEdit(tableName, editId, actor)
-      : null;
+  const view = getAdminTableView(tableName, actor);
+  const editRow = editId ? getAdminRowForEdit(tableName, editId, actor) : null;
 
   return (
     <main className="flex-1 px-4 py-6 sm:px-6 sm:py-8 lg:px-10">
@@ -76,8 +62,8 @@ export default async function AdminPackagesPage({ searchParams }: PageProps) {
         title="Packages"
         description={
           canManagePackages
-            ? "Manage package service quantities, the Deluxe Care celebration choice rule, and create guest service bookings."
-            : "Create guest service bookings for package services."
+            ? "Manage package service quantities, the Deluxe Care celebration choice rule, and guest service bookings."
+            : "Create and manage guest service bookings for package services."
         }
       />
       <LocalTabNav activeTab={activeTab} tabs={tabs} />
@@ -94,22 +80,20 @@ export default async function AdminPackagesPage({ searchParams }: PageProps) {
       <EditFormSection
         actor={actor}
         cancelHref={`/admin/data/packages?tab=${activeTab}`}
-        editId={activeTab === "service-quantities" ? editId : null}
+        editId={editId}
         editRow={editRow}
         tableName={tableName}
         view={view}
       />
-      {showRecordsTable && (
-        <AdminTableSection
-          actionMode="records"
-          actor={actor}
-          editHref={
-            (rowId) => `/admin/data/packages?tab=service-quantities&edit=${rowId}`
-          }
-          tableName={tableName}
-          view={view}
-        />
-      )}
+      <AdminTableSection
+        actionMode="records"
+        actor={actor}
+        editHref={
+          (rowId) => `/admin/data/packages?tab=${activeTab}&edit=${rowId}`
+        }
+        tableName={tableName}
+        view={view}
+      />
     </main>
   );
 }

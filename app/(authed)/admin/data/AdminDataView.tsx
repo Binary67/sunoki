@@ -199,7 +199,8 @@ export function EditFormSection({
   const editFixedRole =
     tableName === "users" && actor.role !== "superadmin" ? "guest" : undefined;
   const canEditRow =
-    !editRow || tableName !== "users" || canManageUserRecord(actor, editRow);
+    (!editRow || tableName !== "users" || canManageUserRecord(actor, editRow)) &&
+    (!editRow || canEditRecord(tableName, editRow));
 
   return (
     <section className="mb-7 rounded-lg border border-brand/20 px-4 py-5 sm:px-5">
@@ -248,7 +249,7 @@ export function EditFormSection({
         </>
       ) : editRow ? (
         <div className="text-sm text-ink/60">
-          Guest accounts are managed from guest profiles.
+          {getCannotEditRowMessage(tableName)}
         </div>
       ) : (
         <div className="text-sm text-red-700">Row #{editId} not found.</div>
@@ -478,14 +479,16 @@ export function AdminTableSection({
                           />
                         ) : (
                           <>
-                            {canManageRecord && editHref && (
-                              <Link
-                                href={editHref(rowId)}
-                                className="rounded-md border border-black/10 px-2.5 py-1.5 text-xs font-medium text-ink/70 hover:bg-surface"
-                              >
-                                Edit
-                              </Link>
-                            )}
+                            {canManageRecord &&
+                              editHref &&
+                              canEditRecord(tableName, row) && (
+                                <Link
+                                  href={editHref(rowId)}
+                                  className="rounded-md border border-black/10 px-2.5 py-1.5 text-xs font-medium text-ink/70 hover:bg-surface"
+                                >
+                                  Edit
+                                </Link>
+                              )}
                             {canManageRecord && !updateOnly && (
                               <DeleteRowForm
                                 tableName={tableName}
@@ -708,6 +711,26 @@ function canManageUserAccess(actorRole: string, row: AdminRow): boolean {
 
 function canManageUserRecord(actor: User, row: AdminRow): boolean {
   return actor.role === "superadmin" && getUserRole(row) !== "guest";
+}
+
+function canEditRecord(tableName: EditableTableName, row: AdminRow): boolean {
+  if (
+    tableName === "facility_bookings" ||
+    tableName === "guest_service_bookings"
+  ) {
+    return row.status === "booked";
+  }
+  return true;
+}
+
+function getCannotEditRowMessage(tableName: EditableTableName): string {
+  if (
+    tableName === "facility_bookings" ||
+    tableName === "guest_service_bookings"
+  ) {
+    return "Cancelled bookings cannot be edited.";
+  }
+  return "Guest accounts are managed from guest profiles.";
 }
 
 function getUserRole(row: AdminRow): string | null {

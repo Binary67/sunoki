@@ -215,6 +215,19 @@ export type CreateFacilityBookingResult =
   | { ok: true; bookingId: number; facilityName: string }
   | { ok: false; error: string };
 
+export type UpdateFacilityBookingInput = {
+  auditActor: User;
+  bookingId: number;
+  userId: number;
+  facilityId: number;
+  bookingDate: string;
+  bookingTime: string;
+};
+
+export type UpdateFacilityBookingResult =
+  | { ok: true; bookingId: number; facilityName: string }
+  | { ok: false; error: string };
+
 export function createFacilityBooking({
   auditActor,
   userId,
@@ -367,6 +380,178 @@ export function createFacilityBooking({
   } catch {
     if (inTransaction) db.exec("ROLLBACK");
     return { ok: false, error: "Unable to book this facility." };
+  }
+}
+
+export function updateFacilityBooking({
+  auditActor,
+  bookingId,
+  userId,
+  facilityId,
+  bookingDate,
+  bookingTime,
+}: UpdateFacilityBookingInput): UpdateFacilityBookingResult {
+  if (
+    !Number.isInteger(bookingId) ||
+    !Number.isInteger(userId) ||
+    !Number.isInteger(facilityId) ||
+    !isBookingDate(bookingDate) ||
+    !isBookingTime(bookingTime)
+  ) {
+    return { ok: false, error: "Choose a valid facility date and time." };
+  }
+  if (hasBookingStarted(bookingDate, bookingTime)) {
+    return { ok: false, error: "Choose an upcoming facility date and time." };
+  }
+
+  let inTransaction = false;
+
+  try {
+    db.exec("BEGIN IMMEDIATE");
+    inTransaction = true;
+
+    const before = selectFacilityBookingAuditRow(bookingId);
+    if (!before) {
+      db.exec("ROLLBACK");
+      inTransaction = false;
+      return { ok: false, error: "Booking not found." };
+    }
+    if (before.status !== "booked") {
+      db.exec("ROLLBACK");
+      inTransaction = false;
+      return { ok: false, error: "Only booked facility bookings can be edited." };
+    }
+
+    const bookingUser = getFacilityBookingUser(userId);
+    if (!bookingUser) {
+      db.exec("ROLLBACK");
+      inTransaction = false;
+      return { ok: false, error: "Choose a valid guest." };
+    }
+    if (bookingUser.active !== 1) {
+      db.exec("ROLLBACK");
+      inTransaction = false;
+      return { ok: false, error: "Guest is inactive." };
+    }
+    if (bookingUser.role !== "guest") {
+      db.exec("ROLLBACK");
+      inTransaction = false;
+      return { ok: false, error: "Facility bookings require a guest user." };
+    }
+    if (!bookingUser.guestProfileId) {
+      db.exec("ROLLBACK");
+      inTransaction = false;
+      return {
+        ok: false,
+        error: "The selected guest does not have a linked guest profile.",
+      };
+    }
+    if (bookingUser.guestProfileStatus !== "checked_in") {
+      db.exec("ROLLBACK");
+      inTransaction = false;
+      return {
+        ok: false,
+        error: "The selected guest must be checked in before booking facilities.",
+      };
+    }
+
+    if (
+      !bookingUser.checkInDate ||
+      !bookingUser.checkOutDate ||
+      !isBookingDate(bookingUser.checkInDate) ||
+      !isBookingDate(bookingUser.checkOutDate) ||
+      bookingUser.checkOutDate < bookingUser.checkInDate
+    ) {
+      db.exec("ROLLBACK");
+      inTransaction = false;
+      return {
+        ok: false,
+        error: "The selected guest does not have valid stay dates.",
+      };
+    }
+    if (
+      !isWithinBookingDateRange(
+        bookingDate,
+        bookingUser.checkInDate,
+        bookingUser.checkOutDate,
+      )
+    ) {
+      db.exec("ROLLBACK");
+      inTransaction = false;
+      return { ok: false, error: "Booking date must be within the guest stay dates." };
+    }
+
+    const facility = getFacility(facilityId);
+    if (!facility) {
+      db.exec("ROLLBACK");
+      inTransaction = false;
+      return { ok: false, error: "Choose a valid facility." };
+    }
+
+    const existing = db
+      .prepare(
+        `
+          SELECT id
+          FROM facility_bookings
+          WHERE facility_id = ?
+            AND booking_date = ?
+            AND booking_time = ?
+            AND status = 'booked'
+            AND id != ?
+        `,
+      )
+      .get(
+        facilityId,
+        bookingDate,
+        bookingTime,
+        bookingId,
+      ) as ExistingRow | undefined;
+
+    if (existing) {
+      db.exec("ROLLBACK");
+      inTransaction = false;
+      return {
+        ok: false,
+        error: "This facility is already booked at that date and time.",
+      };
+    }
+
+    db.prepare(
+      `
+        UPDATE facility_bookings
+        SET user_id = ?,
+            guest_profile_id = ?,
+            facility_id = ?,
+            booking_date = ?,
+            booking_time = ?
+        WHERE id = ?
+      `,
+    ).run(
+      userId,
+      bookingUser.guestProfileId,
+      facilityId,
+      bookingDate,
+      bookingTime,
+      bookingId,
+    );
+
+    const after = selectFacilityBookingAuditRow(bookingId);
+    if (!after) throw new Error("Updated facility booking could not be loaded.");
+    insertAuditLog(
+      auditActor,
+      "update",
+      "facility_bookings",
+      bookingId,
+      before,
+      after,
+    );
+
+    db.exec("COMMIT");
+    inTransaction = false;
+    return { ok: true, bookingId, facilityName: facility.name };
+  } catch {
+    if (inTransaction) db.exec("ROLLBACK");
+    return { ok: false, error: "Unable to update this facility booking." };
   }
 }
 
