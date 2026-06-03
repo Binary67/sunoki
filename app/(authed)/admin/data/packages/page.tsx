@@ -1,5 +1,9 @@
 import { requireAdminUser } from "@/src/lib/admin-auth";
-import type { EditableTableName } from "@/src/lib/admin-data/definitions";
+import {
+  getAdminTableDefinition,
+  type EditableTableName,
+} from "@/src/lib/admin-data/definitions";
+import { getAdminSelectOptions } from "@/src/lib/admin-data/options";
 import {
   getAdminRowForEdit,
   getAdminTableView,
@@ -53,9 +57,16 @@ export default async function AdminPackagesPage({ searchParams }: PageProps) {
   );
   const editId = getEditId(getSingleValue(query.edit));
   const tableName = getPackagesTableName(activeTab);
-  const view = getAdminTableView(tableName, actor);
+  const showRecordsTable = activeTab === "service-quantities";
+  const view = showRecordsTable
+    ? getAdminTableView(tableName, actor)
+    : {
+        table: getAdminTableDefinition(tableName),
+        rows: [],
+        selectOptions: getAdminSelectOptions(),
+      };
   const editRow =
-    activeTab === "service-quantities" && editId
+    showRecordsTable && editId
       ? getAdminRowForEdit(tableName, editId, actor)
       : null;
 
@@ -65,8 +76,8 @@ export default async function AdminPackagesPage({ searchParams }: PageProps) {
         title="Packages"
         description={
           canManagePackages
-            ? "Manage package service quantities, the Deluxe Care celebration choice rule, and guest service bookings."
-            : "Manage guest service bookings for package services."
+            ? "Manage package service quantities, the Deluxe Care celebration choice rule, and create guest service bookings."
+            : "Create guest service bookings for package services."
         }
       />
       <LocalTabNav activeTab={activeTab} tabs={tabs} />
@@ -88,17 +99,17 @@ export default async function AdminPackagesPage({ searchParams }: PageProps) {
         tableName={tableName}
         view={view}
       />
-      <AdminTableSection
-        actionMode="records"
-        actor={actor}
-        editHref={
-          activeTab === "service-quantities"
-            ? (rowId) => `/admin/data/packages?tab=${activeTab}&edit=${rowId}`
-            : undefined
-        }
-        tableName={tableName}
-        view={view}
-      />
+      {showRecordsTable && (
+        <AdminTableSection
+          actionMode="records"
+          actor={actor}
+          editHref={
+            (rowId) => `/admin/data/packages?tab=service-quantities&edit=${rowId}`
+          }
+          tableName={tableName}
+          view={view}
+        />
+      )}
     </main>
   );
 }
