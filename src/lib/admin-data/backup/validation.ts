@@ -1,8 +1,5 @@
 import type { AdminRow } from "../definitions";
-import {
-  validateFacilities,
-  validateTimeSlots,
-} from "./validation-facilities";
+import { validateFacilities } from "./validation-facilities";
 import {
   validateGuestProfileAddons,
   validateGuestProfiles,
@@ -25,18 +22,12 @@ export function validateParsedRows(
   const rows = {
     users: validateUsers(parsedRows.users, errors),
     facilities: validateFacilities(parsedRows.facilities, errors),
-    facility_time_slots: [] as AdminRow[],
     guest_profiles: [] as AdminRow[],
     guest_profile_addons: [] as AdminRow[],
     facility_bookings: [] as AdminRow[],
     guest_service_bookings: [] as AdminRow[],
   };
 
-  rows.facility_time_slots = validateTimeSlots(
-    parsedRows.facility_time_slots,
-    rows.facilities,
-    errors,
-  );
   rows.guest_profiles = validateGuestProfiles(
     parsedRows.guest_profiles,
     rows.users,
@@ -50,7 +41,8 @@ export function validateParsedRows(
   rows.facility_bookings = validateFacilityBookings(
     parsedRows.facility_bookings,
     rows.users,
-    rows.facility_time_slots,
+    rows.guest_profiles,
+    rows.facilities,
     errors,
   );
   rows.guest_service_bookings = validateGuestServiceBookings(

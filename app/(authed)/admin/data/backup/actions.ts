@@ -18,11 +18,6 @@ const DATA_PATHS = [
   "/admin/kitchen",
   "/admin/audit-log",
   "/",
-  "/booking/karaoke",
-  "/booking/gym",
-  "/booking/yoga",
-  "/booking/lounge",
-  "/booking/services",
 ];
 
 export async function uploadBackupWorkbookAction(

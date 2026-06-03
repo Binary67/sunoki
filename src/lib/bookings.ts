@@ -2,153 +2,39 @@ import { insertAuditLog } from "./admin-data/audit";
 import type { AdminRow } from "./admin-data/definitions";
 import { db, type User } from "./db";
 import { isBookingDate, isWithinBookingDateRange } from "./booking-dates";
-import {
-  GUEST_BOOKING_CHECK_IN_REQUIRED_MESSAGE,
-  getGuestBookingProfileStatus,
-} from "./guest-booking-access";
 import type { UserRole } from "./roles";
 import type { ServiceBookingKey } from "./service-bookings";
 
-export type FacilitySlotAvailability = {
-  id: number;
-  startTime: string;
-  durationMinutes: number;
-  capacityPax: number;
-  bookedPax: number;
-  paxLeft: number;
-  isAvailable: boolean;
-  currentUserBookingId: number | null;
-};
-
-export type FacilityAvailability = {
-  id: number;
-  slug: string;
-  name: string;
-  taglines: string[];
-  slots: FacilitySlotAvailability[];
-};
-
 type FacilityRow = {
   id: number;
-  slug: string;
   name: string;
-  tagline1: string | null;
-  tagline2: string | null;
-  tagline3: string | null;
 };
 
-type SlotAvailabilityRow = {
-  id: number;
-  startTime: string;
-  durationMinutes: number;
-  capacityPax: number;
-  bookedPax: number;
-  currentUserBookingId: number | null;
-};
-
-type SlotRow = {
-  id: number;
-  startTime: string;
-  capacityPax: number;
-};
-
-type BookingUserRow = {
+type FacilityBookingUserRow = {
   role: UserRole;
   active: number;
   checkInDate: string | null;
   checkOutDate: string | null;
+  guestProfileId: number | null;
+  guestProfileStatus: string | null;
 };
 
-type CountRow = {
-  bookedPax: number;
-};
-
-type CancelBookingRow = {
+type ExistingRow = {
   id: number;
-  bookingDate: string;
-  startTime: string;
 };
 
-function hasSlotStarted(bookingDate: string, startTime: string, now = new Date()) {
+function hasBookingStarted(
+  bookingDate: string,
+  bookingTime: string,
+  now = new Date(),
+) {
   const [year, month, day] = bookingDate.split("-").map(Number);
-  const [hour, minute] = startTime.split(":").map(Number);
+  const [hour, minute] = bookingTime.split(":").map(Number);
   return new Date(year, month - 1, day, hour, minute) <= now;
 }
 
-export function getFacilityAvailability(
-  facilitySlug: string,
-  bookingDate: string,
-  currentUserId: number,
-): FacilityAvailability | null {
-  if (!isBookingDate(bookingDate) || !Number.isInteger(currentUserId)) return null;
-
-  const facility = db
-    .prepare(
-      `
-        SELECT
-          id,
-          slug,
-          name,
-          tagline_1 AS tagline1,
-          tagline_2 AS tagline2,
-          tagline_3 AS tagline3
-        FROM facilities
-        WHERE slug = ?
-      `,
-    )
-    .get(facilitySlug) as FacilityRow | undefined;
-
-  if (!facility) return null;
-
-  const rows = db
-    .prepare(
-      `
-        SELECT
-          s.id,
-          s.start_time AS startTime,
-          s.duration_minutes AS durationMinutes,
-          s.capacity_pax AS capacityPax,
-          COUNT(b.id) AS bookedPax,
-          MAX(CASE WHEN b.user_id = ? THEN b.id ELSE NULL END) AS currentUserBookingId
-        FROM facility_time_slots s
-        LEFT JOIN facility_bookings b
-          ON b.facility_time_slot_id = s.id
-         AND b.booking_date = ?
-         AND b.status = 'booked'
-        WHERE s.facility_id = ?
-          AND s.active = 1
-        GROUP BY s.id
-        ORDER BY s.start_time
-      `,
-    )
-    .all(currentUserId, bookingDate, facility.id) as SlotAvailabilityRow[];
-
-  return {
-    id: facility.id,
-    slug: facility.slug,
-    name: facility.name,
-    taglines: [facility.tagline1, facility.tagline2, facility.tagline3].filter(
-      (tagline): tagline is string => Boolean(tagline),
-    ),
-    slots: rows.map((row) => {
-      const bookedPax = Number(row.bookedPax);
-      const capacityPax = Number(row.capacityPax);
-      const paxLeft = Math.max(0, capacityPax - bookedPax);
-      return {
-        id: row.id,
-        startTime: row.startTime,
-        durationMinutes: Number(row.durationMinutes),
-        capacityPax,
-        bookedPax,
-        paxLeft,
-        isAvailable: paxLeft > 0,
-        currentUserBookingId:
-          row.currentUserBookingId === null
-            ? null
-            : Number(row.currentUserBookingId),
-      };
-    }),
-  };
+function isBookingTime(value: string): boolean {
+  return /^([01]\d|2[0-3]):[0-5]\d$/.test(value);
 }
 
 export type UpcomingBookingType = "facility" | "service";
@@ -160,13 +46,10 @@ export type UpcomingBooking = {
   name: string;
   bookingDate: string;
   startTime: string;
-  durationMinutes: number | null;
   guestName: string;
   guestUsername: string;
-  capacityPax: number | null;
-  bookedPax: number | null;
-  isRead: boolean | null;
-  isDone: boolean | null;
+  isRead: boolean;
+  isDone: boolean;
 };
 
 type UpcomingFacilityBookingRow = {
@@ -174,11 +57,10 @@ type UpcomingFacilityBookingRow = {
   name: string;
   bookingDate: string;
   startTime: string;
-  durationMinutes: number;
   guestName: string | null;
   guestUsername: string;
-  capacityPax: number;
-  bookedPax: number;
+  adminRead: number;
+  adminDone: number;
 };
 
 type UpcomingServiceBookingRow = {
@@ -216,7 +98,7 @@ export function getUpcomingBookings(
   const includeFacilities = serviceKeys.length === 0;
   const facilityWhere = [
     "b.status = 'booked'",
-    "(b.booking_date || ' ' || s.start_time) >= ?",
+    "(b.booking_date || ' ' || b.booking_time) >= ?",
   ];
   const facilityParams = [cutoff];
   const serviceWhere = [
@@ -247,25 +129,17 @@ export function getUpcomingBookings(
           b.id              AS bookingId,
           f.name            AS name,
           b.booking_date    AS bookingDate,
-          s.start_time      AS startTime,
-          s.duration_minutes AS durationMinutes,
+          b.booking_time    AS startTime,
           gp.name           AS guestName,
           u.username        AS guestUsername,
-          s.capacity_pax    AS capacityPax,
-          (
-            SELECT COUNT(*)
-            FROM facility_bookings b2
-            WHERE b2.facility_time_slot_id = b.facility_time_slot_id
-              AND b2.booking_date = b.booking_date
-              AND b2.status = 'booked'
-          ) AS bookedPax
+          b.admin_read      AS adminRead,
+          b.admin_done      AS adminDone
         FROM facility_bookings b
-        JOIN facility_time_slots s ON s.id = b.facility_time_slot_id
-        JOIN facilities f ON f.id = s.facility_id
+        JOIN facilities f ON f.id = b.facility_id
         JOIN users u ON u.id = b.user_id
-        LEFT JOIN guest_profiles gp ON gp.user_id = b.user_id
+        LEFT JOIN guest_profiles gp ON gp.id = b.guest_profile_id
         WHERE ${facilityWhere.join("\n          AND ")}
-        ORDER BY b.booking_date ASC, s.start_time ASC, b.id ASC
+        ORDER BY b.booking_date ASC, b.booking_time ASC, b.id ASC
       `,
         )
         .all(...facilityParams) as UpcomingFacilityBookingRow[])
@@ -301,13 +175,10 @@ export function getUpcomingBookings(
       name: row.name,
       bookingDate: row.bookingDate,
       startTime: row.startTime,
-      durationMinutes: Number(row.durationMinutes),
       guestName: row.guestName ?? row.guestUsername,
       guestUsername: row.guestUsername,
-      capacityPax: Number(row.capacityPax),
-      bookedPax: Number(row.bookedPax),
-      isRead: null,
-      isDone: null,
+      isRead: row.adminRead === 1,
+      isDone: row.adminDone === 1,
     })),
     ...serviceRows.map((row) => ({
       type: "service" as const,
@@ -316,11 +187,8 @@ export function getUpcomingBookings(
       name: row.name,
       bookingDate: row.bookingDate,
       startTime: row.startTime,
-      durationMinutes: null,
       guestName: row.guestName ?? row.guestUsername,
       guestUsername: row.guestUsername,
-      capacityPax: null,
-      bookedPax: null,
       isRead: row.adminRead === 1,
       isDone: row.adminDone === 1,
     })),
@@ -338,24 +206,32 @@ export function getUpcomingBookings(
 export type CreateFacilityBookingInput = {
   auditActor?: User;
   userId: number;
-  facilitySlug?: string;
+  facilityId: number;
   bookingDate: string;
-  timeSlotId: number;
+  bookingTime: string;
 };
 
 export type CreateFacilityBookingResult =
-  | { ok: true; startTime: string }
+  | { ok: true; bookingId: number; facilityName: string }
   | { ok: false; error: string };
 
 export function createFacilityBooking({
   auditActor,
   userId,
-  facilitySlug,
+  facilityId,
   bookingDate,
-  timeSlotId,
+  bookingTime,
 }: CreateFacilityBookingInput): CreateFacilityBookingResult {
-  if (!isBookingDate(bookingDate) || !Number.isInteger(timeSlotId)) {
-    return { ok: false, error: "Choose a valid date and time slot." };
+  if (
+    !Number.isInteger(userId) ||
+    !Number.isInteger(facilityId) ||
+    !isBookingDate(bookingDate) ||
+    !isBookingTime(bookingTime)
+  ) {
+    return { ok: false, error: "Choose a valid facility date and time." };
+  }
+  if (hasBookingStarted(bookingDate, bookingTime)) {
+    return { ok: false, error: "Choose an upcoming facility date and time." };
   }
 
   let inTransaction = false;
@@ -364,96 +240,70 @@ export function createFacilityBooking({
     db.exec("BEGIN IMMEDIATE");
     inTransaction = true;
 
-    const bookingUser = db
-      .prepare(
-        `
-          SELECT
-            role,
-            active,
-            check_in_date AS checkInDate,
-            check_out_date AS checkOutDate
-          FROM users
-          WHERE id = ?
-        `,
-      )
-      .get(userId) as BookingUserRow | undefined;
-
+    const bookingUser = getFacilityBookingUser(userId);
     if (!bookingUser) {
       db.exec("ROLLBACK");
       inTransaction = false;
-      return { ok: false, error: "Sign in before reserving a time slot." };
+      return { ok: false, error: "Choose a valid guest." };
     }
-
     if (bookingUser.active !== 1) {
       db.exec("ROLLBACK");
       inTransaction = false;
-      return { ok: false, error: "This account is inactive." };
+      return { ok: false, error: "Guest is inactive." };
     }
-
     if (bookingUser.role !== "guest") {
       db.exec("ROLLBACK");
       inTransaction = false;
-      return { ok: false, error: "Only guests can reserve facility slots." };
+      return { ok: false, error: "Facility bookings require a guest user." };
     }
-
-    if (getGuestBookingProfileStatus(userId) !== "checked_in") {
+    if (!bookingUser.guestProfileId) {
       db.exec("ROLLBACK");
       inTransaction = false;
-      return { ok: false, error: GUEST_BOOKING_CHECK_IN_REQUIRED_MESSAGE };
+      return {
+        ok: false,
+        error: "The selected guest does not have a linked guest profile.",
+      };
+    }
+    if (bookingUser.guestProfileStatus !== "checked_in") {
+      db.exec("ROLLBACK");
+      inTransaction = false;
+      return {
+        ok: false,
+        error: "The selected guest must be checked in before booking facilities.",
+      };
     }
 
-    const checkInDate = bookingUser.checkInDate;
-    const checkOutDate = bookingUser.checkOutDate;
-
     if (
-      !checkInDate ||
-      !checkOutDate ||
-      !isBookingDate(checkInDate) ||
-      !isBookingDate(checkOutDate) ||
-      checkOutDate < checkInDate
+      !bookingUser.checkInDate ||
+      !bookingUser.checkOutDate ||
+      !isBookingDate(bookingUser.checkInDate) ||
+      !isBookingDate(bookingUser.checkOutDate) ||
+      bookingUser.checkOutDate < bookingUser.checkInDate
     ) {
       db.exec("ROLLBACK");
       inTransaction = false;
       return {
         ok: false,
-        error: "Your stay dates are not set up for booking.",
+        error: "The selected guest does not have valid stay dates.",
       };
     }
-
-    if (!isWithinBookingDateRange(bookingDate, checkInDate, checkOutDate)) {
-      db.exec("ROLLBACK");
-      inTransaction = false;
-      return { ok: false, error: "Choose a date within your stay dates." };
-    }
-
-    const slot = db
-      .prepare(
-        `
-          SELECT
-            s.id,
-            s.start_time AS startTime,
-            s.capacity_pax AS capacityPax
-          FROM facility_time_slots s
-          JOIN facilities f ON f.id = s.facility_id
-          WHERE s.id = ?
-            AND (? IS NULL OR f.slug = ?)
-            AND s.active = 1
-        `,
+    if (
+      !isWithinBookingDateRange(
+        bookingDate,
+        bookingUser.checkInDate,
+        bookingUser.checkOutDate,
       )
-      .get(timeSlotId, facilitySlug ?? null, facilitySlug ?? null) as
-      | SlotRow
-      | undefined;
-
-    if (!slot) {
+    ) {
       db.exec("ROLLBACK");
       inTransaction = false;
-      return { ok: false, error: "Choose a valid date and time slot." };
+      return { ok: false, error: "Booking date must be within the guest stay dates." };
     }
 
-    if (hasSlotStarted(bookingDate, slot.startTime)) {
+    const facility = getFacility(facilityId);
+    if (!facility) {
       db.exec("ROLLBACK");
       inTransaction = false;
-      return { ok: false, error: "Choose an upcoming date and time slot." };
+      return { ok: false, error: "Choose a valid facility." };
     }
 
     const existing = db
@@ -461,51 +311,44 @@ export function createFacilityBooking({
         `
           SELECT id
           FROM facility_bookings
-          WHERE user_id = ?
-            AND facility_time_slot_id = ?
+          WHERE facility_id = ?
             AND booking_date = ?
+            AND booking_time = ?
             AND status = 'booked'
         `,
       )
-      .get(userId, timeSlotId, bookingDate);
+      .get(facilityId, bookingDate, bookingTime) as ExistingRow | undefined;
 
     if (existing) {
       db.exec("ROLLBACK");
       inTransaction = false;
-      return { ok: false, error: "You already booked this time slot." };
-    }
-
-    const count = db
-      .prepare(
-        `
-          SELECT COUNT(*) AS bookedPax
-          FROM facility_bookings
-          WHERE facility_time_slot_id = ?
-            AND booking_date = ?
-            AND status = 'booked'
-        `,
-      )
-      .get(timeSlotId, bookingDate) as CountRow;
-
-    if (Number(count.bookedPax) >= Number(slot.capacityPax)) {
-      db.exec("ROLLBACK");
-      inTransaction = false;
-      return { ok: false, error: "This time slot is no longer available." };
+      return {
+        ok: false,
+        error: "This facility is already booked at that date and time.",
+      };
     }
 
     const result = db.prepare(
       `
         INSERT INTO facility_bookings (
           user_id,
-          facility_time_slot_id,
-          booking_date
+          guest_profile_id,
+          facility_id,
+          booking_date,
+          booking_time
         )
-        VALUES (?, ?, ?)
+        VALUES (?, ?, ?, ?, ?)
       `,
-    ).run(userId, timeSlotId, bookingDate) as { lastInsertRowid: number | bigint };
+    ).run(
+      userId,
+      bookingUser.guestProfileId,
+      facilityId,
+      bookingDate,
+      bookingTime,
+    ) as { lastInsertRowid: number | bigint };
 
+    const bookingId = Number(result.lastInsertRowid);
     if (auditActor) {
-      const bookingId = Number(result.lastInsertRowid);
       const after = selectFacilityBookingAuditRow(bookingId);
       if (!after) throw new Error("Inserted facility booking could not be loaded.");
       insertAuditLog(
@@ -520,11 +363,46 @@ export function createFacilityBooking({
 
     db.exec("COMMIT");
     inTransaction = false;
-    return { ok: true, startTime: slot.startTime };
+    return { ok: true, bookingId, facilityName: facility.name };
   } catch {
     if (inTransaction) db.exec("ROLLBACK");
-    return { ok: false, error: "Unable to reserve this time slot." };
+    return { ok: false, error: "Unable to book this facility." };
   }
+}
+
+function getFacilityBookingUser(userId: number): FacilityBookingUserRow | null {
+  const row = db
+    .prepare(
+      `
+        SELECT
+          u.role,
+          u.active,
+          u.check_in_date AS checkInDate,
+          u.check_out_date AS checkOutDate,
+          gp.id AS guestProfileId,
+          gp.status AS guestProfileStatus
+        FROM users u
+        LEFT JOIN guest_profiles gp ON gp.user_id = u.id
+        WHERE u.id = ?
+      `,
+    )
+    .get(userId) as FacilityBookingUserRow | undefined;
+
+  return row ?? null;
+}
+
+function getFacility(facilityId: number): FacilityRow | null {
+  const row = db
+    .prepare(
+      `
+        SELECT id, name
+        FROM facilities
+        WHERE id = ?
+      `,
+    )
+    .get(facilityId) as FacilityRow | undefined;
+
+  return row ?? null;
 }
 
 function selectFacilityBookingAuditRow(bookingId: number): AdminRow | null {
@@ -534,8 +412,10 @@ function selectFacilityBookingAuditRow(bookingId: number): AdminRow | null {
         SELECT
           id,
           user_id,
-          facility_time_slot_id,
+          guest_profile_id,
+          facility_id,
           booking_date,
+          booking_time,
           status,
           admin_read,
           admin_done,
@@ -549,104 +429,4 @@ function selectFacilityBookingAuditRow(bookingId: number): AdminRow | null {
     .get(bookingId) as AdminRow | undefined;
 
   return row ? { ...row } : null;
-}
-
-export type CancelFacilityBookingInput = {
-  actor: User;
-  facilitySlug: string;
-  bookingDate: string;
-  timeSlotId: number;
-};
-
-export type CancelFacilityBookingResult =
-  | { ok: true; startTime: string }
-  | { ok: false; error: string };
-
-export function cancelFacilityBooking({
-  actor,
-  facilitySlug,
-  bookingDate,
-  timeSlotId,
-}: CancelFacilityBookingInput): CancelFacilityBookingResult {
-  if (!isBookingDate(bookingDate) || !Number.isInteger(timeSlotId)) {
-    return { ok: false, error: "Choose a valid booking to cancel." };
-  }
-  if (actor.role !== "guest") {
-    return { ok: false, error: "Only guests can cancel facility bookings." };
-  }
-
-  let inTransaction = false;
-
-  try {
-    db.exec("BEGIN IMMEDIATE");
-    inTransaction = true;
-
-    const booking = db
-      .prepare(
-        `
-          SELECT
-            b.id,
-            b.booking_date AS bookingDate,
-            s.start_time AS startTime
-          FROM facility_bookings b
-          JOIN facility_time_slots s ON s.id = b.facility_time_slot_id
-          JOIN facilities f ON f.id = s.facility_id
-          WHERE b.user_id = ?
-            AND b.facility_time_slot_id = ?
-            AND b.booking_date = ?
-            AND f.slug = ?
-            AND b.status = 'booked'
-        `,
-      )
-      .get(actor.id, timeSlotId, bookingDate, facilitySlug) as
-      | CancelBookingRow
-      | undefined;
-
-    if (!booking) {
-      db.exec("ROLLBACK");
-      inTransaction = false;
-      return { ok: false, error: "Unable to cancel this booking." };
-    }
-
-    if (hasSlotStarted(booking.bookingDate, booking.startTime)) {
-      db.exec("ROLLBACK");
-      inTransaction = false;
-      return {
-        ok: false,
-        error: "This booking can no longer be cancelled.",
-      };
-    }
-
-    const before = selectFacilityBookingAuditRow(booking.id);
-    if (!before) throw new Error("Facility booking could not be loaded.");
-
-    db.prepare(
-      `
-        UPDATE facility_bookings
-        SET status = 'cancelled',
-            cancelled_at = datetime('now')
-        WHERE id = ?
-          AND user_id = ?
-          AND status = 'booked'
-      `,
-    ).run(booking.id, actor.id);
-
-    const after = selectFacilityBookingAuditRow(booking.id);
-    if (!after) throw new Error("Cancelled facility booking could not be loaded.");
-    insertAuditLog(
-      actor,
-      "update",
-      "facility_bookings",
-      booking.id,
-      before,
-      after,
-    );
-
-    db.exec("COMMIT");
-    inTransaction = false;
-    return { ok: true, startTime: booking.startTime };
-  } catch {
-    if (inTransaction) db.exec("ROLLBACK");
-    return { ok: false, error: "Unable to cancel this booking." };
-  }
 }

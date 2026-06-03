@@ -256,8 +256,9 @@ function createAdminFacilityBooking(
   const result = createFacilityBooking({
     auditActor: actor,
     userId: Number(parsed.values.user_id),
+    facilityId: Number(parsed.values.facility_id),
     bookingDate: String(parsed.values.booking_date),
-    timeSlotId: Number(parsed.values.facility_time_slot_id),
+    bookingTime: String(parsed.values.booking_time),
   });
   if (!result.ok) return { ok: false, message: result.error };
 
@@ -288,9 +289,6 @@ function validateTableMutation(
   actor: User,
   tableName: EditableTableName,
 ): AdminMutationResult | null {
-  if (tableName === "facility_time_slots" && actor.role !== "superadmin") {
-    return { ok: false, message: "Only super admins can manage time slots." };
-  }
   if (
     tableName === "package_service_entitlements" &&
     actor.role !== "superadmin"

@@ -1,7 +1,6 @@
 export const BACKUP_TABLE_NAMES = [
   "users",
   "facilities",
-  "facility_time_slots",
   "guest_profiles",
   "guest_profile_addons",
   "facility_bookings",
@@ -46,18 +45,6 @@ const BACKUP_TABLES: Record<BackupTableName, BackupTableDefinition> = {
       { name: "tagline_1", valueType: "text" },
       { name: "tagline_2", valueType: "text" },
       { name: "tagline_3", valueType: "text" },
-    ],
-  },
-  facility_time_slots: {
-    name: "facility_time_slots",
-    label: "Facility Time Slots",
-    columns: [
-      { name: "id", valueType: "integer" },
-      { name: "facility_id", valueType: "integer" },
-      { name: "start_time", valueType: "text" },
-      { name: "duration_minutes", valueType: "integer" },
-      { name: "capacity_pax", valueType: "integer" },
-      { name: "active", valueType: "integer" },
     ],
   },
   guest_profiles: {
@@ -117,8 +104,10 @@ const BACKUP_TABLES: Record<BackupTableName, BackupTableDefinition> = {
     columns: [
       { name: "id", valueType: "integer" },
       { name: "user_id", valueType: "integer" },
-      { name: "facility_time_slot_id", valueType: "integer" },
+      { name: "guest_profile_id", valueType: "integer" },
+      { name: "facility_id", valueType: "integer" },
       { name: "booking_date", valueType: "text" },
+      { name: "booking_time", valueType: "text" },
       { name: "status", valueType: "text" },
       { name: "admin_read", valueType: "integer" },
       { name: "admin_done", valueType: "integer" },

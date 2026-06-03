@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
 import { isAdminRole, type UserRole } from "@/src/lib/roles";
 import BrandBlock, { type BrandingSettings } from "./BrandBlock";
@@ -13,13 +12,6 @@ const HomeIcon = ({ className }: IconProps) => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" className={className}>
     <path d="M3 11.5 12 4l9 7.5" />
     <path d="M5 10v9a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1v-9" />
-  </svg>
-);
-
-const BookingIcon = ({ className }: IconProps) => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" className={className}>
-    <rect x="3" y="5" width="18" height="16" rx="2" />
-    <path d="M3 10h18M8 3v4M16 3v4" />
   </svg>
 );
 
@@ -53,40 +45,6 @@ const LogIcon = ({ className }: IconProps) => (
   </svg>
 );
 
-const GymIcon = ({ className }: IconProps) => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" className={className}>
-    <path d="M6 7v10M18 7v10M3 10v4M21 10v4M6 12h12" />
-  </svg>
-);
-
-const KaraokeIcon = ({ className }: IconProps) => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" className={className}>
-    <rect x="9" y="3" width="6" height="11" rx="3" />
-    <path d="M5 11a7 7 0 0 0 14 0M12 18v3M9 21h6" />
-  </svg>
-);
-
-const YogaIcon = ({ className }: IconProps) => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" className={className}>
-    <circle cx="12" cy="4.5" r="1.8" />
-    <path d="M5 12c2 0 4-1 7-1s5 1 7 1M12 11v6M9 21l3-4 3 4" />
-  </svg>
-);
-
-const LoungeIcon = ({ className }: IconProps) => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" className={className}>
-    <path d="M4 12V9a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v3" />
-    <path d="M2 12h20v5a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-5ZM6 19v2M18 19v2" />
-  </svg>
-);
-
-const ServiceIcon = ({ className }: IconProps) => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" className={className}>
-    <path d="M6 4h12M7 8h10M8 12h8" />
-    <path d="M9 20c-1.8-2.1-2.3-4.1-1.5-6 1.1 1.3 2.6 1.9 4.5 1.9s3.4-.6 4.5-1.9c.8 1.9.3 3.9-1.5 6" />
-  </svg>
-);
-
 const SettingsIcon = ({ className }: IconProps) => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" className={className}>
     <circle cx="12" cy="12" r="3" />
@@ -105,21 +63,6 @@ const CloseIcon = ({ className }: IconProps) => (
     <path d="M6 6l12 12M6 18 18 6" />
   </svg>
 );
-
-const facilityBookingChildren = [
-  { label: "Gym", href: "/booking/gym", Icon: GymIcon },
-  { label: "Karaoke", href: "/booking/karaoke", Icon: KaraokeIcon },
-  { label: "Yoga Studio", href: "/booking/yoga", Icon: YogaIcon },
-  { label: "Lounge", href: "/booking/lounge", Icon: LoungeIcon },
-];
-
-const serviceBookingChildren = [
-  {
-    label: "Relaxing Hair Wash",
-    href: "/booking/services",
-    Icon: ServiceIcon,
-  },
-];
 
 const dataChildren: {
   label: string;
@@ -141,7 +84,6 @@ const dataChildren: {
 
 function getDisclosureResetKey(pathname: string): string {
   if (pathname.startsWith("/admin/data")) return "admin-data";
-  if (pathname.startsWith("/booking/")) return "booking";
   return "default";
 }
 
@@ -219,10 +161,8 @@ function SidebarNav({
   pathname: string;
   role: UserRole;
 }) {
-  const inBooking = pathname.startsWith("/booking/");
   const inData = pathname.startsWith("/admin/data");
   const [dataOpen, setDataOpen] = useState(inData);
-  const [bookingOpen, setBookingOpen] = useState(inBooking);
   const dashboardActive = pathname === "/";
   const dataActive = inData;
   const guestProfileActive = pathname.startsWith("/admin/guest-profile");
@@ -346,79 +286,18 @@ function SidebarNav({
       )}
 
       {!isAdmin && (
-        <>
-          <button
-            type="button"
-            onClick={() => setBookingOpen((open) => !open)}
-            aria-expanded={bookingOpen}
-            className="flex items-center gap-3 px-3 py-2.5 rounded-md text-sm text-ink/70 hover:text-ink"
-          >
-            <BookingIcon className="size-4" />
-            <span className="flex-1 text-left">Booking</span>
-            <ChevronIcon
-              className={`size-3.5 text-ink/40 transition-transform ${
-                bookingOpen ? "rotate-90" : ""
-              }`}
-            />
-          </button>
-
-          {bookingOpen && (
-            <div className="mt-1 ml-5 pl-3 border-l border-black/10 flex flex-col">
-              <BookingLinkGroup
-                items={facilityBookingChildren}
-                pathname={pathname}
-                title="Facilities"
-              />
-              <BookingLinkGroup
-                items={serviceBookingChildren}
-                pathname={pathname}
-                title="Services"
-              />
-            </div>
-          )}
-        </>
+        <Link
+          href="/"
+          className={`flex items-center gap-3 rounded-md px-3 py-2.5 text-sm transition-colors duration-200 ${
+            dashboardActive
+              ? "bg-surface font-medium text-brand"
+              : "text-ink/70 hover:text-ink"
+          }`}
+        >
+          <HomeIcon className="size-4" />
+          <span>Home</span>
+        </Link>
       )}
     </nav>
-  );
-}
-
-function BookingLinkGroup({
-  items,
-  pathname,
-  title,
-}: {
-  items: { label: string; href: string; Icon: (props: IconProps) => ReactNode }[];
-  pathname: string;
-  title: string;
-}) {
-  return (
-    <div className="mb-2 last:mb-0">
-      <div className="px-3 pb-1 pt-2 text-[10px] font-medium uppercase tracking-[0.14em] text-ink/35">
-        {title}
-      </div>
-      {items.map(({ label, href, Icon }) => {
-        const active = pathname === href;
-        return (
-          <Link
-            key={href}
-            href={href}
-            className={`relative flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors duration-200 ${
-              active
-                ? "bg-surface font-medium text-brand"
-                : "text-ink/70 hover:text-ink"
-            }`}
-          >
-            <span
-              aria-hidden="true"
-              className={`absolute -left-[13px] bottom-1.5 top-1.5 w-0.5 rounded-r bg-brand transition-opacity duration-200 ${
-                active ? "opacity-100" : "opacity-0"
-              }`}
-            />
-            <Icon className="size-4" />
-            <span>{label}</span>
-          </Link>
-        );
-      })}
-    </div>
   );
 }

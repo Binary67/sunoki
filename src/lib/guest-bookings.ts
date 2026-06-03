@@ -29,7 +29,6 @@ type FacilityBookingRow = {
   name: string;
   bookingDate: string;
   bookingTime: string;
-  durationMinutes: number;
   adminRead: number;
   adminDone: number;
   adminDoneAt: string | null;
@@ -62,14 +61,12 @@ export function listGuestBookingChecklist(
           b.id,
           f.name,
           b.booking_date AS bookingDate,
-          s.start_time AS bookingTime,
-          s.duration_minutes AS durationMinutes,
+          b.booking_time AS bookingTime,
           b.admin_read AS adminRead,
           b.admin_done AS adminDone,
           b.admin_done_at AS adminDoneAt
         FROM facility_bookings b
-        JOIN facility_time_slots s ON s.id = b.facility_time_slot_id
-        JOIN facilities f ON f.id = s.facility_id
+        JOIN facilities f ON f.id = b.facility_id
         WHERE b.user_id = ?
           AND b.status = 'booked'
       `,
@@ -101,7 +98,7 @@ export function listGuestBookingChecklist(
       name: booking.name,
       bookingDate: booking.bookingDate,
       bookingTime: booking.bookingTime,
-      detail: `${Number(booking.durationMinutes)} min`,
+      detail: null,
       isRead: booking.adminRead === 1,
       isDone: booking.adminDone === 1,
       doneAt: booking.adminDoneAt,

@@ -1,20 +1,20 @@
 # Sunoki
 
 Sunoki is a Next.js operations app for managing guest stays, package services,
-facility reservations, and admin data for a stay-based care facility. It has
-separate admin and guest experiences backed by a local SQLite database.
+facility reservations, and admin data for a stay-based care facility. It is
+backed by a local SQLite database.
 
 ## What It Does
 
 - Admin dashboard for room occupancy and upcoming facility/service bookings.
 - Guest profile management for intake, check-in, check-out, package details,
   add-ons, kitchen notes, and linked guest accounts.
-- Guest booking flows for the Karaoke Lounge, Strength Studio, Yoga Studio, and
-  Tranquil Lounge.
-- Service booking for Relaxing Hair Wash with package entitlement and purchased
-  perk tracking.
-- Admin data editor for users, facilities, time slots, bookings, service
-  bookings, and package service quantities.
+- Admin-managed facility bookings for the Karaoke Lounge, Strength Studio, Yoga
+  Studio, and Tranquil Lounge.
+- Admin-managed service booking for Relaxing Hair Wash with package entitlement
+  and purchased perk tracking.
+- Admin data editor for users, facilities, bookings, service bookings, and
+  package service quantities.
 - Kitchen notes view with print-specific formatting for daily prep.
 - Personalization settings for the app name, description, and brand icon.
 - Audit log for admin data changes.
@@ -26,16 +26,14 @@ separate admin and guest experiences backed by a local SQLite database.
 Sunoki uses three roles:
 
 - `superadmin`: full admin access, including backup/restore, admin user
-  management, facility time slots, package quantities, and guest profile
-  deletion.
+  management, package quantities, and guest profile deletion.
 - `admin`: day-to-day operations access for guest profiles, kitchen notes,
   guest/user access controls, facility bookings, and service bookings.
-- `guest`: booking access for the guest-facing facility and service pages.
+- `guest`: signed-in home access. Bookings are managed by admin users.
 
-Guest accounts are created from guest profiles. A checked-in guest can book
-within their stay window; future bookings are cancelled automatically when an
-account is deactivated or stay dates change in a way that makes those bookings
-invalid.
+Guest accounts are created from guest profiles. Future bookings are cancelled
+automatically when an account is deactivated or stay dates change in a way that
+makes those bookings invalid.
 
 ## Main Workflows
 
@@ -56,19 +54,19 @@ details. Admins can:
 Checked-in and checked-out states are derived from profile status, check-in
 date, the base stay length, and any additional-day add-ons.
 
-### Guest Booking
+### Bookings
 
-Guests sign in and use the booking area under `/booking`.
+Admins and super admins create bookings from the data editor.
 
-- Facility booking pages show a date picker and available slots for each
-  facility. Capacity is enforced per time slot, and guests can cancel bookings
-  before the slot starts.
+- Facility bookings use a direct facility, guest, date, and time. Facilities are
+  unlimited by package entitlement, but a facility cannot be double-booked for
+  the same date and time.
 - Service booking currently supports Relaxing Hair Wash. The app counts package
   entitlement quantity, purchased perk quantity, used sessions, remaining
   sessions, and upcoming bookings.
 
-Guest booking is only available for checked-in guests and only for dates inside
-the guest stay window.
+Bookings are only available for checked-in guests and only for dates inside the
+guest stay window.
 
 ### Admin Data
 
@@ -76,7 +74,7 @@ The data editor under `/admin/data` exposes structured forms around the local
 SQLite tables instead of raw SQL. It covers:
 
 - users and access controls;
-- facility content, time slots, and facility bookings;
+- facility content and facility bookings;
 - package service quantities and guest service bookings.
 
 Mutations are validated in application code and recorded in the audit log where
@@ -85,9 +83,8 @@ the table is audited. Password values are masked in audit output.
 ### Backup And Restore
 
 Super admins can export a guest operations workbook from
-`/admin/data/backup`. The workbook includes users, facilities, facility time
-slots, guest profiles, guest profile add-ons, facility bookings, and guest
-service bookings.
+`/admin/data/backup`. The workbook includes users, facilities, guest profiles,
+guest profile add-ons, facility bookings, and guest service bookings.
 
 Restore is a two-step workflow:
 
@@ -149,7 +146,6 @@ Running `npm run seed` creates or refreshes local development data:
   - `gym`
   - `yoga`
   - `lounge`
-- Default facility time slots.
 - Package entitlement defaults for Supreme Care, Premium Care, Deluxe Care, and
   Luxury Care.
 
@@ -168,7 +164,7 @@ automatic pre-restore backups in `data/backups`.
 ## Project Layout
 
 - `app/`: Next.js routes, server actions, layouts, and UI components.
-- `app/(authed)/booking/`: guest-facing facility and service booking flows.
+- `app/(authed)/booking/`: disabled legacy booking routes that redirect signed-in users home.
 - `app/(authed)/admin/`: admin dashboard, guest operations, data editor,
   kitchen notes, audit log, personalization, and backup/restore pages.
 - `src/lib/`: database setup, auth/session handling, booking rules, guest

@@ -19,15 +19,16 @@ import { getBookablePackageService } from "../../service-bookings";
 export function validateFacilityBookings(
   rows: ParsedSheetRow[],
   users: AdminRow[],
-  timeSlots: AdminRow[],
+  guestProfiles: AdminRow[],
+  facilities: AdminRow[],
   errors: BackupImportError[],
 ): AdminRow[] {
   const normalized: AdminRow[] = [];
   const ids = new Set<number>();
   const usersById = indexRowsById(users);
-  const timeSlotsById = indexRowsById(timeSlots);
-  const uniqueBookings = new Set<string>();
-  const slotDateCounts = new Map<string, number>();
+  const guestProfilesById = indexRowsById(guestProfiles);
+  const facilitiesById = indexRowsById(facilities);
+  const uniqueActiveBookings = new Set<string>();
 
   for (const row of rows) {
     const id = readPositiveIntegerValue(
@@ -44,11 +45,18 @@ export function validateFacilityBookings(
       "User",
       errors,
     );
-    const timeSlotId = readPositiveIntegerValue(
+    const guestProfileId = readPositiveIntegerValue(
       row,
       "facility_bookings",
-      "facility_time_slot_id",
-      "Time slot",
+      "guest_profile_id",
+      "Guest profile",
+      errors,
+    );
+    const facilityId = readPositiveIntegerValue(
+      row,
+      "facility_bookings",
+      "facility_id",
+      "Facility",
       errors,
     );
     const bookingDate = readBookingDateValue(
@@ -56,6 +64,13 @@ export function validateFacilityBookings(
       "facility_bookings",
       "booking_date",
       "Booking date",
+      errors,
+    );
+    const bookingTime = readRequiredTextValue(
+      row,
+      "facility_bookings",
+      "booking_time",
+      "Booking time",
       errors,
     );
     const status = readRequiredTextValue(
@@ -115,8 +130,10 @@ export function validateFacilityBookings(
     }
 
     const user = userId !== null ? (usersById.get(userId) ?? null) : null;
-    const timeSlot =
-      timeSlotId !== null ? (timeSlotsById.get(timeSlotId) ?? null) : null;
+    const guestProfile =
+      guestProfileId !== null ? guestProfilesById.get(guestProfileId) : null;
+    const facility =
+      facilityId !== null ? facilitiesById.get(facilityId) : null;
     if (userId !== null && !user) {
       addRowError(
         errors,
@@ -127,13 +144,35 @@ export function validateFacilityBookings(
       );
     }
 
-    if (timeSlotId !== null && !timeSlot) {
+    if (guestProfileId !== null && !guestProfile) {
       addRowError(
         errors,
         row,
         "facility_bookings",
-        "facility_time_slot_id",
-        `Time slot ID ${timeSlotId} is not present in the workbook.`,
+        "guest_profile_id",
+        `Guest profile ID ${guestProfileId} is not present in the workbook.`,
+      );
+    }
+    if (
+      userId !== null &&
+      guestProfile &&
+      Number(guestProfile.user_id) !== userId
+    ) {
+      addRowError(
+        errors,
+        row,
+        "facility_bookings",
+        "guest_profile_id",
+        "Facility booking must use the linked guest profile for its user.",
+      );
+    }
+    if (facilityId !== null && !facility) {
+      addRowError(
+        errors,
+        row,
+        "facility_bookings",
+        "facility_id",
+        `Facility ID ${facilityId} is not present in the workbook.`,
       );
     }
     if (status !== "booked" && status !== "cancelled") {
@@ -164,31 +203,43 @@ export function validateFacilityBookings(
         "Facility bookings must use guest users.",
       );
     }
-
-    if (status === "booked" && timeSlot && timeSlot.active !== 1) {
+    if (
+      status === "booked" &&
+      guestProfile &&
+      guestProfile.status !== "checked_in"
+    ) {
       addRowError(
         errors,
         row,
         "facility_bookings",
-        "facility_time_slot_id",
-        "Facility bookings must use active time slots.",
+        "guest_profile_id",
+        "Facility bookings require checked-in guest profiles.",
+      );
+    }
+
+    if (bookingTime !== null && !isTimeValue(bookingTime)) {
+      addRowError(
+        errors,
+        row,
+        "facility_bookings",
+        "booking_time",
+        "Enter a valid booking time.",
       );
     }
 
     if (
       status === "booked" &&
       bookingDate !== null &&
-      timeSlot &&
-      typeof timeSlot.start_time === "string" &&
-      isTimeValue(timeSlot.start_time) &&
-      hasSlotStarted(bookingDate, timeSlot.start_time)
+      bookingTime !== null &&
+      isTimeValue(bookingTime) &&
+      hasSlotStarted(bookingDate, bookingTime)
     ) {
       addRowError(
         errors,
         row,
         "facility_bookings",
-        "booking_date",
-        "Facility bookings must use upcoming time slots.",
+        "booking_time",
+        "Facility bookings must use an upcoming date and time.",
       );
     }
 
@@ -206,49 +257,30 @@ export function validateFacilityBookings(
     if (
       status === "booked" &&
       userId !== null &&
-      timeSlotId !== null &&
-      bookingDate !== null
+      facilityId !== null &&
+      bookingDate !== null &&
+      bookingTime !== null
     ) {
-      const key = `${userId}:${timeSlotId}:${bookingDate}`;
-      if (uniqueBookings.has(key)) {
+      const key = `${facilityId}:${bookingDate}:${bookingTime}`;
+      if (uniqueActiveBookings.has(key)) {
         addRowError(
           errors,
           row,
           "facility_bookings",
-          "booking_date",
-          "User, time slot, and booking date must be unique.",
+          "booking_time",
+          "Active facility bookings must be unique by facility, date, and time.",
         );
       }
-      uniqueBookings.add(key);
-    }
-
-    if (
-      status === "booked" &&
-      timeSlotId !== null &&
-      timeSlot &&
-      bookingDate !== null
-    ) {
-      const capacity = Number(timeSlot.capacity_pax);
-      const key = `${timeSlotId}:${bookingDate}`;
-      const count = (slotDateCounts.get(key) ?? 0) + 1;
-      slotDateCounts.set(key, count);
-
-      if (Number.isInteger(capacity) && capacity > 0 && count > capacity) {
-        addRowError(
-          errors,
-          row,
-          "facility_bookings",
-          "facility_time_slot_id",
-          "Time slot capacity would be exceeded.",
-        );
-      }
+      uniqueActiveBookings.add(key);
     }
 
     normalized.push({
       id,
       user_id: userId,
-      facility_time_slot_id: timeSlotId,
+      guest_profile_id: guestProfileId,
+      facility_id: facilityId,
       booking_date: bookingDate,
+      booking_time: bookingTime,
       status,
       admin_read: adminRead,
       admin_done: adminDone,

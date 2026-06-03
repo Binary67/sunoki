@@ -1,21 +1,9 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/src/lib/auth";
-import {
-  cancelFacilityBooking,
-  createFacilityBooking,
-} from "@/src/lib/bookings";
-
-export type BookingActionSuccess = {
-  startTime: string;
-  bookingDate: string;
-  facilitySlug: string;
-};
 
 export type BookingActionState = {
   error?: string;
-  success?: BookingActionSuccess;
   submissionId?: number;
 };
 
@@ -23,35 +11,14 @@ export async function reserveFacilitySlotAction(
   prev: BookingActionState,
   formData: FormData,
 ): Promise<BookingActionState> {
+  void formData;
   const submissionId = (prev.submissionId ?? 0) + 1;
   const user = await getCurrentUser();
   if (!user) {
-    return { error: "Sign in before reserving a time slot.", submissionId };
+    return { error: "Sign in before booking a facility.", submissionId };
   }
-  if (user.role !== "guest") {
-    return { error: "Only guests can reserve facility slots.", submissionId };
-  }
-
-  const facilitySlug = String(formData.get("facility") ?? "");
-  const bookingDate = String(formData.get("bookingDate") ?? "");
-  const timeSlotId = Number(formData.get("timeSlotId"));
-
-  const result = createFacilityBooking({
-    userId: user.id,
-    facilitySlug,
-    bookingDate,
-    timeSlotId,
-  });
-
-  if (!result.ok) return { error: result.error, submissionId };
-
-  revalidatePath(`/booking/${facilitySlug}`);
   return {
-    success: {
-      startTime: result.startTime,
-      bookingDate,
-      facilitySlug,
-    },
+    error: "Facility bookings are managed by admin.",
     submissionId,
   };
 }
@@ -60,35 +27,14 @@ export async function cancelFacilityBookingAction(
   prev: BookingActionState,
   formData: FormData,
 ): Promise<BookingActionState> {
+  void formData;
   const submissionId = (prev.submissionId ?? 0) + 1;
   const user = await getCurrentUser();
   if (!user) {
     return { error: "Sign in before cancelling a booking.", submissionId };
   }
-  if (user.role !== "guest") {
-    return { error: "Only guests can cancel facility bookings.", submissionId };
-  }
-
-  const facilitySlug = String(formData.get("facility") ?? "");
-  const bookingDate = String(formData.get("bookingDate") ?? "");
-  const timeSlotId = Number(formData.get("timeSlotId"));
-
-  const result = cancelFacilityBooking({
-    actor: user,
-    facilitySlug,
-    bookingDate,
-    timeSlotId,
-  });
-
-  if (!result.ok) return { error: result.error, submissionId };
-
-  revalidatePath(`/booking/${facilitySlug}`);
   return {
-    success: {
-      startTime: result.startTime,
-      bookingDate,
-      facilitySlug,
-    },
+    error: "Facility bookings are managed by admin.",
     submissionId,
   };
 }

@@ -42,11 +42,11 @@ const DASHBOARD_TABS: { label: string; value: DashboardTab; href: string }[] = [
 ];
 
 export default async function Dashboard({ searchParams }: PageProps) {
-  const query = await searchParams;
   const user = await getCurrentUser();
   if (!user) redirect("/login");
-  if (!isAdminRole(user.role)) redirect("/booking/karaoke");
+  if (!isAdminRole(user.role)) return <GuestHome />;
 
+  const query = await searchParams;
   const today = formatDateKey(new Date());
   const selectedBookingDate = getBookingDateFilter(getSingleValue(query.date));
   const selectedServiceKeys = getServiceKeyFilters(getValues(query.service));
@@ -101,6 +101,20 @@ export default async function Dashboard({ searchParams }: PageProps) {
           roomNumber={selectedRoom}
         />
       )}
+    </main>
+  );
+}
+
+function GuestHome() {
+  return (
+    <main className="flex-1 px-4 py-6 sm:px-6 sm:py-8 lg:px-10">
+      <div className="max-w-3xl">
+        <h1 className="text-xl font-semibold text-ink sm:text-2xl">Home</h1>
+        <p className="mt-3 rounded-lg border border-black/5 bg-white px-4 py-5 text-sm leading-6 text-ink/60">
+          Bookings are managed by admin. Please contact the front desk for
+          facility and service booking requests.
+        </p>
+      </div>
     </main>
   );
 }

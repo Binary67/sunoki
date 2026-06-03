@@ -655,8 +655,6 @@ function getSingularLabel(tableName: EditableTableName): string {
       return "User";
     case "facilities":
       return "Facility Content";
-    case "facility_time_slots":
-      return "Time Slot";
     case "facility_bookings":
       return "Booking";
     case "guest_service_bookings":

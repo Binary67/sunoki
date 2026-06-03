@@ -57,7 +57,6 @@ const SOURCE_OF_TRUTH_TABLES = [
   "users",
   "guest_profiles",
   "guest_profile_addons",
-  "facility_time_slots",
   "facility_bookings",
   "guest_service_bookings",
 ] as const satisfies readonly BackupTableName[];

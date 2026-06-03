@@ -17,15 +17,6 @@ type UserOptionRow = {
   active: number;
 };
 
-type TimeSlotOptionRow = {
-  id: number;
-  facilityId: number;
-  facilityName: string;
-  startTime: string;
-  durationMinutes: number;
-  active: number;
-};
-
 export function getAdminSelectOptions(): AdminSelectOptions {
   const facilities = db
     .prepare("SELECT id, slug, name FROM facilities ORDER BY name ASC, id ASC")
@@ -45,22 +36,6 @@ export function getAdminSelectOptions(): AdminSelectOptions {
       `,
     )
     .all() as UserOptionRow[];
-  const timeSlots = db
-    .prepare(
-      `
-        SELECT
-          s.id,
-          s.facility_id AS facilityId,
-          f.name AS facilityName,
-          s.start_time AS startTime,
-          s.duration_minutes AS durationMinutes,
-          s.active
-        FROM facility_time_slots s
-        JOIN facilities f ON f.id = s.facility_id
-        ORDER BY f.name ASC, s.start_time ASC, s.id ASC
-      `,
-    )
-    .all() as TimeSlotOptionRow[];
 
   return {
     active: [
@@ -92,13 +67,6 @@ export function getAdminSelectOptions(): AdminSelectOptions {
       { value: "admin", label: "Admin" },
       { value: "guest", label: "Guest" },
     ],
-    timeSlots: timeSlots.map((slot) => ({
-      value: String(slot.id),
-      label: `${slot.facilityName} - ${slot.startTime} - ${slot.durationMinutes} min${
-        Number(slot.active) === 1 ? "" : " - inactive"
-      }`,
-      facilityId: String(slot.facilityId),
-    })),
     users: users.map((user) => ({
       value: String(user.id),
       label: `${user.username} (${formatRoleLabel(user.role)}${

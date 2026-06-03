@@ -66,31 +66,23 @@ db.exec(`
     tagline_3 TEXT
   );
 
-  CREATE TABLE IF NOT EXISTS facility_time_slots (
-    id               INTEGER PRIMARY KEY,
-    facility_id      INTEGER NOT NULL REFERENCES facilities(id) ON DELETE CASCADE,
-    start_time       TEXT NOT NULL,
-    duration_minutes INTEGER NOT NULL DEFAULT 60 CHECK (duration_minutes > 0),
-    capacity_pax     INTEGER NOT NULL DEFAULT 2 CHECK (capacity_pax > 0),
-    active           INTEGER NOT NULL DEFAULT 1 CHECK (active IN (0, 1)),
-    UNIQUE (facility_id, start_time)
-  );
-
   CREATE TABLE IF NOT EXISTS facility_bookings (
-    id                    INTEGER PRIMARY KEY,
-    user_id               INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    facility_time_slot_id INTEGER NOT NULL REFERENCES facility_time_slots(id) ON DELETE CASCADE,
-    booking_date          TEXT NOT NULL,
-    status                TEXT NOT NULL DEFAULT 'booked' CHECK (status IN ('booked','cancelled')),
-    admin_read            INTEGER NOT NULL DEFAULT 0 CHECK (admin_read IN (0, 1)),
-    admin_done            INTEGER NOT NULL DEFAULT 0 CHECK (admin_done IN (0, 1)),
-    admin_done_at         TEXT,
-    cancelled_at          TEXT,
-    created_at            TEXT NOT NULL DEFAULT (datetime('now'))
+    id               INTEGER PRIMARY KEY,
+    user_id          INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    guest_profile_id INTEGER NOT NULL REFERENCES guest_profiles(id) ON DELETE CASCADE,
+    facility_id      INTEGER NOT NULL REFERENCES facilities(id) ON DELETE CASCADE,
+    booking_date     TEXT NOT NULL,
+    booking_time     TEXT NOT NULL,
+    status           TEXT NOT NULL DEFAULT 'booked' CHECK (status IN ('booked','cancelled')),
+    admin_read       INTEGER NOT NULL DEFAULT 0 CHECK (admin_read IN (0, 1)),
+    admin_done       INTEGER NOT NULL DEFAULT 0 CHECK (admin_done IN (0, 1)),
+    admin_done_at    TEXT,
+    cancelled_at     TEXT,
+    created_at       TEXT NOT NULL DEFAULT (datetime('now'))
   );
 
   CREATE UNIQUE INDEX IF NOT EXISTS facility_bookings_active_unique
-    ON facility_bookings(user_id, facility_time_slot_id, booking_date)
+    ON facility_bookings(facility_id, booking_date, booking_time)
     WHERE status = 'booked';
 
   CREATE TABLE IF NOT EXISTS guest_profiles (
@@ -164,7 +156,7 @@ ${guestServiceBookingColumnSql}
     actor_user_id  INTEGER NOT NULL,
     actor_username TEXT NOT NULL,
     operation      TEXT NOT NULL CHECK (operation IN ('insert','update','delete')),
-    table_name     TEXT NOT NULL CHECK (table_name IN ('users','facilities','facility_time_slots','facility_bookings','guest_service_bookings','package_service_entitlements')),
+    table_name     TEXT NOT NULL CHECK (table_name IN ('users','facilities','facility_bookings','guest_service_bookings','package_service_entitlements')),
     row_id         INTEGER NOT NULL,
     before_json    TEXT,
     after_json     TEXT,
@@ -190,7 +182,7 @@ if (
       actor_user_id  INTEGER NOT NULL,
       actor_username TEXT NOT NULL,
       operation      TEXT NOT NULL CHECK (operation IN ('insert','update','delete')),
-      table_name     TEXT NOT NULL CHECK (table_name IN ('users','facilities','facility_time_slots','facility_bookings','guest_service_bookings','package_service_entitlements')),
+      table_name     TEXT NOT NULL CHECK (table_name IN ('users','facilities','facility_bookings','guest_service_bookings','package_service_entitlements')),
       row_id         INTEGER NOT NULL,
       before_json    TEXT,
       after_json     TEXT,

@@ -6,7 +6,7 @@ import { isAdminRole } from "./roles";
 export async function requireAdminUser(): Promise<User> {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
-  if (!isAdminRole(user.role)) redirect("/booking/karaoke");
+  if (!isAdminRole(user.role)) redirect("/");
   return user;
 }
 

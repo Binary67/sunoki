@@ -9,7 +9,6 @@ import {
   LOGIN_LOCKED_MESSAGE,
   recordFailedLogin,
 } from "@/src/lib/login-attempts";
-import { isAdminRole } from "@/src/lib/roles";
 
 export type LoginState = { error?: string; submissionId?: number };
 
@@ -42,5 +41,5 @@ export async function loginAction(
   const session = await setSessionCookie(user);
   if (!session.ok) return { error: session.message, submissionId };
 
-  redirect(isAdminRole(user.role) ? "/" : "/booking/karaoke");
+  redirect("/");
 }

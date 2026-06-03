@@ -13,7 +13,7 @@ export type GuestBookingReconciliationResult = {
 type FacilityBookingRow = {
   id: number;
   bookingDate: string;
-  startTime: string;
+  bookingTime: string;
 };
 
 type ServiceBookingRow = {
@@ -69,9 +69,8 @@ function listBookedFacilityBookings(userId: number): FacilityBookingRow[] {
         SELECT
           b.id,
           b.booking_date AS bookingDate,
-          s.start_time AS startTime
+          b.booking_time AS bookingTime
         FROM facility_bookings b
-        JOIN facility_time_slots s ON s.id = b.facility_time_slot_id
         WHERE b.user_id = ?
           AND b.status = 'booked'
       `,
@@ -98,10 +97,10 @@ function listBookedServiceBookings(userId: number): ServiceBookingRow[] {
 function shouldCancelBooking(
   active: 0 | 1,
   stayDates: GuestStayDates,
-  booking: { bookingDate: string; startTime?: string; bookingTime?: string },
+  booking: { bookingDate: string; bookingTime?: string },
   now: Date,
 ): boolean {
-  const time = booking.startTime ?? booking.bookingTime;
+  const time = booking.bookingTime;
   if (!time || hasBookingStarted(booking.bookingDate, time, now)) return false;
   if (active !== 1) return true;
   if (!hasValidStayDates(stayDates)) return true;
@@ -185,9 +184,8 @@ function countFutureCancelledBookingsInStay(
       `
         SELECT
           b.booking_date AS bookingDate,
-          s.start_time AS startTime
+          b.booking_time AS bookingTime
         FROM facility_bookings b
-        JOIN facility_time_slots s ON s.id = b.facility_time_slot_id
         WHERE b.user_id = ?
           AND b.status = 'cancelled'
       `,
@@ -217,11 +215,11 @@ function countFutureCancelledBookingsInStay(
 }
 
 function isFutureBookingWithinStay(
-  booking: { bookingDate: string; startTime?: string; bookingTime?: string },
+  booking: { bookingDate: string; bookingTime?: string },
   stayDates: GuestStayDates,
   now: Date,
 ): boolean {
-  const time = booking.startTime ?? booking.bookingTime;
+  const time = booking.bookingTime;
   return Boolean(
     time &&
       !hasBookingStarted(booking.bookingDate, time, now) &&
@@ -242,8 +240,10 @@ function selectFacilityBookingAuditRow(bookingId: number): AdminRow | null {
         SELECT
           id,
           user_id,
-          facility_time_slot_id,
+          guest_profile_id,
+          facility_id,
           booking_date,
+          booking_time,
           status,
           admin_read,
           admin_done,

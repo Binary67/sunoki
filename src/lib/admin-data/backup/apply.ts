@@ -23,18 +23,19 @@ export function applyBackupRows(
 ): void {
   const usersChanged = hasTableChanges(diff, "users");
   const facilitiesChanged = hasTableChanges(diff, "facilities");
-  const timeSlotsChanged = hasTableChanges(diff, "facility_time_slots");
   const guestProfilesChanged = hasTableChanges(diff, "guest_profiles");
   const guestAddonsChanged = hasTableChanges(diff, "guest_profile_addons");
   const facilityBookingsChanged = hasTableChanges(diff, "facility_bookings");
   const serviceBookingsChanged = hasTableChanges(diff, "guest_service_bookings");
 
   const restoreFacilities = facilitiesChanged;
-  const restoreTimeSlots = restoreFacilities || timeSlotsChanged;
   const restoreGuestProfiles = usersChanged || guestProfilesChanged;
   const restoreGuestAddons = restoreGuestProfiles || guestAddonsChanged;
   const restoreFacilityBookings =
-    usersChanged || restoreTimeSlots || facilityBookingsChanged;
+    usersChanged ||
+    restoreFacilities ||
+    restoreGuestProfiles ||
+    facilityBookingsChanged;
   const restoreServiceBookings =
     usersChanged || restoreGuestProfiles || serviceBookingsChanged;
 
@@ -42,15 +43,11 @@ export function applyBackupRows(
   if (restoreFacilityBookings) deleteRows("facility_bookings");
   if (restoreGuestAddons) deleteRows("guest_profile_addons");
   if (restoreGuestProfiles) deleteRows("guest_profiles");
-  if (restoreTimeSlots) deleteRows("facility_time_slots");
   if (restoreFacilities) deleteRows("facilities");
   if (usersChanged) deleteRows("users");
 
   if (usersChanged) insertRows("users", rows.users);
   if (restoreFacilities) insertRows("facilities", rows.facilities);
-  if (restoreTimeSlots) {
-    insertRows("facility_time_slots", rows.facility_time_slots);
-  }
   if (restoreGuestProfiles) insertRows("guest_profiles", rows.guest_profiles);
   if (restoreGuestAddons) {
     insertRows("guest_profile_addons", rows.guest_profile_addons);

@@ -1,9 +1,7 @@
 import type { AdminRow } from "../definitions";
 import type { BackupImportError, ParsedSheetRow } from "./types";
-import { isTimeValue } from "./validation-helpers";
 import {
   addRowError,
-  readIntegerValue,
   readLimitedOptionalTextValue,
   readPositiveIntegerValue,
   readRequiredTextValue,
@@ -109,130 +107,6 @@ export function validateFacilities(
         message: `Facility "${slug}" is missing from the workbook.`,
       });
     }
-  }
-
-  return normalized;
-}
-
-export function validateTimeSlots(
-  rows: ParsedSheetRow[],
-  facilities: AdminRow[],
-  errors: BackupImportError[],
-): AdminRow[] {
-  const normalized: AdminRow[] = [];
-  const ids = new Set<number>();
-  const facilityIds = new Set(facilities.map((row) => Number(row.id)));
-  const uniqueSlots = new Set<string>();
-
-  for (const row of rows) {
-    const id = readPositiveIntegerValue(
-      row,
-      "facility_time_slots",
-      "id",
-      "ID",
-      errors,
-    );
-    const facilityId = readPositiveIntegerValue(
-      row,
-      "facility_time_slots",
-      "facility_id",
-      "Facility",
-      errors,
-    );
-    const startTime = readRequiredTextValue(
-      row,
-      "facility_time_slots",
-      "start_time",
-      "Start time",
-      errors,
-    );
-    const duration = readPositiveIntegerValue(
-      row,
-      "facility_time_slots",
-      "duration_minutes",
-      "Duration minutes",
-      errors,
-    );
-    const capacity = readPositiveIntegerValue(
-      row,
-      "facility_time_slots",
-      "capacity_pax",
-      "Capacity pax",
-      errors,
-    );
-    const active = readIntegerValue(
-      row,
-      "facility_time_slots",
-      "active",
-      "Active",
-      errors,
-    );
-
-    if (id !== null) {
-      if (ids.has(id)) {
-        addRowError(
-          errors,
-          row,
-          "facility_time_slots",
-          "id",
-          `Duplicate time slot ID ${id}.`,
-        );
-      }
-      ids.add(id);
-    }
-
-    if (facilityId !== null && !facilityIds.has(facilityId)) {
-      addRowError(
-        errors,
-        row,
-        "facility_time_slots",
-        "facility_id",
-        `Facility ID ${facilityId} is not present in the workbook.`,
-      );
-    }
-
-    if (startTime !== null && !isTimeValue(startTime)) {
-      addRowError(
-        errors,
-        row,
-        "facility_time_slots",
-        "start_time",
-        "Enter a valid start time.",
-      );
-    }
-
-    if (active !== null && active !== 0 && active !== 1) {
-      addRowError(
-        errors,
-        row,
-        "facility_time_slots",
-        "active",
-        "Active must be 0 or 1.",
-      );
-    }
-
-    if (facilityId !== null && startTime !== null) {
-      const key = `${facilityId}:${startTime}`;
-      if (uniqueSlots.has(key)) {
-        addRowError(
-          errors,
-          row,
-          "facility_time_slots",
-          "start_time",
-          "Facility and start time must be unique.",
-        );
-      }
-      uniqueSlots.add(key);
-    }
-
-    normalized.push({
-      id,
-      facility_id: facilityId,
-      start_time: startTime,
-      duration_minutes: duration,
-      capacity_pax: capacity,
-      active,
-    });
   }
 
   return normalized;

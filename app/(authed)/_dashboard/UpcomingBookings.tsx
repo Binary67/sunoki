@@ -147,13 +147,7 @@ export default function UpcomingBookings({
                     )}
                   </td>
                   <td className="px-5 py-3 text-ink/80">
-                    {booking.type === "facility"
-                      ? `${booking.bookedPax} / ${booking.capacityPax} pax`
-                      : booking.isDone
-                        ? "Done"
-                        : booking.isRead
-                          ? "Read"
-                          : "Unread"}
+                    {formatBookingStatus(booking)}
                   </td>
                 </tr>
               ))}
@@ -191,15 +185,11 @@ function formatBookingDate(value: string) {
 }
 
 function formatTime(booking: UpcomingBooking) {
-  if (booking.durationMinutes === null) return booking.startTime;
+  return booking.startTime;
+}
 
-  const [hh, mm] = booking.startTime.split(":").map(Number);
-  const start = new Date();
-  start.setHours(hh, mm, 0, 0);
-  const end = new Date(start.getTime() + booking.durationMinutes * 60_000);
-  const fmt = (date: Date) =>
-    `${String(date.getHours()).padStart(2, "0")}:${String(
-      date.getMinutes(),
-    ).padStart(2, "0")}`;
-  return `${fmt(start)} - ${fmt(end)}`;
+function formatBookingStatus(booking: UpcomingBooking) {
+  if (booking.isDone) return "Done";
+  if (booking.isRead) return "Read";
+  return "Unread";
 }

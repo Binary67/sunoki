@@ -51,7 +51,6 @@ export default function AdminFormFields({
             formId={formId}
             options={options}
             row={row}
-            tableName={tableName}
             requiredOverride={isUserStayDate ? true : undefined}
             valueOverride={isUserStayDate && stayDatesCleared ? "" : undefined}
             onRoleChange={
@@ -76,7 +75,6 @@ function AdminField({
   options,
   requiredOverride,
   row,
-  tableName,
   valueOverride,
 }: {
   column: AdminColumnDefinition;
@@ -85,7 +83,6 @@ function AdminField({
   options: AdminSelectOptions;
   requiredOverride?: boolean;
   row?: AdminRow;
-  tableName: EditableTableName;
   valueOverride?: string;
 }) {
   const id = `${formId}-${column.name}`;
@@ -93,22 +90,6 @@ function AdminField({
   const value = valueOverride ?? getFieldValue(column, row);
   const baseClasses =
     "mt-1 h-10 w-full rounded-md border border-black/10 bg-white px-3 text-sm text-ink outline-none focus:border-brand focus:ring-2 focus:ring-brand/15";
-
-  if (
-    tableName === "facility_bookings" &&
-    column.name === "facility_time_slot_id"
-  ) {
-    return (
-      <BookingTimeSlotField
-        baseClasses={baseClasses}
-        column={column}
-        formId={formId}
-        options={options}
-        required={required}
-        value={value}
-      />
-    );
-  }
 
   if (column.input === "date") {
     return (
@@ -231,91 +212,6 @@ function PackageQuantityField({
         Unlimited
       </label>
     </div>
-  );
-}
-
-function BookingTimeSlotField({
-  baseClasses,
-  column,
-  formId,
-  options,
-  required,
-  value,
-}: {
-  baseClasses: string;
-  column: AdminColumnDefinition;
-  formId: string;
-  options: AdminSelectOptions;
-  required?: boolean;
-  value: string;
-}) {
-  const initialFacilityId =
-    options.timeSlots.find((option) => option.value === value)?.facilityId ?? "";
-  const [selectedFacilityId, setSelectedFacilityId] =
-    useState(initialFacilityId);
-  const [selectedTimeSlotId, setSelectedTimeSlotId] = useState(value);
-  const facilityId = `${formId}-booking-facility`;
-  const timeSlotId = `${formId}-${column.name}`;
-  const timeSlotOptions = options.timeSlots.filter(
-    (option) => option.facilityId === selectedFacilityId,
-  );
-  const timeSlotClasses = selectedFacilityId
-    ? baseClasses
-    : `${baseClasses} disabled:cursor-not-allowed disabled:border-black/5 disabled:bg-black/[0.03] disabled:text-ink/35`;
-
-  return (
-    <>
-      <label
-        htmlFor={facilityId}
-        className="block text-sm font-medium text-ink/75"
-      >
-        Facility
-        {required && <span className="text-red-600"> *</span>}
-        <select
-          id={facilityId}
-          required={required}
-          value={selectedFacilityId}
-          onChange={(event) => {
-            setSelectedFacilityId(event.currentTarget.value);
-            setSelectedTimeSlotId("");
-          }}
-          className={baseClasses}
-        >
-          <option value="">Select facility</option>
-          {options.facilities.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-      </label>
-
-      <label
-        htmlFor={timeSlotId}
-        className="block text-sm font-medium text-ink/75"
-      >
-        {column.label}
-        {required && <span className="text-red-600"> *</span>}
-        <select
-          id={timeSlotId}
-          name={column.name}
-          required={required}
-          disabled={!selectedFacilityId}
-          value={selectedTimeSlotId}
-          onChange={(event) => setSelectedTimeSlotId(event.currentTarget.value)}
-          className={timeSlotClasses}
-        >
-          <option value="">
-            {selectedFacilityId ? "Select time slot" : "Select facility first"}
-          </option>
-          {timeSlotOptions.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-      </label>
-    </>
   );
 }
 

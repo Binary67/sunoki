@@ -3,7 +3,6 @@ import { PACKAGE_SERVICE_COLUMNS } from "../package-entitlements";
 export const EDITABLE_TABLE_NAMES = [
   "users",
   "facilities",
-  "facility_time_slots",
   "facility_bookings",
   "guest_service_bookings",
   "package_service_entitlements",
@@ -14,7 +13,6 @@ export type EditableTableName = (typeof EDITABLE_TABLE_NAMES)[number];
 const AUDIT_TABLE_NAMES = [
   "users",
   "facilities",
-  "facility_time_slots",
   "facility_bookings",
   "guest_service_bookings",
   "package_service_entitlements",
@@ -44,7 +42,6 @@ export type AdminColumnDefinition = {
     | "facilities"
     | "guestUsers"
     | "roles"
-    | "timeSlots"
     | "users";
   readOnly?: boolean;
   required?: boolean;
@@ -63,7 +60,6 @@ export type AdminTableDefinition = {
 export type AdminSelectOption = {
   value: string;
   label: string;
-  facilityId?: string;
 };
 
 export type AdminSelectOptions = Record<
@@ -92,7 +88,6 @@ export type AdminMutationResult =
 const TABLE_LABELS: Record<AuditTableName, string> = {
   users: "Users",
   facilities: "Facility Content",
-  facility_time_slots: "Time Slots",
   facility_bookings: "Bookings",
   guest_service_bookings: "Service Bookings",
   package_service_entitlements: "Packages",
@@ -162,50 +157,6 @@ const ADMIN_TABLES: Record<EditableTableName, AdminTableDefinition> = {
       },
     ],
   },
-  facility_time_slots: {
-    name: "facility_time_slots",
-    label: TABLE_LABELS.facility_time_slots,
-    columns: [
-      { name: "id", label: "ID", readOnly: true },
-      {
-        name: "facility_id",
-        label: "Facility",
-        input: "select",
-        optionsKey: "facilities",
-        required: true,
-      },
-      {
-        name: "start_time",
-        label: "Start Time",
-        input: "time",
-        required: true,
-      },
-      {
-        name: "duration_minutes",
-        label: "Duration Minutes",
-        input: "number",
-        required: true,
-        min: 1,
-        defaultValue: "60",
-      },
-      {
-        name: "capacity_pax",
-        label: "Capacity Pax",
-        input: "number",
-        required: true,
-        min: 1,
-        defaultValue: "2",
-      },
-      {
-        name: "active",
-        label: "Active",
-        input: "select",
-        optionsKey: "active",
-        required: true,
-        defaultValue: "1",
-      },
-    ],
-  },
   facility_bookings: {
     name: "facility_bookings",
     label: TABLE_LABELS.facility_bookings,
@@ -219,16 +170,22 @@ const ADMIN_TABLES: Record<EditableTableName, AdminTableDefinition> = {
         required: true,
       },
       {
-        name: "facility_time_slot_id",
-        label: "Time Slot",
+        name: "facility_id",
+        label: "Facility",
         input: "select",
-        optionsKey: "timeSlots",
+        optionsKey: "facilities",
         required: true,
       },
       {
         name: "booking_date",
         label: "Booking Date",
         input: "date",
+        required: true,
+      },
+      {
+        name: "booking_time",
+        label: "Booking Time",
+        input: "time",
         required: true,
       },
       { name: "status", label: "Status", readOnly: true },

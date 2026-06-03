@@ -16,14 +16,20 @@ type ParsedValues =
   | { ok: true; values: Record<string, AdminRowValue> }
   | { ok: false; message: string };
 
-type BookingUserRow = {
+type FacilityBookingUserRow = {
   role: UserRole;
   active: number;
   checkInDate: string | null;
   checkOutDate: string | null;
+  guestProfileId: number | null;
+  guestProfileStatus: string | null;
 };
 
-type ServiceBookingUserRow = BookingUserRow & {
+type ServiceBookingUserRow = {
+  role: UserRole;
+  active: number;
+  checkInDate: string | null;
+  checkOutDate: string | null;
   guestProfileId: number | null;
 };
 
@@ -120,51 +126,15 @@ export function parseFormValues(
         },
       };
     }
-    case "facility_time_slots": {
-      const facilityId = readPositiveInteger(formData, "facility_id", "Facility");
-      if (!facilityId.ok) return facilityId;
-      const startTime = readRequiredText(formData, "start_time", "Start time");
-      if (!startTime.ok) return startTime;
-      if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(startTime.value)) {
-        return { ok: false, message: "Enter a valid start time." };
-      }
-      const duration = readPositiveInteger(
-        formData,
-        "duration_minutes",
-        "Duration minutes",
-      );
-      if (!duration.ok) return duration;
-      const capacity = readPositiveInteger(
-        formData,
-        "capacity_pax",
-        "Capacity pax",
-      );
-      if (!capacity.ok) return capacity;
-      const active = readRequiredText(formData, "active", "Active");
-      if (!active.ok) return active;
-      if (active.value !== "0" && active.value !== "1") {
-        return { ok: false, message: "Choose whether the slot is active." };
-      }
-      return {
-        ok: true,
-        values: {
-          facility_id: facilityId.value,
-          start_time: startTime.value,
-          duration_minutes: duration.value,
-          capacity_pax: capacity.value,
-          active: Number(active.value),
-        },
-      };
-    }
     case "facility_bookings": {
       const userId = readPositiveInteger(formData, "user_id", "User");
       if (!userId.ok) return userId;
-      const timeSlotId = readPositiveInteger(
+      const facilityId = readPositiveInteger(
         formData,
-        "facility_time_slot_id",
-        "Time slot",
+        "facility_id",
+        "Facility",
       );
-      if (!timeSlotId.ok) return timeSlotId;
+      if (!facilityId.ok) return facilityId;
       const bookingDate = readRequiredText(
         formData,
         "booking_date",
@@ -174,7 +144,16 @@ export function parseFormValues(
       if (!isBookingDate(bookingDate.value)) {
         return { ok: false, message: "Enter a valid booking date." };
       }
-      const bookingWindow = validateUserBookingWindow(
+      const bookingTime = readRequiredText(
+        formData,
+        "booking_time",
+        "Booking time",
+      );
+      if (!bookingTime.ok) return bookingTime;
+      if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(bookingTime.value)) {
+        return { ok: false, message: "Enter a valid booking time." };
+      }
+      const bookingWindow = validateFacilityBookingUser(
         userId.value,
         bookingDate.value,
       );
@@ -183,8 +162,9 @@ export function parseFormValues(
         ok: true,
         values: {
           user_id: userId.value,
-          facility_time_slot_id: timeSlotId.value,
+          facility_id: facilityId.value,
           booking_date: bookingDate.value,
+          booking_time: bookingTime.value,
         },
       };
     }
@@ -343,7 +323,7 @@ function readPackageQuantity(
   return { ok: true, value };
 }
 
-function validateUserBookingWindow(
+function validateFacilityBookingUser(
   userId: number,
   bookingDate: string,
 ): { ok: true } | { ok: false; message: string } {
@@ -351,20 +331,35 @@ function validateUserBookingWindow(
     .prepare(
       `
         SELECT
-          role,
-          active,
-          check_in_date AS checkInDate,
-          check_out_date AS checkOutDate
-        FROM users
-        WHERE id = ?
+          u.role,
+          u.active,
+          u.check_in_date AS checkInDate,
+          u.check_out_date AS checkOutDate,
+          gp.id AS guestProfileId,
+          gp.status AS guestProfileStatus
+        FROM users u
+        LEFT JOIN guest_profiles gp ON gp.user_id = u.id
+        WHERE u.id = ?
       `,
     )
-    .get(userId) as BookingUserRow | undefined;
+    .get(userId) as FacilityBookingUserRow | undefined;
 
   if (!user) return { ok: false, message: "Choose a valid user." };
   if (user.active !== 1) return { ok: false, message: "User is inactive." };
   if (user.role !== "guest") {
     return { ok: false, message: "Bookings require a guest user." };
+  }
+  if (!user.guestProfileId) {
+    return {
+      ok: false,
+      message: "The selected guest does not have a linked guest profile.",
+    };
+  }
+  if (user.guestProfileStatus !== "checked_in") {
+    return {
+      ok: false,
+      message: "The selected guest must be checked in before booking facilities.",
+    };
   }
 
   if (

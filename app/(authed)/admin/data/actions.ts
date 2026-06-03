@@ -14,7 +14,6 @@ import {
   updateAdminRow,
   updateUserPassword,
 } from "@/src/lib/admin-data/mutations";
-import { getAdminRowForEdit } from "@/src/lib/admin-data/queries";
 import { clearSessionCookie, revokeUserSessions } from "@/src/lib/auth";
 import { clearUserLoginLock } from "@/src/lib/login-attempts";
 
@@ -55,9 +54,6 @@ export async function updateAdminRowAction(formData: FormData): Promise<void> {
     revalidatePath(getDataPath(tableName));
     revalidatePath(AUDIT_PATH);
     revalidateBookingPaths(tableName);
-    if (tableName === "facilities") {
-      revalidateFacilityBookingPath(tableName, rowId, user);
-    }
   }
   redirectWithMessage(
     tableName,
@@ -188,27 +184,12 @@ function getCreateMode(formData: FormData): "admin" | null {
   return raw === "admin" ? raw : null;
 }
 
-function revalidateFacilityBookingPath(
-  tableName: EditableTableName,
-  rowId: number,
-  user: Awaited<ReturnType<typeof requireAdminUser>>,
-): void {
-  const row = getAdminRowForEdit(tableName, rowId, user);
-  const slug = row?.slug;
-  if (typeof slug === "string" && slug) {
-    revalidatePath(`/booking/${slug}`);
-  }
-}
-
 function revalidateBookingPaths(tableName: EditableTableName): void {
   if (tableName !== "facility_bookings" && tableName !== "guest_service_bookings") {
     return;
   }
 
   revalidatePath("/");
-  if (tableName === "guest_service_bookings") {
-    revalidatePath("/booking/services");
-  }
 }
 
 function redirectWithMessage(
@@ -257,8 +238,6 @@ function getDataTab(
   switch (tableName) {
     case "facilities":
       return "content";
-    case "facility_time_slots":
-      return "time-slots";
     case "facility_bookings":
       return "bookings";
     case "guest_service_bookings":
