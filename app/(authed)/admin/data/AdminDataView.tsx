@@ -755,6 +755,7 @@ function formatCellValue(
     return "-";
   }
   if (value === null || value === undefined) return "";
+  if (column.name === "status" && value === "booked") return "Booked";
   if (
     column.input === "packageQuantity" &&
     value === UNLIMITED_PACKAGE_SERVICE_QUANTITY
