@@ -36,7 +36,7 @@ export default function GuestPackageServicesList({
         </h3>
         {hasChoiceRule && (
           <span className="text-xs font-medium text-ink/55">
-            Choose either Candlelight Dinner or Full Moon Ceremony
+            The default package offer includes one celebration service.
           </span>
         )}
       </div>
@@ -67,7 +67,7 @@ export default function GuestPackageServicesList({
                 </span>
                 {choiceService && !unavailable && (
                   <span className="ml-2 text-xs font-medium text-ink/45">
-                    Choose one
+                    Celebration option
                   </span>
                 )}
               </span>

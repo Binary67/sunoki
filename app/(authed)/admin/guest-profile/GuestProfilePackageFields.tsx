@@ -12,10 +12,13 @@ import {
   type PackageServiceSnapshotItem,
 } from "@/src/lib/package-entitlements";
 
-const CHOICE_SERVICE_NAMES = new Set<PackageServiceColumnName>([
+const CHOICE_SERVICE_NAMES = [
   "candlelight_dinner",
   "full_moon_ceremony",
-]);
+] as const satisfies readonly PackageServiceColumnName[];
+
+type ChoiceServiceName = (typeof CHOICE_SERVICE_NAMES)[number];
+type ChoiceSelectionState = Record<ChoiceServiceName, boolean>;
 
 export type RenderedGuestProfileField = {
   label: string;
@@ -178,19 +181,52 @@ function GuestPackageServicesEditor({
     );
   }
 
+  return (
+    <GuestPackageServicesEditorContent
+      className={className}
+      packageSnapshot={packageSnapshot}
+      valueSnapshot={valueSnapshot}
+    />
+  );
+}
+
+function GuestPackageServicesEditorContent({
+  className = "",
+  packageSnapshot,
+  valueSnapshot,
+}: {
+  className?: string;
+  packageSnapshot: PackageEntitlementSnapshot;
+  valueSnapshot: PackageEntitlementSnapshot | null;
+}) {
   const hasChoiceRule = packageSnapshot.celebrationChoiceRule === "choose_one";
+  const services = packageSnapshot.services.map((service) => {
+    const valueService = valueSnapshot?.services.find(
+      (candidate) => candidate.name === service.name,
+    );
+
+    return {
+      defaultQuantity: service.quantity,
+      service: {
+        ...service,
+        quantity: valueService?.quantity ?? service.quantity,
+      },
+    };
+  });
+  const [choiceSelections, setChoiceSelections] =
+    useState<ChoiceSelectionState>(() =>
+      getInitialChoiceSelections(services.map((item) => item.service)),
+    );
+  const choiceWarning = hasChoiceRule
+    ? getChoiceWarning(choiceSelections)
+    : null;
 
   return (
     <div className={className}>
-      <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between">
+      <div className="mb-3">
         <h3 className="text-sm font-semibold text-ink">
           Services included for {packageSnapshot.packageName}
         </h3>
-        {hasChoiceRule && (
-          <span className="text-xs font-medium text-ink/55">
-            Choose either Candlelight Dinner or Full Moon Ceremony
-          </span>
-        )}
       </div>
       {packageSnapshot.services.length === 0 ? (
         <p className="text-sm leading-6 text-ink/55">
@@ -198,22 +234,36 @@ function GuestPackageServicesEditor({
         </p>
       ) : (
         <ul className="grid gap-3">
-          {packageSnapshot.services.map((service) => {
-            const valueService = valueSnapshot?.services.find(
-              (candidate) => candidate.name === service.name,
-            );
+          {services.map(({ defaultQuantity, service }, index) => {
+            const isChoiceService =
+              hasChoiceRule && isChoiceServiceName(service.name);
+            if (isChoiceService) {
+              const previousService = services[index - 1]?.service;
+              if (
+                previousService &&
+                isChoiceServiceName(previousService.name)
+              ) {
+                return null;
+              }
+
+              return (
+                <CelebrationChoiceGroup
+                  key="celebration-choice"
+                  choiceWarning={choiceWarning}
+                  services={services.filter((item) =>
+                    isChoiceServiceName(item.service.name),
+                  )}
+                  setChoiceSelections={setChoiceSelections}
+                />
+              );
+            }
 
             return (
               <PackageServiceEditorRow
-                choiceService={
-                  hasChoiceRule && CHOICE_SERVICE_NAMES.has(service.name)
-                }
-                defaultQuantity={service.quantity}
+                choiceService={false}
+                defaultQuantity={defaultQuantity}
                 key={service.name}
-                service={{
-                  ...service,
-                  quantity: valueService?.quantity ?? service.quantity,
-                }}
+                service={service}
               />
             );
           })}
@@ -223,13 +273,67 @@ function GuestPackageServicesEditor({
   );
 }
 
+function CelebrationChoiceGroup({
+  choiceWarning,
+  services,
+  setChoiceSelections,
+}: {
+  choiceWarning: string | null;
+  services: {
+    defaultQuantity: number;
+    service: PackageServiceSnapshotItem;
+  }[];
+  setChoiceSelections: React.Dispatch<React.SetStateAction<ChoiceSelectionState>>;
+}) {
+  return (
+    <li className="grid gap-3 border-l-2 border-amber-300 pl-3">
+      <div>
+        <h4 className="text-sm font-semibold text-ink">Celebration Choice</h4>
+        <p
+          className={`mt-1 rounded-md px-3 py-2 text-xs leading-5 ${
+            choiceWarning
+              ? "border border-amber-200 bg-amber-50 text-amber-900"
+              : "bg-surface text-ink/55"
+          }`}
+        >
+          {choiceWarning ??
+            "The default package offer includes one celebration service."}
+        </p>
+      </div>
+      <ul className="grid gap-3">
+        {services.map(({ defaultQuantity, service }) => {
+          if (!isChoiceServiceName(service.name)) return null;
+          const serviceName = service.name;
+
+          return (
+            <PackageServiceEditorRow
+              choiceService
+              defaultQuantity={defaultQuantity}
+              key={service.name}
+              onIncludedChange={(included) => {
+                setChoiceSelections((current) => ({
+                  ...current,
+                  [serviceName]: included,
+                }));
+              }}
+              service={service}
+            />
+          );
+        })}
+      </ul>
+    </li>
+  );
+}
+
 function PackageServiceEditorRow({
   choiceService,
   defaultQuantity,
+  onIncludedChange,
   service,
 }: {
   choiceService: boolean;
   defaultQuantity: number;
+  onIncludedChange?: (included: boolean) => void;
   service: PackageServiceSnapshotItem;
 }) {
   const initialIncluded = service.quantity !== 0;
@@ -271,6 +375,7 @@ function PackageServiceEditorRow({
             onChange={(event) => {
               const checked = event.currentTarget.checked;
               setIncluded(checked);
+              onIncludedChange?.(checked);
               if (checked) {
                 if (defaultQuantity === UNLIMITED_PACKAGE_SERVICE_QUANTITY) {
                   setUnlimited(true);
@@ -286,7 +391,7 @@ function PackageServiceEditorRow({
             <span>{service.label}</span>
             <span className="mt-0.5 block text-xs font-normal leading-5 text-ink/45">
               Default {formatPackageServiceQuantity(defaultQuantity)}
-              {choiceService ? " - Choose one" : ""}
+              {choiceService ? " - Celebration option" : ""}
             </span>
           </span>
         </label>
@@ -358,6 +463,45 @@ function getQuantityInputValue(
   const source = quantity === 0 ? defaultQuantity : quantity;
   if (source === UNLIMITED_PACKAGE_SERVICE_QUANTITY) return "1";
   return source > 0 ? String(source) : "1";
+}
+
+function getInitialChoiceSelections(
+  services: PackageServiceSnapshotItem[],
+): ChoiceSelectionState {
+  const selections: ChoiceSelectionState = {
+    candlelight_dinner: false,
+    full_moon_ceremony: false,
+  };
+
+  for (const service of services) {
+    if (isChoiceServiceName(service.name)) {
+      selections[service.name] = service.quantity !== 0;
+    }
+  }
+
+  return selections;
+}
+
+function getChoiceWarning(selections: ChoiceSelectionState): string | null {
+  const selectedCount = CHOICE_SERVICE_NAMES.filter(
+    (serviceName) => selections[serviceName],
+  ).length;
+
+  if (selectedCount === 0) {
+    return "No celebration service is selected. The default package offer includes one celebration service.";
+  }
+  if (selectedCount === CHOICE_SERVICE_NAMES.length) {
+    return "Both celebration services are selected. This differs from the default package offer.";
+  }
+  return null;
+}
+
+function isChoiceServiceName(
+  value: PackageServiceColumnName,
+): value is ChoiceServiceName {
+  return (CHOICE_SERVICE_NAMES as readonly PackageServiceColumnName[]).includes(
+    value,
+  );
 }
 
 function getInputId(profileId: number | undefined, fieldName: string): string {
