@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { PendingBookingGuest } from "./pending-booking";
 
 export default function PendingBookingSection({
@@ -74,32 +75,30 @@ function PendingBookingCard({ guest }: { guest: PendingBookingGuest }) {
         </div>
       </div>
 
-      <div className="mt-4 flex items-center justify-between gap-4 rounded-md bg-surface px-3 py-2 text-sm">
-        <span className="font-medium text-ink/65">Total remaining quota</span>
-        <span className="font-semibold text-ink">
-          {guest.totalRemainingQuantity}
-        </span>
+      <div className="mt-4 flex flex-col gap-2 md:flex-row md:items-center">
+        <div className="grid flex-1 gap-2 sm:grid-cols-2">
+          <div className="flex items-center justify-between gap-4 rounded-md bg-surface px-3 py-2 text-sm">
+            <span className="font-medium text-ink/65">
+              Total remaining quota
+            </span>
+            <span className="font-semibold text-ink">
+              {guest.totalRemainingQuantity}
+            </span>
+          </div>
+          <div className="flex items-center justify-between gap-4 rounded-md bg-surface px-3 py-2 text-sm">
+            <span className="font-medium text-ink/65">Services with quota</span>
+            <span className="font-semibold text-ink">
+              {guest.services.length}
+            </span>
+          </div>
+        </div>
+        <Link
+          className="inline-flex h-9 w-fit items-center justify-end rounded-md px-2 text-sm font-medium text-brand hover:bg-brand/10 md:shrink-0"
+          href={`/?tab=pending-booking&pendingGuest=${guest.profile.id}`}
+        >
+          View quota -&gt;
+        </Link>
       </div>
-
-      <ul className="mt-3 grid gap-2">
-        {guest.services.map((service) => (
-          <li
-            className="rounded-md border border-black/5 px-3 py-2 text-sm"
-            key={service.serviceKey}
-          >
-            <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
-              <span className="font-medium text-ink">{service.serviceName}</span>
-              <span className="text-xs font-medium text-ink/60">
-                Remaining {service.remainingQuantity} / {service.totalQuantity}
-              </span>
-            </div>
-            <div className="mt-1 text-xs leading-5 text-ink/50">
-              Booked {service.usedQuantity} | Package {service.packageQuantity} |
-              Purchased {service.purchasedPerkQuantity}
-            </div>
-          </li>
-        ))}
-      </ul>
     </article>
   );
 }

@@ -16,6 +16,7 @@ import {
   BOOKABLE_PACKAGE_SERVICES,
   type ServiceBookingKey,
 } from "@/src/lib/service-bookings/catalog";
+import PendingBookingQuotaModal from "../_dashboard/PendingBookingQuotaModal";
 import PendingBookingSection from "../_dashboard/PendingBookingSection";
 import RoomOccupancyModal from "../_dashboard/RoomOccupancyModal";
 import RoomOccupancySection from "../_dashboard/RoomOccupancySection";
@@ -29,6 +30,7 @@ type PageProps = {
   searchParams: Promise<{
     date?: string | string[];
     facility?: string | string[];
+    pendingGuest?: string | string[];
     room?: string | string[];
     service?: string | string[];
     tab?: string | string[];
@@ -93,10 +95,17 @@ export default async function Dashboard({ searchParams }: PageProps) {
 
   if (activeTab === "pending-booking") {
     const pendingGuests = getPendingBookingGuests(today);
+    const selectedPendingGuest = getPendingBookingGuest(
+      pendingGuests,
+      getSingleValue(query.pendingGuest),
+    );
 
     return (
       <DashboardFrame activeTab={activeTab}>
         <PendingBookingSection guests={pendingGuests} />
+        {selectedPendingGuest && (
+          <PendingBookingQuotaModal guest={selectedPendingGuest} />
+        )}
       </DashboardFrame>
     );
   }
@@ -202,6 +211,18 @@ function getSingleValue(value: string | string[] | undefined): string | undefine
 function getValues(value: string | string[] | undefined): string[] {
   if (value === undefined) return [];
   return Array.isArray(value) ? value : [value];
+}
+
+function getPendingBookingGuest(
+  guests: ReturnType<typeof getPendingBookingGuests>,
+  profileId: string | undefined,
+) {
+  if (!profileId) return undefined;
+
+  const selectedProfileId = Number(profileId);
+  if (!Number.isInteger(selectedProfileId)) return undefined;
+
+  return guests.find((guest) => guest.profile.id === selectedProfileId);
 }
 
 function getBookingDateFilter(value: string | undefined): string | undefined {
