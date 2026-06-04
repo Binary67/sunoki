@@ -38,7 +38,7 @@ export default function UpcomingBookings({
   return (
     <section>
       <div className="mb-4 flex items-baseline justify-between">
-        <h2 className="text-base font-semibold text-ink">Upcoming bookings</h2>
+        <h2 className="text-base font-semibold text-ink">Upcoming tasks</h2>
         <span className="text-xs text-ink/50">
           {bookings.length} {bookings.length === 1 ? "booking" : "bookings"}
         </span>

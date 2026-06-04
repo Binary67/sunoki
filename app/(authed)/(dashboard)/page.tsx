@@ -16,12 +16,14 @@ import {
   BOOKABLE_PACKAGE_SERVICES,
   type ServiceBookingKey,
 } from "@/src/lib/service-bookings/catalog";
+import PendingBookingSection from "../_dashboard/PendingBookingSection";
 import RoomOccupancyModal from "../_dashboard/RoomOccupancyModal";
 import RoomOccupancySection from "../_dashboard/RoomOccupancySection";
 import UpcomingBookings from "../_dashboard/UpcomingBookings";
+import { getPendingBookingGuests } from "../_dashboard/pending-booking";
 import { getRoomOccupancy } from "../_dashboard/room-occupancy";
 
-type DashboardTab = "room-occupancy" | "upcoming-bookings";
+type DashboardTab = "room-occupancy" | "upcoming-bookings" | "pending-booking";
 
 type PageProps = {
   searchParams: Promise<{
@@ -40,9 +42,14 @@ const DASHBOARD_TABS: { label: string; value: DashboardTab; href: string }[] = [
     href: "/?tab=room-occupancy",
   },
   {
-    label: "Upcoming Bookings",
+    label: "Upcoming Tasks",
     value: "upcoming-bookings",
     href: "/?tab=upcoming-bookings",
+  },
+  {
+    label: "Pending Booking",
+    value: "pending-booking",
+    href: "/?tab=pending-booking",
   },
 ];
 
@@ -80,6 +87,16 @@ export default async function Dashboard({ searchParams }: PageProps) {
             roomNumber={selectedRoom}
           />
         )}
+      </DashboardFrame>
+    );
+  }
+
+  if (activeTab === "pending-booking") {
+    const pendingGuests = getPendingBookingGuests(today);
+
+    return (
+      <DashboardFrame activeTab={activeTab}>
+        <PendingBookingSection guests={pendingGuests} />
       </DashboardFrame>
     );
   }
@@ -172,7 +189,10 @@ function DashboardTabNav({ activeTab }: { activeTab: DashboardTab }) {
 }
 
 function getDashboardTab(value: string | undefined): DashboardTab {
-  return value === "upcoming-bookings" ? value : "room-occupancy";
+  if (value === "upcoming-bookings" || value === "pending-booking") {
+    return value;
+  }
+  return "room-occupancy";
 }
 
 function getSingleValue(value: string | string[] | undefined): string | undefined {
