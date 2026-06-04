@@ -116,7 +116,29 @@ export default function CalendarDateField({
   const [value, setValue] = useState(initialValue);
   const [viewMonth, setViewMonth] = useState(() => getInitialMonth(initialValue));
   const [open, setOpen] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const input = inputRef.current;
+    if (!input) return;
+
+    const syncFromInput = () => {
+      const nextValue = cleanDate(input.value);
+      setValue((currentValue) => {
+        if (currentValue === nextValue) return currentValue;
+        setViewMonth(getInitialMonth(nextValue));
+        return nextValue;
+      });
+    };
+
+    input.addEventListener("input", syncFromInput);
+    input.addEventListener("change", syncFromInput);
+    return () => {
+      input.removeEventListener("input", syncFromInput);
+      input.removeEventListener("change", syncFromInput);
+    };
+  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -158,7 +180,7 @@ export default function CalendarDateField({
 
   return (
     <div ref={wrapRef} className={wrapperClassName}>
-      <input type="hidden" name={name} value={value} />
+      <input ref={inputRef} type="hidden" name={name} value={value} />
       <button
         id={id}
         type="button"
