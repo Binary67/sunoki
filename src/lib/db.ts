@@ -94,6 +94,7 @@ db.exec(`
     handphone_no           TEXT,
     email                  TEXT,
     expected_delivery_date TEXT,
+    check_in_date          TEXT,
     hospital_of_delivery   TEXT,
     mode_of_delivery       TEXT,
     child_count            TEXT,
@@ -332,6 +333,9 @@ ${guestServiceBookingColumnSql}
 const guestProfileColumns = db
   .prepare("PRAGMA table_info(guest_profiles)")
   .all() as { name: string }[];
+if (!guestProfileColumns.some((column) => column.name === "check_in_date")) {
+  db.exec("ALTER TABLE guest_profiles ADD COLUMN check_in_date TEXT;");
+}
 if (
   !guestProfileColumns.some(
     (column) => column.name === "package_entitlement_snapshot_json",

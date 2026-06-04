@@ -24,6 +24,7 @@ export const GUEST_PROFILE_COLUMNS = [
   "handphone_no",
   "email",
   "expected_delivery_date",
+  "check_in_date",
   "hospital_of_delivery",
   "mode_of_delivery",
   "child_count",
@@ -57,6 +58,7 @@ export type GuestProfile = {
   handphoneNo: string | null;
   email: string | null;
   expectedDeliveryDate: string | null;
+  checkInDate: string | null;
   hospitalOfDelivery: string | null;
   modeOfDelivery: string | null;
   childCount: string | null;

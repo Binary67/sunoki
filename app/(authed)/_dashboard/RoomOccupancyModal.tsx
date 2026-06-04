@@ -109,7 +109,12 @@ function RoomGuestArticle({
             {guest.profile.name}
           </h3>
           <p className="mt-1 text-sm text-ink/60">
-            EDD {formatValue(guest.profile.expectedDeliveryDate)}
+            {isCurrentStay ? "Check In" : "EDD"}{" "}
+            {formatValue(
+              isCurrentStay
+                ? guest.profile.checkInDate
+                : guest.profile.expectedDeliveryDate,
+            )}
           </p>
           {isCurrentStay && (
             <p className="mt-1 text-sm text-ink/60">

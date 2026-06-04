@@ -166,7 +166,7 @@ export function createGuestProfile(
     const userId = insertGuestUser(
       account.username,
       account.password,
-      getGuestStayDates(values.data.expected_delivery_date, values.addons),
+      getGuestStayDates(values.data.check_in_date, values.addons),
     );
     const result = db
       .prepare(
@@ -205,9 +205,12 @@ export function updateGuestProfile(
   const profile = getGuestProfile(id);
   if (!profile) return { ok: false, message: "Guest profile not found." };
   const previousStayDates = getGuestStayDates(
-    profile.expectedDeliveryDate,
+    profile.checkInDate,
     listGuestProfileAddons(id),
   );
+  if (profile.status === "checked_in" && !values.data.check_in_date) {
+    return { ok: false, message: "Check In Date is required." };
+  }
 
   const account = parseOptionalGuestAccount(formData, profile.userId !== null);
   if (!account.ok) return account;
@@ -230,7 +233,7 @@ export function updateGuestProfile(
     db.exec("BEGIN");
     let userId = profile.userId;
     const stayDates = getGuestStayDates(
-      values.data.expected_delivery_date,
+      values.data.check_in_date,
       values.addons,
     );
 
@@ -341,7 +344,7 @@ export function toggleGuestProfileUserAccess(
   }
   const active = profile.accountActive === 1 ? 0 : 1;
   const stayDates = getGuestStayDates(
-    profile.expectedDeliveryDate,
+    profile.checkInDate,
     listGuestProfileAddons(id),
   );
 
@@ -468,7 +471,7 @@ function checkInGuestProfile(
         `
           UPDATE guest_profiles
           SET status = 'checked_in',
-              expected_delivery_date = ?
+              check_in_date = ?
           WHERE id = ?
         `,
       )
@@ -500,7 +503,7 @@ function undoGuestProfileCheckIn(
   const profile = getGuestProfile(id);
   if (!profile) return { changes: 0, reconciliation: null };
   const stayDates = getGuestStayDates(
-    profile.expectedDeliveryDate,
+    profile.checkInDate,
     listGuestProfileAddons(id),
   );
   let reconciliation: GuestBookingReconciliationResult | null = null;
@@ -624,6 +627,7 @@ function getGuestProfileSelectList(): string {
     gp.handphone_no AS handphoneNo,
     gp.email,
     gp.expected_delivery_date AS expectedDeliveryDate,
+    gp.check_in_date AS checkInDate,
     gp.hospital_of_delivery AS hospitalOfDelivery,
     gp.mode_of_delivery AS modeOfDelivery,
     gp.child_count AS childCount,

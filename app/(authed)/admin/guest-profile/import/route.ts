@@ -110,6 +110,7 @@ function buildImportedProfile(row: ExcelJS.Row): ImportedGuestProfile {
   const profile = {
     room_number: "",
     expected_delivery_date: readDateCell(row.getCell(7)),
+    check_in_date: "",
     package_type: readPackageTypeCell(row.getCell(19)),
     package_payable_amount: "",
     deposit_to_pay: "",

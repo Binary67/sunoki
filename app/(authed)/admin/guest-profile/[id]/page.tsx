@@ -89,6 +89,11 @@ export default async function GuestProfileDetailPage({
             <span className="w-fit rounded-md bg-surface px-3 py-2 text-sm font-medium text-ink/65">
               EDD {formatValue(profile.expectedDeliveryDate)}
             </span>
+            {profile.checkInDate && (
+              <span className="w-fit rounded-md bg-surface px-3 py-2 text-sm font-medium text-ink/65">
+                Check In {profile.checkInDate}
+              </span>
+            )}
             {checkoutDate && (
               <span className="w-fit rounded-md bg-surface px-3 py-2 text-sm font-medium text-ink/65">
                 Checkout {checkoutDate}

@@ -1,14 +1,13 @@
 import { isBookingDate } from "../../booking-dates";
 import type { AdminRow } from "../definitions";
 import type { BackupImportError, ParsedSheetRow } from "./types";
+import { readOptionalBookingDateValue } from "./validation-helpers";
 import {
   addRowError,
   readDateTimeValue,
   readIntegerValue,
-  readOptionalTextValue,
   readPositiveIntegerValue,
   readRequiredTextValue,
-  validateRequiredBookingDate,
 } from "./values";
 
 export function validateUsers(
@@ -45,14 +44,14 @@ export function validateUsers(
       "Access",
       errors,
     );
-    const checkInDate = readOptionalTextValue(
+    const checkInDate = readOptionalBookingDateValue(
       row,
       "users",
       "check_in_date",
       "Check-in date",
       errors,
     );
-    const checkOutDate = readOptionalTextValue(
+    const checkOutDate = readOptionalBookingDateValue(
       row,
       "users",
       "check_out_date",
@@ -99,22 +98,15 @@ export function validateUsers(
     if (role === "superadmin") superAdminCount += 1;
 
     if (role === "guest") {
-      validateRequiredBookingDate(
-        checkInDate,
-        row,
-        "users",
-        "check_in_date",
-        "Check-in date",
-        errors,
-      );
-      validateRequiredBookingDate(
-        checkOutDate,
-        row,
-        "users",
-        "check_out_date",
-        "Check-out date",
-        errors,
-      );
+      if ((checkInDate && !checkOutDate) || (!checkInDate && checkOutDate)) {
+        addRowError(
+          errors,
+          row,
+          "users",
+          "check_in_date",
+          "Check-in date and check-out date must be set together.",
+        );
+      }
       if (
         checkInDate &&
         checkOutDate &&

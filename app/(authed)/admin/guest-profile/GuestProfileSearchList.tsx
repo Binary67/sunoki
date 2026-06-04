@@ -118,7 +118,15 @@ function GuestProfileBlock({
 }) {
   const profileHref = `/admin/guest-profile/${profile.id}`;
   const followUpDue = isFollowUpDue(profile, today, followUpThroughDate);
-  const overlapWarnings = getRoomOverlapWarnings(profile, checkedInProfiles);
+  const overlapWarnings =
+    activeStatus === "incoming"
+      ? getRoomOverlapWarnings(profile, checkedInProfiles)
+      : [];
+  const dateBadgeLabel = activeStatus === "incoming" ? "EDD" : "Check In";
+  const dateBadgeValue =
+    activeStatus === "incoming"
+      ? profile.expectedDeliveryDate
+      : profile.checkInDate;
   const statusClass =
     activeStatus === "checked_in"
       ? "bg-emerald-50 text-emerald-700"
@@ -150,7 +158,7 @@ function GuestProfileBlock({
         </div>
         <div className="flex flex-wrap items-center gap-2 sm:justify-end">
           <span className="w-fit rounded-md border border-violet-200 bg-violet-50 px-2.5 py-1.5 text-xs font-medium text-violet-700">
-            EDD {formatValue(profile.expectedDeliveryDate)}
+            {dateBadgeLabel} {formatValue(dateBadgeValue)}
           </span>
           <span className="w-fit rounded-md border border-brand/15 bg-brand/10 px-2.5 py-1.5 text-xs font-medium text-brand">
             Room {formatValue(profile.roomNumber)}
@@ -258,7 +266,7 @@ function getRoomOverlapWarnings(
   if (!profile.roomNumber || !edd || !isBookingDate(edd)) return [];
 
   return checkedInProfiles.flatMap((checkedInProfile) => {
-    const checkInDate = checkedInProfile.expectedDeliveryDate;
+    const checkInDate = checkedInProfile.checkInDate;
     if (
       checkedInProfile.status !== "checked_in" ||
       checkedInProfile.roomNumber !== profile.roomNumber ||

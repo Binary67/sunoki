@@ -43,9 +43,10 @@ export default async function GuestProfilePage({ searchParams }: PageProps) {
   const user = await requireAdminUser();
   const activeStatus = getGuestProfileStatus(getSingleValue(query.status));
   const today = formatBookingDate(new Date());
-  const profiles = sortGuestProfilesByEdd(
+  const profiles = sortGuestProfilesByStatusDate(
     listGuestProfiles(activeStatus, today).map((profile) => ({ ...profile })),
     today,
+    activeStatus,
   );
   const canDeleteGuestProfiles = user.role === "superadmin";
   const followUpThroughDate = addBookingDays(today, 30);
@@ -264,28 +265,40 @@ function getEmptyStatusMessage(status: GuestProfileFilterStatus): string {
     : "No incoming guests.";
 }
 
-function sortGuestProfilesByEdd(
+function sortGuestProfilesByStatusDate(
   profiles: GuestProfile[],
   today: string,
+  status: GuestProfileFilterStatus,
 ): GuestProfile[] {
   return [...profiles].sort((a, b) => {
-    const aEdd = a.expectedDeliveryDate;
-    const bEdd = b.expectedDeliveryDate;
-    const aValid = Boolean(aEdd && isBookingDate(aEdd));
-    const bValid = Boolean(bEdd && isBookingDate(bEdd));
+    const aDate = getGuestProfileSortDate(a, status);
+    const bDate = getGuestProfileSortDate(b, status);
+    const aValid = Boolean(aDate && isBookingDate(aDate));
+    const bValid = Boolean(bDate && isBookingDate(bDate));
 
     if (aValid !== bValid) return aValid ? 1 : -1;
 
-    if (aValid && bValid && aEdd && bEdd) {
-      const aUpcoming = aEdd >= today;
-      const bUpcoming = bEdd >= today;
+    if (aValid && bValid && aDate && bDate) {
+      const aUpcoming = aDate >= today;
+      const bUpcoming = bDate >= today;
 
       if (aUpcoming !== bUpcoming) return aUpcoming ? -1 : 1;
-      if (aEdd !== bEdd) {
-        return aUpcoming ? aEdd.localeCompare(bEdd) : bEdd.localeCompare(aEdd);
+      if (aDate !== bDate) {
+        return aUpcoming
+          ? aDate.localeCompare(bDate)
+          : bDate.localeCompare(aDate);
       }
     }
 
     return b.id - a.id;
   });
+}
+
+function getGuestProfileSortDate(
+  profile: GuestProfile,
+  status: GuestProfileFilterStatus,
+): string | null {
+  return status === "incoming"
+    ? profile.expectedDeliveryDate
+    : profile.checkInDate;
 }

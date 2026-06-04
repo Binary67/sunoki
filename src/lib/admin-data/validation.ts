@@ -60,19 +60,23 @@ export function parseFormValues(
       const checkOutDate = readOptionalText(formData, "check_out_date");
 
       if (role.value === "guest") {
-        if (!checkInDate || !checkOutDate) {
+        if ((checkInDate && !checkOutDate) || (!checkInDate && checkOutDate)) {
           return {
             ok: false,
-            message: "Check-in date and check-out date are required for guests.",
+            message: "Check-in date and check-out date must be set together.",
           };
         }
-        if (!isBookingDate(checkInDate) || !isBookingDate(checkOutDate)) {
+        if (
+          checkInDate &&
+          checkOutDate &&
+          (!isBookingDate(checkInDate) || !isBookingDate(checkOutDate))
+        ) {
           return {
             ok: false,
             message: "Enter valid check-in and check-out dates.",
           };
         }
-        if (checkOutDate < checkInDate) {
+        if (checkInDate && checkOutDate && checkOutDate < checkInDate) {
           return {
             ok: false,
             message: "Check-out date must be on or after check-in date.",

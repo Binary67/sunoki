@@ -75,6 +75,11 @@ export const GUEST_PROFILE_SECTIONS: GuestProfileSection[] = [
         value: (profile) => profile.expectedDeliveryDate,
       },
       {
+        label: "Check In Date",
+        name: "check_in_date",
+        value: (profile) => profile.checkInDate,
+      },
+      {
         label: "Hospital of Delivery",
         name: "hospital_of_delivery",
         value: (profile) => profile.hospitalOfDelivery,

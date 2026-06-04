@@ -46,6 +46,10 @@ export function parseGuestProfileForm(
   if (expectedDeliveryDate && !isBookingDate(expectedDeliveryDate)) {
     return { ok: false, message: "Enter a valid EDD." };
   }
+  const checkInDate = readText(formData, "check_in_date");
+  if (checkInDate && !isBookingDate(checkInDate)) {
+    return { ok: false, message: "Enter a valid Check In Date." };
+  }
 
   const roomNumber = readText(formData, "room_number");
   if (roomNumber && !isGuestRoomNumber(roomNumber)) {
@@ -91,6 +95,7 @@ export function parseGuestProfileForm(
       handphone_no: handphoneNo,
       email: readText(formData, "email"),
       expected_delivery_date: expectedDeliveryDate,
+      check_in_date: checkInDate,
       hospital_of_delivery: readText(formData, "hospital_of_delivery"),
       mode_of_delivery: readText(formData, "mode_of_delivery"),
       child_count: readText(formData, "child_count"),

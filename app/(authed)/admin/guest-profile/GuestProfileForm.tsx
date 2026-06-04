@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import CalendarDateField from "@/app/components/CalendarDateField";
 import { ADDITIONAL_DAYS_ADDON_NAME } from "@/src/lib/guest-profile-addons";
 import {
   GUEST_ROOM_LEVELS,
@@ -203,14 +204,33 @@ function GuestProfileInput({
   field: GuestProfileField;
   profile?: GuestProfile;
 }) {
-  const required = Boolean(field.required);
-  const date = field.name === "expected_delivery_date";
+  const required =
+    Boolean(field.required) ||
+    (field.name === "check_in_date" && profile?.status === "checked_in");
+  const date =
+    field.name === "expected_delivery_date" || field.name === "check_in_date";
   const inputId = `${profile ? `guest-${profile.id}` : "guest-new"}-${
     field.name
   }`;
   const className =
     "mt-1 w-full rounded-md border border-black/10 bg-white px-3 text-sm text-ink outline-none focus:border-brand focus:ring-2 focus:ring-brand/15";
   const value = profile ? field.value(profile) ?? "" : "";
+
+  if (date) {
+    return (
+      <div className="block text-sm font-medium text-ink/75">
+        <label htmlFor={inputId}>
+          {field.label} {required && <span className="text-red-600">*</span>}
+        </label>
+        <CalendarDateField
+          id={inputId}
+          name={field.name}
+          required={required}
+          defaultValue={value}
+        />
+      </div>
+    );
+  }
 
   return (
     <label
@@ -253,7 +273,7 @@ function GuestProfileInput({
         <input
           id={inputId}
           name={field.name}
-          type={date ? "date" : "text"}
+          type="text"
           required={required}
           defaultValue={value}
           className={`${className} h-10`}

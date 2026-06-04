@@ -53,6 +53,13 @@ export function validateGuestProfiles(
       "Expected delivery date",
       errors,
     );
+    const checkInDate = readOptionalBookingDateValue(
+      row,
+      "guest_profiles",
+      "check_in_date",
+      "Check In Date",
+      errors,
+    );
     const userId = readOptionalPositiveIntegerValue(
       row,
       "guest_profiles",
@@ -156,6 +163,7 @@ export function validateGuestProfiles(
         errors,
       ),
       expected_delivery_date: expectedDeliveryDate,
+      check_in_date: checkInDate,
       hospital_of_delivery: readOptionalTextValue(
         row,
         "guest_profiles",

@@ -19,14 +19,14 @@ export type GuestStayDates = {
 };
 
 export function getGuestProfileCheckoutDate(
-  profile: Pick<GuestProfile, "expectedDeliveryDate">,
+  profile: Pick<GuestProfile, "checkInDate">,
   addons: GuestStayAddon[],
 ): string | null {
-  return getGuestCheckoutDateFromStartDate(profile.expectedDeliveryDate, addons);
+  return getGuestCheckoutDateFromStartDate(profile.checkInDate, addons);
 }
 
 export function getGuestProfileComputedStatus(
-  profile: Pick<GuestProfile, "status" | "expectedDeliveryDate">,
+  profile: Pick<GuestProfile, "status" | "checkInDate">,
   addons: GuestStayAddon[],
   today = formatBookingDate(new Date()),
 ): GuestProfileFilterStatus {

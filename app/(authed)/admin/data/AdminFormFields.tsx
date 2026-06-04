@@ -51,7 +51,7 @@ export default function AdminFormFields({
             formId={formId}
             options={options}
             row={row}
-            requiredOverride={isUserStayDate ? true : undefined}
+            requiredOverride={isUserStayDate ? false : undefined}
             valueOverride={isUserStayDate && stayDatesCleared ? "" : undefined}
             onRoleChange={
               tableName === "users" && column.name === "role"
