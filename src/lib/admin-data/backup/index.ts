@@ -27,8 +27,6 @@ import {
 } from "./tables";
 import { validateParsedRows } from "./validation";
 import {
-  generateBackupWorkbookBuffer as buildBackupWorkbookBuffer,
-  getBackupWorkbookFileName,
   parseWorkbookRows,
 } from "./workbook";
 import type {
@@ -50,7 +48,7 @@ export type {
   CreateBackupImportDraftResult,
 } from "./types";
 
-export { getBackupImportDraft, getBackupWorkbookFileName };
+export { getBackupImportDraft };
 
 const MAX_BACKUP_UPLOAD_BYTES = 5 * 1024 * 1024;
 const SOURCE_OF_TRUTH_TABLES = [
@@ -60,12 +58,6 @@ const SOURCE_OF_TRUTH_TABLES = [
   "facility_bookings",
   "guest_service_bookings",
 ] as const satisfies readonly BackupTableName[];
-
-export async function generateBackupWorkbookBuffer(
-  snapshot = getBackupSnapshot(),
-): Promise<ArrayBuffer> {
-  return buildBackupWorkbookBuffer(snapshot);
-}
 
 export async function createBackupImportDraft(
   actor: User,

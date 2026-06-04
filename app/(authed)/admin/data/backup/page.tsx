@@ -32,6 +32,7 @@ type PageProps = {
 };
 
 type BackupTab = "export" | "restore";
+const RESTORE_ENABLED = false;
 
 export default async function AdminDataBackupPage({
   searchParams,
@@ -41,10 +42,12 @@ export default async function AdminDataBackupPage({
   const activeTab = getBackupTab(getSingleValue(query.tab));
   const draftToken = getSingleValue(query.draft);
   const draft =
-    activeTab === "restore" && draftToken
+    RESTORE_ENABLED && activeTab === "restore" && draftToken
       ? getBackupImportDraft(draftToken, actor)
       : null;
-  const draftExpired = Boolean(activeTab === "restore" && draftToken && !draft);
+  const draftExpired = Boolean(
+    RESTORE_ENABLED && activeTab === "restore" && draftToken && !draft,
+  );
   const exportTables = getExportTableSummaries(3);
 
   return (
@@ -207,28 +210,11 @@ function TablePreview({ table }: { table: ExportTableSummary }) {
 function RestoreBackupPanel({ draft }: { draft: BackupImportDraft | null }) {
   return (
     <>
-      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-        <section className="rounded-lg border border-black/5 bg-surface px-4 py-5 sm:px-5">
-          <div>
-            <h2 className="text-base font-semibold text-ink">
-              Full Backup Workbook
-            </h2>
-            <p className="mt-1 text-xs leading-5 text-ink/55">
-              Download the complete restorable workbook for guest operations.
-            </p>
-          </div>
-          <div className="mt-5">
-            <a
-              href="/admin/data/backup/export"
-              download
-              className="inline-flex h-9 items-center justify-center rounded-md bg-brand px-4 text-sm font-medium text-white hover:bg-brand/90"
-            >
-              Export Full Backup
-            </a>
-          </div>
-        </section>
-
-        <section className="rounded-lg border border-black/5 bg-surface px-4 py-5 sm:px-5">
+      <section className="relative overflow-hidden rounded-lg border border-black/5 bg-surface px-4 py-5 sm:px-5">
+        <div
+          aria-hidden={!RESTORE_ENABLED}
+          className={RESTORE_ENABLED ? undefined : "blur-[1.5px]"}
+        >
           <div>
             <h2 className="text-base font-semibold text-ink">
               Validate Workbook
@@ -244,21 +230,30 @@ function RestoreBackupPanel({ draft }: { draft: BackupImportDraft | null }) {
               name="workbook"
               accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
               required
-              className="block w-full rounded-md border border-black/10 bg-white px-3 py-2 text-sm text-ink file:mr-3 file:rounded-md file:border-0 file:bg-surface file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-ink/70"
+              disabled={!RESTORE_ENABLED}
+              className="block w-full rounded-md border border-black/10 bg-white px-3 py-2 text-sm text-ink file:mr-3 file:rounded-md file:border-0 file:bg-surface file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-ink/70 disabled:cursor-not-allowed disabled:opacity-70"
             />
             <div className="flex justify-end">
               <button
                 type="submit"
-                className="rounded-md bg-brand px-4 py-2 text-sm font-medium text-white hover:bg-brand/90"
+                disabled={!RESTORE_ENABLED}
+                className="rounded-md bg-brand px-4 py-2 text-sm font-medium text-white hover:bg-brand/90 disabled:cursor-not-allowed disabled:bg-ink/20 disabled:text-ink/45"
               >
                 Validate Excel
               </button>
             </div>
           </form>
-        </section>
-      </div>
+        </div>
+        {!RESTORE_ENABLED && (
+          <div className="absolute inset-0 flex items-center justify-center bg-white/45 px-4 backdrop-blur-[2px]">
+            <div className="rounded-md border border-black/10 bg-white px-5 py-3 text-sm font-semibold text-ink shadow-sm">
+              Coming Soon
+            </div>
+          </div>
+        )}
+      </section>
 
-      {draft && <BackupDraftPreview draft={draft} />}
+      {RESTORE_ENABLED && draft && <BackupDraftPreview draft={draft} />}
     </>
   );
 }
