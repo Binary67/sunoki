@@ -35,6 +35,7 @@ export async function uploadBackupWorkbookAction(
   }
 
   const params = new URLSearchParams();
+  params.set("tab", "restore");
   params.set("draft", result.token);
   params.set(result.errorCount > 0 ? "error" : "success", result.message);
   redirect(`${BACKUP_PATH}?${params.toString()}`);
@@ -52,6 +53,7 @@ export async function confirmBackupImportAction(
   const result = await applyBackupImportDraft(actor, token);
   if (!result.ok) {
     const params = new URLSearchParams();
+    params.set("tab", "restore");
     params.set("draft", token);
     params.set("error", result.message);
     redirect(`${BACKUP_PATH}?${params.toString()}`);
@@ -59,6 +61,7 @@ export async function confirmBackupImportAction(
 
   if (!result.applied) {
     const params = new URLSearchParams();
+    params.set("tab", "restore");
     params.set("draft", token);
     params.set("success", result.message);
     redirect(`${BACKUP_PATH}?${params.toString()}`);
@@ -81,6 +84,7 @@ export async function confirmBackupImportAction(
 
 function redirectWithMessage(tone: "error" | "success", message: string): never {
   const params = new URLSearchParams();
+  params.set("tab", "restore");
   params.set(tone, message);
   redirect(`${BACKUP_PATH}?${params.toString()}`);
 }

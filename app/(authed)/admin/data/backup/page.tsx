@@ -1,5 +1,9 @@
 import { requireSuperAdminUser } from "@/src/lib/admin-auth";
 import {
+  getExportTableSummaries,
+  type ExportTableSummary,
+} from "@/src/lib/admin-data/table-export";
+import {
   getBackupImportDraft,
   type BackupCellDiff,
   type BackupImportDraft,
@@ -10,6 +14,7 @@ import {
 import {
   DataEditorHeader,
   getSingleValue,
+  LocalTabNav,
   StatusMessage,
 } from "../AdminDataView";
 import {
@@ -22,23 +27,46 @@ type PageProps = {
     draft?: string | string[];
     error?: string | string[];
     success?: string | string[];
+    tab?: string | string[];
   }>;
 };
+
+type BackupTab = "export" | "restore";
 
 export default async function AdminDataBackupPage({
   searchParams,
 }: PageProps) {
   const actor = await requireSuperAdminUser();
   const query = await searchParams;
+  const activeTab = getBackupTab(getSingleValue(query.tab));
   const draftToken = getSingleValue(query.draft);
-  const draft = draftToken ? getBackupImportDraft(draftToken, actor) : null;
-  const draftExpired = Boolean(draftToken && !draft);
+  const draft =
+    activeTab === "restore" && draftToken
+      ? getBackupImportDraft(draftToken, actor)
+      : null;
+  const draftExpired = Boolean(activeTab === "restore" && draftToken && !draft);
+  const exportTables = getExportTableSummaries(3);
 
   return (
     <main className="flex-1 px-4 py-6 sm:px-6 sm:py-8 lg:px-10">
       <DataEditorHeader
         title="Backup & Restore"
-        description="Download a guest operations workbook, validate an edited workbook, and apply approved changes to SQLite."
+        description="Export selected operations tables or restore a complete Sunoki backup workbook."
+      />
+      <LocalTabNav
+        activeTab={activeTab}
+        tabs={[
+          {
+            label: "Export Tables",
+            value: "export",
+            href: "/admin/data/backup?tab=export",
+          },
+          {
+            label: "Restore Backup",
+            value: "restore",
+            href: "/admin/data/backup?tab=restore",
+          },
+        ]}
       />
       <StatusMessage
         error={
@@ -48,15 +76,145 @@ export default async function AdminDataBackupPage({
         success={getSingleValue(query.success)}
       />
 
+      {activeTab === "export" ? (
+        <ExportTablesPanel tables={exportTables} />
+      ) : (
+        <RestoreBackupPanel draft={draft} />
+      )}
+    </main>
+  );
+}
+
+function ExportTablesPanel({ tables }: { tables: ExportTableSummary[] }) {
+  return (
+    <form
+      action="/admin/data/backup/table-export"
+      method="get"
+      className="space-y-4"
+    >
+      <section className="rounded-lg border border-black/5 bg-surface">
+        <div className="flex flex-col gap-3 border-b border-black/5 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+          <div>
+            <h2 className="text-base font-semibold text-ink">Export Tables</h2>
+            <p className="mt-1 text-xs text-ink/55">
+              Reporting workbook only. Restore uses the full backup workbook.
+            </p>
+          </div>
+          <button
+            type="submit"
+            className="inline-flex h-9 items-center justify-center rounded-md bg-brand px-4 text-sm font-medium text-white hover:bg-brand/90 sm:w-auto"
+          >
+            Export Selected Tables
+          </button>
+        </div>
+
+        <div className="divide-y divide-black/5">
+          {tables.map((table) => (
+            <div key={table.tableName} className="px-4 py-4 sm:px-5">
+              <input
+                id={`preview-${table.tableName}`}
+                type="checkbox"
+                className="peer sr-only"
+                aria-label={`Toggle ${table.label} preview`}
+              />
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <label className="flex items-center gap-3">
+                  <input
+                    type="checkbox"
+                    name="table"
+                    value={table.tableName}
+                    defaultChecked
+                    className="h-4 w-4 rounded border-black/20 text-brand"
+                  />
+                  <span className="text-sm font-semibold text-ink">
+                    {table.label}
+                  </span>
+                </label>
+                <div className="flex items-center gap-2">
+                  <span className="w-fit rounded-md border border-black/5 bg-white px-2.5 py-1 text-xs text-ink/55">
+                    {table.rowCount} {table.rowCount === 1 ? "row" : "rows"}
+                  </span>
+                  <label
+                    htmlFor={`preview-${table.tableName}`}
+                    className="inline-flex cursor-pointer rounded-md border border-black/10 bg-white px-3 py-1.5 text-xs font-medium text-ink/65 hover:text-ink"
+                  >
+                    Preview
+                  </label>
+                </div>
+              </div>
+              <div className="mt-3 hidden peer-checked:block">
+                <TablePreview table={table} />
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+    </form>
+  );
+}
+
+function TablePreview({ table }: { table: ExportTableSummary }) {
+  return (
+    <div className="max-h-[320px] overflow-auto rounded-md border border-black/5 bg-white">
+      <table className="w-max min-w-full text-xs">
+        <thead className="sticky top-0 bg-surface text-[11px] uppercase tracking-[0.14em] text-ink/50">
+          <tr>
+            {table.columns.map((column) => (
+              <th
+                key={column}
+                className="whitespace-nowrap px-3 py-2 text-left font-medium"
+              >
+                {column}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {table.previewRows.length === 0 ? (
+            <tr className="border-t border-black/5">
+              <td
+                colSpan={table.columns.length}
+                className="px-3 py-6 text-center text-sm text-ink/55"
+              >
+                No rows in this table.
+              </td>
+            </tr>
+          ) : (
+            table.previewRows.map((row, index) => (
+              <tr
+                key={typeof row.id === "number" ? row.id : index}
+                className="border-t border-black/5"
+              >
+                {table.columns.map((column) => (
+                  <td
+                    key={column}
+                    className="max-w-[240px] whitespace-nowrap px-3 py-2 text-ink/70"
+                  >
+                    <span className="block overflow-hidden text-ellipsis">
+                      {formatPreviewValue(row[column])}
+                    </span>
+                  </td>
+                ))}
+              </tr>
+            ))
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function RestoreBackupPanel({ draft }: { draft: BackupImportDraft | null }) {
+  return (
+    <>
       <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
         <section className="rounded-lg border border-black/5 bg-surface px-4 py-5 sm:px-5">
           <div>
             <h2 className="text-base font-semibold text-ink">
-              Download Backup
+              Full Backup Workbook
             </h2>
             <p className="mt-1 text-xs leading-5 text-ink/55">
-              Exports guest profiles, add-ons, facility bookings, service
-              bookings, and required user and facility references.
+              Download the complete restorable workbook for guest operations.
             </p>
           </div>
           <div className="mt-5">
@@ -65,7 +223,7 @@ export default async function AdminDataBackupPage({
               download
               className="inline-flex h-9 items-center justify-center rounded-md bg-brand px-4 text-sm font-medium text-white hover:bg-brand/90"
             >
-              Export Excel
+              Export Full Backup
             </a>
           </div>
         </section>
@@ -76,8 +234,8 @@ export default async function AdminDataBackupPage({
               Validate Workbook
             </h2>
             <p className="mt-1 text-xs leading-5 text-ink/55">
-              Upload a workbook generated by this page. The database is not
-              changed until the preview is confirmed.
+              Upload a full backup workbook. The database is not changed until
+              the preview is confirmed.
             </p>
           </div>
           <form action={uploadBackupWorkbookAction} className="mt-5 space-y-4">
@@ -101,7 +259,7 @@ export default async function AdminDataBackupPage({
       </div>
 
       {draft && <BackupDraftPreview draft={draft} />}
-    </main>
+    </>
   );
 }
 
@@ -270,4 +428,16 @@ function formatChangeKind(kind: BackupRowDiff["kind"]): string {
 function formatValue(value: string | number | null): string {
   if (value === null || value === "") return "(blank)";
   return String(value);
+}
+
+function formatPreviewValue(
+  value: string | number | null | undefined,
+): string {
+  if (value === null || value === undefined || value === "") return "(blank)";
+  const text = String(value);
+  return text.length > 96 ? `${text.slice(0, 96)}...` : text;
+}
+
+function getBackupTab(value: string | undefined): BackupTab {
+  return value === "restore" ? "restore" : "export";
 }
