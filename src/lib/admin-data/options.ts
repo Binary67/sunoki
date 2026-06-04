@@ -45,7 +45,9 @@ export function getAdminSelectOptions(): AdminSelectOptions {
     bookableServices: BOOKABLE_PACKAGE_SERVICES.map((service) => ({
       value: service.key,
       label: service.name,
-    })),
+    })).sort((a, b) =>
+      a.label.localeCompare(b.label, undefined, { sensitivity: "base" }),
+    ),
     celebrationChoiceRules: [
       { value: "none", label: "None" },
       { value: "choose_one", label: "Choose One" },
