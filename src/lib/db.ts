@@ -141,7 +141,7 @@ ${guestServiceBookingColumnSql}
     ON guest_service_bookings(user_id, service_key, status, booking_date, booking_time);
 
   CREATE UNIQUE INDEX IF NOT EXISTS guest_service_bookings_active_unique
-    ON guest_service_bookings(user_id, service_key, booking_date, booking_time)
+    ON guest_service_bookings(service_key, booking_date, booking_time)
     WHERE status = 'booked';
 
   CREATE TABLE IF NOT EXISTS package_service_entitlements (
@@ -324,7 +324,7 @@ ${guestServiceBookingColumnSql}
       ON guest_service_bookings(user_id, service_key, status, booking_date, booking_time);
 
     CREATE UNIQUE INDEX IF NOT EXISTS guest_service_bookings_active_unique
-      ON guest_service_bookings(user_id, service_key, booking_date, booking_time)
+      ON guest_service_bookings(service_key, booking_date, booking_time)
       WHERE status = 'booked';
   `);
 }

@@ -526,19 +526,18 @@ export function validateGuestServiceBookings(
 
     if (
       status === "booked" &&
-      userId !== null &&
       serviceKey !== null &&
       bookingDate !== null &&
       bookingTime !== null
     ) {
-      const key = `${userId}:${serviceKey}:${bookingDate}:${bookingTime}`;
+      const key = `${serviceKey}:${bookingDate}:${bookingTime}`;
       if (uniqueActiveBookings.has(key)) {
         addRowError(
           errors,
           row,
           "guest_service_bookings",
           "booking_time",
-          "Active service bookings must be unique by user, service, date, and time.",
+          "Active service bookings must be unique by service, date, and time.",
         );
       }
       uniqueActiveBookings.add(key);

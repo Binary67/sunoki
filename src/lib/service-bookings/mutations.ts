@@ -138,20 +138,19 @@ export function createServiceBooking({
         `
           SELECT id
           FROM guest_service_bookings
-          WHERE user_id = ?
-            AND service_key = ?
+          WHERE service_key = ?
             AND booking_date = ?
             AND booking_time = ?
             AND status = 'booked'
         `,
       )
-      .get(userId, service.key, bookingDate, bookingTime);
+      .get(service.key, bookingDate, bookingTime);
     if (existing) {
       db.exec("ROLLBACK");
       inTransaction = false;
       return {
         ok: false,
-        error: "You already booked this service date and time.",
+        error: "This service date and time is already booked.",
       };
     }
 
@@ -326,8 +325,7 @@ export function updateServiceBooking({
         `
           SELECT id
           FROM guest_service_bookings
-          WHERE user_id = ?
-            AND service_key = ?
+          WHERE service_key = ?
             AND booking_date = ?
             AND booking_time = ?
             AND status = 'booked'
@@ -335,7 +333,6 @@ export function updateServiceBooking({
         `,
       )
       .get(
-        userId,
         service.key,
         bookingDate,
         bookingTime,
@@ -346,7 +343,7 @@ export function updateServiceBooking({
       inTransaction = false;
       return {
         ok: false,
-        error: "This guest already booked this service date and time.",
+        error: "This service date and time is already booked.",
       };
     }
 
