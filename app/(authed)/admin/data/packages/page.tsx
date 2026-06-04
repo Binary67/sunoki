@@ -34,7 +34,7 @@ const PACKAGE_TABS: TabLink<PackagesTab>[] = [
     href: "/admin/data/packages?tab=service-quantities",
   },
   {
-    label: "Service Bookings",
+    label: "Bookings",
     value: "service-bookings",
     href: "/admin/data/packages?tab=service-bookings",
   },
