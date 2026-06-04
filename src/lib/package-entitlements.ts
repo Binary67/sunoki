@@ -7,9 +7,6 @@ export const PACKAGE_SERVICE_COLUMNS = [
   },
   { name: "tcm_visit", label: "TCM Visit" },
   { name: "relaxing_foot_bath", label: "Relaxing Foot Bath" },
-  { name: "breast_pads", label: "Breast Pads" },
-  { name: "maternity_pads", label: "Maternity Pads" },
-  { name: "confinement_stocking", label: "Confinement Stocking" },
   {
     name: "double_boiled_chicken_essence",
     label: "Double Boiled Chicken Essence",
@@ -31,14 +28,6 @@ export const PACKAGE_SERVICE_COLUMNS = [
   {
     name: "infant_photography_or_footprint",
     label: "Infant Photography / Footprint",
-  },
-  {
-    name: "personalised_baby_care",
-    label: "1:1 Personalised Baby Care",
-  },
-  {
-    name: "exclusive_private_baby_room",
-    label: "Exclusive Private Room For Baby",
   },
 ] as const;
 
@@ -72,7 +61,7 @@ export const PACKAGE_ENTITLEMENT_DEFAULTS: PackageEntitlementDefault[] = [
     packageName: "SUPREME CARE",
     celebrationChoiceRule: "none",
     services: packageServices([
-      0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     ]),
   },
   {
@@ -80,7 +69,7 @@ export const PACKAGE_ENTITLEMENT_DEFAULTS: PackageEntitlementDefault[] = [
     packageName: "PREMIUM CARE",
     celebrationChoiceRule: "none",
     services: packageServices([
-      1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0,
+      1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0,
     ]),
   },
   {
@@ -91,9 +80,6 @@ export const PACKAGE_ENTITLEMENT_DEFAULTS: PackageEntitlementDefault[] = [
       2,
       2,
       4,
-      2,
-      3,
-      2,
       3,
       3,
       2,
@@ -104,8 +90,6 @@ export const PACKAGE_ENTITLEMENT_DEFAULTS: PackageEntitlementDefault[] = [
       0,
       0,
       1,
-      0,
-      0,
     ]),
   },
   {
@@ -118,15 +102,10 @@ export const PACKAGE_ENTITLEMENT_DEFAULTS: PackageEntitlementDefault[] = [
       4,
       4,
       4,
-      2,
-      4,
-      4,
       3,
       8,
       4,
       1,
-      UNLIMITED_PACKAGE_SERVICE_QUANTITY,
-      UNLIMITED_PACKAGE_SERVICE_QUANTITY,
       UNLIMITED_PACKAGE_SERVICE_QUANTITY,
       UNLIMITED_PACKAGE_SERVICE_QUANTITY,
       UNLIMITED_PACKAGE_SERVICE_QUANTITY,
