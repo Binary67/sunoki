@@ -7,7 +7,12 @@ import {
   readRequiredTextValue,
 } from "./values";
 
-const REQUIRED_FACILITY_SLUGS = ["karaoke", "gym", "yoga", "lounge"] as const;
+const REQUIRED_FACILITY_SLUGS = [
+  "karaoke",
+  "guest-room-1",
+  "guest-room-2",
+  "multipurpose-hall",
+] as const;
 
 export function validateFacilities(
   rows: ParsedSheetRow[],

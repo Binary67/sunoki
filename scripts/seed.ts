@@ -42,19 +42,19 @@ const facilities = [
     taglines: ["HI-FI AUDIO", "ATMOSPHERE", "MAX 4 PEOPLE"],
   },
   {
-    slug: "gym",
-    name: "Strength Studio",
-    taglines: ["FREE WEIGHTS", "CARDIO ZONE", "OPEN 24/7"],
+    slug: "guest-room-1",
+    name: "Guest Room 1",
+    taglines: ["PRIVATE ROOM", "BY RESERVATION", "GUEST USE"],
   },
   {
-    slug: "yoga",
-    name: "Yoga Studio",
-    taglines: ["HEATED FLOOR", "MAT INCLUDED", "MAX 12 GUESTS"],
+    slug: "guest-room-2",
+    name: "Guest Room 2",
+    taglines: ["PRIVATE ROOM", "BY RESERVATION", "GUEST USE"],
   },
   {
-    slug: "lounge",
-    name: "Tranquil Lounge",
-    taglines: ["HERBAL BAR", "QUIET HOURS", "MAX 8 GUESTS"],
+    slug: "multipurpose-hall",
+    name: "Multipurpose Hall",
+    taglines: ["GROUP SPACE", "BY RESERVATION", "EVENT USE"],
   },
 ] as const;
 

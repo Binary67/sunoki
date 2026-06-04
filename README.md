@@ -9,8 +9,8 @@ backed by a local SQLite database.
 - Admin dashboard for room occupancy and upcoming facility/service bookings.
 - Guest profile management for intake, check-in, check-out, package details,
   add-ons, kitchen notes, and linked guest accounts.
-- Admin-managed facility bookings for the Karaoke Lounge, Strength Studio, Yoga
-  Studio, and Tranquil Lounge.
+- Admin-managed facility bookings for the Karaoke Lounge, Guest Room 1, Guest
+  Room 2, and Multipurpose Hall.
 - Admin-managed service booking for Relaxing Hair Wash with package entitlement
   and purchased perk tracking.
 - Admin data editor for users, facilities, bookings, service bookings, and
@@ -143,9 +143,9 @@ Running `npm run seed` creates or refreshes local development data:
   - `admin` / `admin123`
 - Facilities:
   - `karaoke`
-  - `gym`
-  - `yoga`
-  - `lounge`
+  - `guest-room-1`
+  - `guest-room-2`
+  - `multipurpose-hall`
 - Package entitlement defaults for Supreme Care, Premium Care, Deluxe Care, and
   Luxury Care.
 
