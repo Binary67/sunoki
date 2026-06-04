@@ -13,7 +13,7 @@ import {
   listKitchenServicePrepBookings,
   type KitchenPrepServiceKey,
   type KitchenServicePrepBooking,
-} from "@/src/lib/service-bookings";
+} from "@/src/lib/service-bookings/kitchen-prep";
 import PrintKitchenNotesButton from "./PrintKitchenNotesButton";
 
 type PageProps = {

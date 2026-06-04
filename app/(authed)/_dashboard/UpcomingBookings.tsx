@@ -7,7 +7,7 @@ import type {
 import type {
   BookablePackageService,
   ServiceBookingKey,
-} from "@/src/lib/service-bookings";
+} from "@/src/lib/service-bookings/catalog";
 
 type UpcomingBookingFilterState = {
   bookingDate?: string;

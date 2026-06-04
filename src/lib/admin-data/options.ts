@@ -1,6 +1,6 @@
 import { db } from "../db";
 import type { UserRole } from "../roles";
-import { BOOKABLE_PACKAGE_SERVICES } from "../service-bookings";
+import { BOOKABLE_PACKAGE_SERVICES } from "../service-bookings/catalog";
 import type { AdminSelectOptions } from "./definitions";
 
 type FacilityOptionRow = {

@@ -3,7 +3,7 @@ import type { AdminRow } from "./admin-data/definitions";
 import { db, type User } from "./db";
 import { isBookingDate, isWithinBookingDateRange } from "./booking-dates";
 import type { UserRole } from "./roles";
-import type { ServiceBookingKey } from "./service-bookings";
+import type { ServiceBookingKey } from "./service-bookings/catalog";
 
 export type FacilityBookingOption = {
   id: number;

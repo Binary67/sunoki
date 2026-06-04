@@ -15,7 +15,7 @@ import { isAdminRole } from "@/src/lib/roles";
 import {
   BOOKABLE_PACKAGE_SERVICES,
   type ServiceBookingKey,
-} from "@/src/lib/service-bookings";
+} from "@/src/lib/service-bookings/catalog";
 import RoomOccupancyModal from "../_dashboard/RoomOccupancyModal";
 import RoomOccupancySection from "../_dashboard/RoomOccupancySection";
 import UpcomingBookings from "../_dashboard/UpcomingBookings";

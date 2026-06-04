@@ -14,7 +14,7 @@ import {
   readPositiveIntegerValue,
   readRequiredTextValue,
 } from "./values";
-import { getBookablePackageService } from "../../service-bookings";
+import { getBookablePackageService } from "../../service-bookings/catalog";
 
 export function validateFacilityBookings(
   rows: ParsedSheetRow[],

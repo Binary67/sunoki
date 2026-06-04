@@ -4,7 +4,7 @@ import {
   PACKAGE_SERVICE_COLUMNS,
   UNLIMITED_PACKAGE_SERVICE_QUANTITY,
 } from "../package-entitlements";
-import { getBookablePackageService } from "../service-bookings";
+import { getBookablePackageService } from "../service-bookings/catalog";
 import type { UserRole } from "../roles";
 import {
   FACILITY_TAGLINE_MAX_LENGTH,

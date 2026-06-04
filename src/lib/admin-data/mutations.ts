@@ -15,7 +15,7 @@ import { createFacilityBooking, updateFacilityBooking } from "../bookings";
 import {
   createServiceBooking,
   updateServiceBooking,
-} from "../service-bookings";
+} from "../service-bookings/mutations";
 
 type InsertResult = {
   lastInsertRowid: number | bigint;
