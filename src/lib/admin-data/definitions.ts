@@ -90,7 +90,7 @@ const TABLE_LABELS: Record<AuditTableName, string> = {
   facilities: "Facility Content",
   facility_bookings: "Bookings",
   guest_service_bookings: "Service Bookings",
-  package_service_entitlements: "Packages",
+  package_service_entitlements: "Services",
 };
 
 export const FACILITY_TAGLINE_MAX_LENGTH = 40;

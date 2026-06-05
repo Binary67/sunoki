@@ -70,7 +70,7 @@ export default async function AdminPackagesPage({ searchParams }: PageProps) {
   return (
     <main className="flex-1 px-4 py-6 sm:px-6 sm:py-8 lg:px-10">
       <DataEditorHeader
-        title="Packages"
+        title="Services"
         description={
           canManagePackages
             ? "Manage package service quantities, the Deluxe Care celebration choice rule, and guest service bookings."

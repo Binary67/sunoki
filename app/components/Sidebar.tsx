@@ -72,7 +72,7 @@ const dataChildren: {
   { label: "Users", href: "/admin/data/users" },
   { label: "Facilities", href: "/admin/data/facilities" },
   {
-    label: "Packages",
+    label: "Services",
     href: "/admin/data/packages",
   },
   {
