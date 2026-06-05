@@ -85,6 +85,9 @@ db.exec(`
     ON facility_bookings(facility_id, booking_date, booking_time)
     WHERE status = 'booked';
 
+  CREATE INDEX IF NOT EXISTS facility_bookings_user_status_date_time_idx
+    ON facility_bookings(user_id, status, booking_date, booking_time);
+
   CREATE TABLE IF NOT EXISTS guest_profiles (
     id                     INTEGER PRIMARY KEY,
     name                   TEXT NOT NULL,

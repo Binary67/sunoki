@@ -3,6 +3,7 @@ import { db, type User } from "./db";
 import {
   insertGuestProfileAddons,
   listGuestProfileAddons,
+  listGuestProfileAddonsByProfileIds,
   replaceGuestProfileAddons,
 } from "./guest-profile-addons";
 import {
@@ -39,6 +40,7 @@ export {
   getGuestProfileAddonLineTotalCents,
   getGuestProfileAddonTotalCents,
   listGuestProfileAddons,
+  listGuestProfileAddonsByProfileIds,
 } from "./guest-profile-addons";
 export type {
   GuestProfileAddon,
@@ -87,11 +89,15 @@ export function listGuestProfiles(
   );
   if (status === "incoming") return profiles;
 
+  const addonsByProfileId = listGuestProfileAddonsByProfileIds(
+    profiles.map((profile) => profile.id),
+  );
+
   return profiles.filter(
     (profile) =>
       getGuestProfileComputedStatus(
         profile,
-        listGuestProfileAddons(profile.id),
+        addonsByProfileId.get(profile.id) ?? [],
         today,
       ) === status,
   );
@@ -204,9 +210,10 @@ export function updateGuestProfile(
 
   const profile = getGuestProfile(id);
   if (!profile) return { ok: false, message: "Guest profile not found." };
+  const previousAddons = listGuestProfileAddons(id);
   const previousStayDates = getGuestStayDates(
     profile.checkInDate,
-    listGuestProfileAddons(id),
+    previousAddons,
   );
   if (profile.status === "checked_in" && !values.data.check_in_date) {
     return { ok: false, message: "Check In Date is required." };
@@ -236,6 +243,7 @@ export function updateGuestProfile(
       values.data.check_in_date,
       values.addons,
     );
+    const stayDatesChanged = hasStayDatesChanged(previousStayDates, stayDates);
 
     if (userId) {
       updateGuestUser(userId, account.password, stayDates);
@@ -266,12 +274,12 @@ export function updateGuestProfile(
     }
 
     replaceGuestProfileAddons(id, values.addons);
-    const reconciliation = userId
+    const reconciliation = profile.userId && stayDatesChanged
       ? reconcileFutureGuestBookings({
           active: profile.accountActive === 1 ? 1 : 0,
           actor,
           stayDates,
-          userId,
+          userId: profile.userId,
         })
       : null;
     db.exec("COMMIT");
@@ -281,7 +289,7 @@ export function updateGuestProfile(
       message: getGuestProfileMutationMessage(
         "Guest profile updated",
         reconciliation,
-        hasStayDatesChanged(previousStayDates, stayDates),
+        stayDatesChanged,
       ),
     };
   } catch {

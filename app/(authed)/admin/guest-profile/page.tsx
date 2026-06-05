@@ -10,7 +10,7 @@ import {
   getGuestProfileStatusLabel,
   getGuestProfileCheckoutDate,
   listGuestProfiles,
-  listGuestProfileAddons,
+  listGuestProfileAddonsByProfileIds,
   type GuestProfile,
   type GuestProfileFilterStatus,
 } from "@/src/lib/guest-profiles";
@@ -56,11 +56,14 @@ export default async function GuestProfilePage({ searchParams }: PageProps) {
       : listGuestProfiles("checked_in", today).map((profile) => ({
           ...profile,
         }));
+  const checkedInProfileAddonsByProfileId = listGuestProfileAddonsByProfileIds(
+    checkedInProfiles.map((profile) => profile.id),
+  );
   const checkedInProfilesWithCheckout = checkedInProfiles.map((profile) => ({
     ...profile,
     checkoutDate: getGuestProfileCheckoutDate(
       profile,
-      listGuestProfileAddons(profile.id),
+      checkedInProfileAddonsByProfileId.get(profile.id) ?? [],
     ),
   }));
   const packageOptions = showForm ? listPackageEntitlementOptions() : [];
