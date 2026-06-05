@@ -50,22 +50,10 @@ export default async function GuestProfilePage({ searchParams }: PageProps) {
   );
   const canDeleteGuestProfiles = user.role === "superadmin";
   const followUpThroughDate = addBookingDays(today, 30);
-  const checkedInProfiles =
-    activeStatus === "checked_in"
-      ? profiles
-      : listGuestProfiles("checked_in", today).map((profile) => ({
-          ...profile,
-        }));
-  const checkedInProfileAddonsByProfileId = listGuestProfileAddonsByProfileIds(
-    checkedInProfiles.map((profile) => profile.id),
-  );
-  const checkedInProfilesWithCheckout = checkedInProfiles.map((profile) => ({
-    ...profile,
-    checkoutDate: getGuestProfileCheckoutDate(
-      profile,
-      checkedInProfileAddonsByProfileId.get(profile.id) ?? [],
-    ),
-  }));
+  const checkedInProfilesWithCheckout =
+    activeStatus === "incoming"
+      ? getCheckedInProfilesWithCheckout(today)
+      : [];
   const packageOptions = showForm ? listPackageEntitlementOptions() : [];
 
   return (
@@ -243,6 +231,23 @@ function StatusMessage({
       {error ?? success}
     </div>
   );
+}
+
+function getCheckedInProfilesWithCheckout(today: string) {
+  const checkedInProfiles = listGuestProfiles("checked_in", today).map(
+    (profile) => ({ ...profile }),
+  );
+  const checkedInProfileAddonsByProfileId = listGuestProfileAddonsByProfileIds(
+    checkedInProfiles.map((profile) => profile.id),
+  );
+
+  return checkedInProfiles.map((profile) => ({
+    ...profile,
+    checkoutDate: getGuestProfileCheckoutDate(
+      profile,
+      checkedInProfileAddonsByProfileId.get(profile.id) ?? [],
+    ),
+  }));
 }
 
 function getSingleValue(value: string | string[] | undefined): string | undefined {

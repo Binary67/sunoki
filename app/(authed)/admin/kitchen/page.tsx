@@ -71,17 +71,23 @@ export default async function KitchenPage({ searchParams }: PageProps) {
   const selectedNoteRoomNumber = getRoomNumberFilter(
     getSingleValue(query.noteRoom),
   );
-  const servicePrepBookings = listKitchenServicePrepBookings({
-    bookingDate: selectedBookingDate,
-    roomNumber: selectedRoomNumber,
-    serviceKeys: selectedServiceKeys,
-  });
+  const servicePrepBookings =
+    activeTab === "service-prep"
+      ? listKitchenServicePrepBookings({
+          bookingDate: selectedBookingDate,
+          roomNumber: selectedRoomNumber,
+          serviceKeys: selectedServiceKeys,
+        })
+      : [];
   const servicePrepGroups = groupKitchenServicePrepBookings(servicePrepBookings);
-  const notes = filterGuestKitchenNotes(
-    listCheckedInGuestKitchenNotes(),
-    selectedGuestName,
-    selectedNoteRoomNumber,
-  );
+  const notes =
+    activeTab === "guest-profile-notes"
+      ? filterGuestKitchenNotes(
+          listCheckedInGuestKitchenNotes(),
+          selectedGuestName,
+          selectedNoteRoomNumber,
+        )
+      : [];
   const hasServiceFilter =
     selectedServiceKeys.length !== KITCHEN_PREP_SERVICE_KEYS.length;
   const hasActiveFilters =
