@@ -85,6 +85,21 @@ export type GuestProfile = {
   createdAt: string;
 };
 
+export type GuestProfileListItem = Pick<
+  GuestProfile,
+  | "id"
+  | "name"
+  | "status"
+  | "roomNumber"
+  | "icNo"
+  | "handphoneNo"
+  | "expectedDeliveryDate"
+  | "checkInDate"
+  | "modeOfDelivery"
+  | "packageType"
+  | "accountUsername"
+>;
+
 export type GuestKitchenNote = {
   id: number;
   name: string;

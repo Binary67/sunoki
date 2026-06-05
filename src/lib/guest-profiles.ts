@@ -28,6 +28,7 @@ import {
   type GuestKitchenNote,
   type GuestProfile,
   type GuestProfileFilterStatus,
+  type GuestProfileListItem,
   type GuestProfileStatus,
 } from "./guest-profile-types";
 import {
@@ -61,6 +62,7 @@ export type {
   GuestProfile,
   GuestProfileColumn,
   GuestProfileFilterStatus,
+  GuestProfileListItem,
   GuestProfileStatus,
 } from "./guest-profile-types";
 
@@ -85,6 +87,29 @@ export function listGuestProfiles(
   today = formatBookingDate(new Date()),
 ): GuestProfile[] {
   const profiles = selectGuestProfiles(
+    status === "incoming" ? "incoming" : "checked_in",
+  );
+  if (status === "incoming") return profiles;
+
+  const addonsByProfileId = listGuestProfileAddonsByProfileIds(
+    profiles.map((profile) => profile.id),
+  );
+
+  return profiles.filter(
+    (profile) =>
+      getGuestProfileComputedStatus(
+        profile,
+        addonsByProfileId.get(profile.id) ?? [],
+        today,
+      ) === status,
+  );
+}
+
+export function listGuestProfileListItems(
+  status: GuestProfileFilterStatus = "incoming",
+  today = formatBookingDate(new Date()),
+): GuestProfileListItem[] {
+  const profiles = selectGuestProfileListItems(
     status === "incoming" ? "incoming" : "checked_in",
   );
   if (status === "incoming") return profiles;
@@ -460,6 +485,22 @@ function selectGuestProfiles(status: GuestProfileStatus): GuestProfile[] {
     .all(status) as GuestProfile[];
 }
 
+function selectGuestProfileListItems(
+  status: GuestProfileStatus,
+): GuestProfileListItem[] {
+  return db
+    .prepare(
+      `
+        SELECT ${getGuestProfileListItemSelectList()}
+        FROM guest_profiles gp
+        LEFT JOIN users u ON u.id = gp.user_id
+        WHERE gp.status = ?
+        ORDER BY datetime(gp.created_at) DESC, gp.id DESC
+      `,
+    )
+    .all(status) as GuestProfileListItem[];
+}
+
 function checkInGuestProfile(
   id: number,
   actor: User,
@@ -660,5 +701,21 @@ function getGuestProfileSelectList(): string {
     u.username AS accountUsername,
     u.active AS accountActive,
     gp.created_at AS createdAt
+  `;
+}
+
+function getGuestProfileListItemSelectList(): string {
+  return `
+    gp.id,
+    gp.name,
+    gp.status,
+    gp.room_number AS roomNumber,
+    gp.ic_no AS icNo,
+    gp.handphone_no AS handphoneNo,
+    gp.expected_delivery_date AS expectedDeliveryDate,
+    gp.check_in_date AS checkInDate,
+    gp.mode_of_delivery AS modeOfDelivery,
+    gp.package_type AS packageType,
+    u.username AS accountUsername
   `;
 }

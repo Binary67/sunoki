@@ -9,10 +9,10 @@ import {
   getGuestProfileStatus,
   getGuestProfileStatusLabel,
   getGuestProfileCheckoutDate,
-  listGuestProfiles,
+  listGuestProfileListItems,
   listGuestProfileAddonsByProfileIds,
-  type GuestProfile,
   type GuestProfileFilterStatus,
+  type GuestProfileListItem,
 } from "@/src/lib/guest-profiles";
 import { listPackageEntitlementOptions } from "@/src/lib/package-entitlement-options";
 import { createGuestProfileAction } from "./actions";
@@ -44,7 +44,9 @@ export default async function GuestProfilePage({ searchParams }: PageProps) {
   const activeStatus = getGuestProfileStatus(getSingleValue(query.status));
   const today = formatBookingDate(new Date());
   const profiles = sortGuestProfilesByStatusDate(
-    listGuestProfiles(activeStatus, today).map((profile) => ({ ...profile })),
+    listGuestProfileListItems(activeStatus, today).map((profile) => ({
+      ...profile,
+    })),
     today,
     activeStatus,
   );
@@ -234,7 +236,7 @@ function StatusMessage({
 }
 
 function getCheckedInProfilesWithCheckout(today: string) {
-  const checkedInProfiles = listGuestProfiles("checked_in", today).map(
+  const checkedInProfiles = listGuestProfileListItems("checked_in", today).map(
     (profile) => ({ ...profile }),
   );
   const checkedInProfileAddonsByProfileId = listGuestProfileAddonsByProfileIds(
@@ -274,10 +276,10 @@ function getEmptyStatusMessage(status: GuestProfileFilterStatus): string {
 }
 
 function sortGuestProfilesByStatusDate(
-  profiles: GuestProfile[],
+  profiles: GuestProfileListItem[],
   today: string,
   status: GuestProfileFilterStatus,
-): GuestProfile[] {
+): GuestProfileListItem[] {
   return [...profiles].sort((a, b) => {
     const aDate = getGuestProfileSortDate(a, status);
     const bDate = getGuestProfileSortDate(b, status);
@@ -303,7 +305,7 @@ function sortGuestProfilesByStatusDate(
 }
 
 function getGuestProfileSortDate(
-  profile: GuestProfile,
+  profile: GuestProfileListItem,
   status: GuestProfileFilterStatus,
 ): string | null {
   return status === "incoming"

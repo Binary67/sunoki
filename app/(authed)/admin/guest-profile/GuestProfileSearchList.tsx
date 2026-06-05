@@ -4,12 +4,12 @@ import Link from "next/link";
 import { useState } from "react";
 import { isBookingDate } from "@/src/lib/booking-dates";
 import type {
-  GuestProfile,
   GuestProfileFilterStatus,
+  GuestProfileListItem,
 } from "@/src/lib/guest-profiles";
 import GuestProfileDeleteForm from "./GuestProfileDeleteForm";
 
-type CheckedInGuestProfile = GuestProfile & {
+type CheckedInGuestProfile = GuestProfileListItem & {
   checkoutDate: string | null;
 };
 
@@ -31,7 +31,7 @@ export default function GuestProfileSearchList({
   canDeleteGuestProfiles: boolean;
   checkedInProfiles: CheckedInGuestProfile[];
   followUpThroughDate: string;
-  profiles: GuestProfile[];
+  profiles: GuestProfileListItem[];
   today: string;
 }) {
   const [searchTerm, setSearchTerm] = useState("");
@@ -113,7 +113,7 @@ function GuestProfileBlock({
   checkedInProfiles: CheckedInGuestProfile[];
   followUpThroughDate: string;
   listOrder: number;
-  profile: GuestProfile;
+  profile: GuestProfileListItem;
   today: string;
 }) {
   const profileHref = `/admin/guest-profile/${profile.id}`;
@@ -244,7 +244,7 @@ function SummaryItem({
 }
 
 function isFollowUpDue(
-  profile: GuestProfile,
+  profile: GuestProfileListItem,
   today: string,
   followUpThroughDate: string,
 ): boolean {
@@ -261,7 +261,7 @@ function isFollowUpDue(
 }
 
 function getRoomOverlapWarnings(
-  profile: GuestProfile,
+  profile: GuestProfileListItem,
   checkedInProfiles: CheckedInGuestProfile[],
 ): RoomOverlapWarning[] {
   const edd = profile.expectedDeliveryDate;
@@ -293,7 +293,10 @@ function getRoomOverlapWarnings(
   });
 }
 
-function isSameGuest(a: GuestProfile, b: GuestProfile): boolean {
+function isSameGuest(
+  a: GuestProfileListItem,
+  b: GuestProfileListItem,
+): boolean {
   return a.id === b.id || Boolean(a.icNo && b.icNo && a.icNo === b.icNo);
 }
 
