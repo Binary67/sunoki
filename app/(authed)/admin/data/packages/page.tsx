@@ -1,6 +1,8 @@
+import Link from "next/link";
 import { requireAdminUser } from "@/src/lib/admin-auth";
 import type { EditableTableName } from "@/src/lib/admin-data/definitions";
 import {
+  getAdminFormSelectOptions,
   getAdminRowForEdit,
   getAdminTableView,
 } from "@/src/lib/admin-data/queries";
@@ -23,6 +25,7 @@ type PageProps = {
   searchParams: Promise<{
     edit?: string | string[];
     error?: string | string[];
+    new?: string | string[];
     page?: string | string[];
     success?: string | string[];
     tab?: string | string[];
@@ -58,6 +61,8 @@ export default async function AdminPackagesPage({ searchParams }: PageProps) {
   const editId = getEditId(getSingleValue(query.edit));
   const page = getPageNumber(getSingleValue(query.page));
   const tableName = getPackagesTableName(activeTab);
+  const showCreate =
+    activeTab === "service-bookings" && getSingleValue(query.new) === "1";
   const view = getAdminTableView(
     tableName,
     actor,
@@ -66,6 +71,8 @@ export default async function AdminPackagesPage({ searchParams }: PageProps) {
       : {},
   );
   const editRow = editId ? getAdminRowForEdit(tableName, editId, actor) : null;
+  const formSelectOptions =
+    showCreate || editId ? getAdminFormSelectOptions(tableName) : undefined;
 
   return (
     <main className="flex-1 px-4 py-6 sm:px-6 sm:py-8 lg:px-10">
@@ -82,11 +89,31 @@ export default async function AdminPackagesPage({ searchParams }: PageProps) {
         error={getSingleValue(query.error)}
         success={getSingleValue(query.success)}
       />
-      {activeTab === "service-bookings" && (
+      {showCreate ? (
         <CreateFormSection
+          cancelHref={getPackagesHref({
+            page: view.pagination?.page ?? page,
+            tab: activeTab,
+          })}
+          formSelectOptions={formSelectOptions}
           tableName={tableName}
           view={view}
         />
+      ) : (
+        activeTab === "service-bookings" && (
+          <div className="mb-7 flex justify-end">
+            <Link
+              href={getPackagesHref({
+                create: true,
+                page: view.pagination?.page ?? page,
+                tab: activeTab,
+              })}
+              className="inline-flex h-9 items-center justify-center rounded-md bg-brand px-3 text-sm font-medium text-white hover:bg-brand/90"
+            >
+              New Booking
+            </Link>
+          </div>
+        )
       )}
       <EditFormSection
         actor={actor}
@@ -96,6 +123,7 @@ export default async function AdminPackagesPage({ searchParams }: PageProps) {
         })}
         editId={editId}
         editRow={editRow}
+        formSelectOptions={formSelectOptions}
         tableName={tableName}
         view={view}
       />
@@ -141,10 +169,12 @@ function getPackagesTableName(tab: PackagesTab): EditableTableName {
 }
 
 function getPackagesHref({
+  create,
   editId,
   page,
   tab,
 }: {
+  create?: boolean;
   editId?: number;
   page: number;
   tab: PackagesTab;
@@ -152,6 +182,7 @@ function getPackagesHref({
   const params = new URLSearchParams();
   params.set("tab", tab);
   if (tab === "service-bookings" && page > 1) params.set("page", String(page));
+  if (create) params.set("new", "1");
   if (editId) params.set("edit", String(editId));
   return `/admin/data/packages?${params.toString()}`;
 }

@@ -7,6 +7,7 @@ import {
   type EditableTableName,
 } from "./definitions";
 import {
+  getAdminDisplaySelectOptions,
   getAdminSelectOptions,
   type AdminSelectOptionKey,
 } from "./options";
@@ -27,7 +28,6 @@ export function getAdminTableView(
   const table = getAdminTableDefinition(tableName);
   const userScope = getUserScope(tableName, actor, options.userAccess);
   const pageSize = getPageSize(options.pageSize);
-  const selectOptions = getAdminSelectOptions(getRequiredSelectOptionKeys(table));
 
   if (pageSize) {
     const requestedPage =
@@ -54,7 +54,7 @@ export function getAdminTableView(
     return {
       table,
       rows,
-      selectOptions,
+      selectOptions: getAdminDisplaySelectOptions(table, rows),
       pagination: {
         page,
         pageSize,
@@ -78,8 +78,15 @@ export function getAdminTableView(
   return {
     table,
     rows,
-    selectOptions,
+    selectOptions: getAdminDisplaySelectOptions(table, rows),
   };
+}
+
+export function getAdminFormSelectOptions(
+  tableName: EditableTableName,
+): AdminTableView["selectOptions"] {
+  const table = getAdminTableDefinition(tableName);
+  return getAdminSelectOptions(getRequiredSelectOptionKeys(table));
 }
 
 function getPageSize(value: number | undefined): number | null {

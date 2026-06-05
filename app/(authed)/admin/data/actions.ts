@@ -35,12 +35,16 @@ export async function createAdminRowAction(formData: FormData): Promise<void> {
     revalidatePath(AUDIT_PATH);
     revalidateBookingPaths(tableName);
   }
+  const showCreate = !result.ok && isBookingTable(tableName);
   redirectWithMessage(
     tableName,
     result.ok ? "success" : "error",
     result.message,
     undefined,
     createMode,
+    undefined,
+    undefined,
+    showCreate,
   );
 }
 
@@ -196,6 +200,10 @@ function revalidateBookingPaths(tableName: EditableTableName): void {
   }
 }
 
+function isBookingTable(tableName: EditableTableName): boolean {
+  return tableName === "facility_bookings" || tableName === "guest_service_bookings";
+}
+
 function redirectWithMessage(
   tableName: EditableTableName | null,
   tone: "error" | "success",
@@ -204,11 +212,15 @@ function redirectWithMessage(
   createMode?: "admin" | null,
   requestedTab?: string,
   passwordId?: number,
+  showCreate?: boolean,
 ): never {
   const params = new URLSearchParams();
   params.set("tab", getDataTab(tableName, requestedTab));
   if (tableName === "users" && createMode) {
     params.set("create", createMode);
+  }
+  if (showCreate) {
+    params.set("new", "1");
   }
   if (editId && Number.isInteger(editId) && editId > 0) {
     params.set("edit", String(editId));

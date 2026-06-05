@@ -25,16 +25,21 @@ import {
 export type UserCreateMode = "guest" | "admin";
 
 export function CreateFormSection({
+  cancelHref,
   createMode = "guest",
+  formSelectOptions,
   tableName,
   view,
 }: {
+  cancelHref?: string;
   createMode?: UserCreateMode;
+  formSelectOptions?: AdminSelectOptions;
   tableName: EditableTableName;
   view: AdminTableView;
 }) {
   if (isUpdateOnlyAdminTable(tableName)) return null;
 
+  const options = formSelectOptions ?? view.selectOptions;
   const editableColumns = getEditableColumns(view);
   const createColumns =
     tableName === "users"
@@ -42,22 +47,32 @@ export function CreateFormSection({
       : editableColumns;
   const createOptions =
     tableName === "users" && createMode === "admin"
-      ? getAdminUserCreateOptions(view.selectOptions)
-      : view.selectOptions;
+      ? getAdminUserCreateOptions(options)
+      : options;
   const createFixedRole =
     tableName === "users" && createMode === "guest" ? "guest" : undefined;
 
   return (
     <section className="mb-7 rounded-lg border border-black/5 bg-surface px-4 py-5 sm:px-5">
-      <div className="mb-4">
-        <h2 className="text-base font-semibold text-ink">
-          Create {getCreateLabel(tableName, createMode)}
-        </h2>
-        <p className="mt-1 text-xs leading-5 text-ink/55">
-          {tableName === "guest_service_bookings"
-            ? "Package service availability and guest booking rules still apply."
-            : "IDs and timestamp defaults are assigned by SQLite."}
-        </p>
+      <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h2 className="text-base font-semibold text-ink">
+            Create {getCreateLabel(tableName, createMode)}
+          </h2>
+          <p className="mt-1 text-xs leading-5 text-ink/55">
+            {tableName === "guest_service_bookings"
+              ? "Package service availability and guest booking rules still apply."
+              : "IDs and timestamp defaults are assigned by SQLite."}
+          </p>
+        </div>
+        {cancelHref && (
+          <Link
+            href={cancelHref}
+            className="text-sm font-medium text-brand hover:underline"
+          >
+            Cancel
+          </Link>
+        )}
       </div>
       <form action={createAdminRowAction}>
         <input type="hidden" name="tableName" value={tableName} />
@@ -93,6 +108,7 @@ export function EditFormSection({
   cancelHref,
   editId,
   editRow,
+  formSelectOptions,
   tableName,
   view,
 }: {
@@ -100,11 +116,13 @@ export function EditFormSection({
   cancelHref: string;
   editId: number | null;
   editRow: AdminRow | null;
+  formSelectOptions?: AdminSelectOptions;
   tableName: EditableTableName;
   view: AdminTableView;
 }) {
   if (!editId) return null;
 
+  const options = formSelectOptions ?? view.selectOptions;
   const editableColumns = getEditableColumns(view);
   const editColumns =
     tableName === "users"
@@ -151,7 +169,7 @@ export function EditFormSection({
               columns={editColumns}
               fixedUserRole={editFixedRole}
               formId={`edit-${editId}`}
-              options={view.selectOptions}
+              options={options}
               row={editRow}
               tableName={tableName}
             />
