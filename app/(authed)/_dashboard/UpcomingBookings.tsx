@@ -144,7 +144,7 @@ export default function UpcomingBookings({
         </div>
       ) : (
         <div className="overflow-x-auto rounded-lg border border-black/5">
-          <table className="w-full min-w-[760px] text-sm">
+          <table className="w-full min-w-[860px] text-sm">
             <thead className="bg-surface text-[11px] uppercase tracking-[0.14em] text-ink/50">
               <tr>
                 <th className="px-5 py-3 text-left font-medium">Type</th>
@@ -152,6 +152,7 @@ export default function UpcomingBookings({
                 <th className="px-5 py-3 text-left font-medium">Time</th>
                 <th className="px-5 py-3 text-left font-medium">Booking</th>
                 <th className="px-5 py-3 text-left font-medium">Guest</th>
+                <th className="px-5 py-3 text-left font-medium">Room</th>
                 <th className="px-5 py-3 text-left font-medium">Detail</th>
               </tr>
             </thead>
@@ -178,6 +179,9 @@ export default function UpcomingBookings({
                         ({booking.guestUsername})
                       </span>
                     )}
+                  </td>
+                  <td className="px-5 py-3 text-ink/80">
+                    {formatValue(booking.roomNumber)}
                   </td>
                   <td className="px-5 py-3 text-ink/80">
                     {formatBookingStatus(booking)}
@@ -225,4 +229,8 @@ function formatBookingStatus(booking: UpcomingBooking) {
   if (booking.isDone) return "Done";
   if (booking.isRead) return "Read";
   return "Unread";
+}
+
+function formatValue(value: string | null | undefined): string {
+  return value || "-";
 }

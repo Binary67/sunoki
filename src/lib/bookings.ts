@@ -50,6 +50,7 @@ export type UpcomingBooking = {
   startTime: string;
   guestName: string;
   guestUsername: string;
+  roomNumber: string | null;
   isRead: boolean;
   isDone: boolean;
 };
@@ -61,6 +62,7 @@ type UpcomingFacilityBookingRow = {
   startTime: string;
   guestName: string | null;
   guestUsername: string;
+  roomNumber: string | null;
   adminRead: number;
   adminDone: number;
 };
@@ -73,6 +75,7 @@ type UpcomingServiceBookingRow = {
   startTime: string;
   guestName: string | null;
   guestUsername: string;
+  roomNumber: string | null;
   adminRead: number;
   adminDone: number;
 };
@@ -145,6 +148,7 @@ export function getUpcomingBookings(
           b.booking_date    AS bookingDate,
           b.booking_time    AS startTime,
           gp.name           AS guestName,
+          gp.room_number    AS roomNumber,
           u.username        AS guestUsername,
           b.admin_read      AS adminRead,
           b.admin_done      AS adminDone
@@ -170,6 +174,7 @@ export function getUpcomingBookings(
           b.booking_date    AS bookingDate,
           b.booking_time    AS startTime,
           gp.name           AS guestName,
+          gp.room_number    AS roomNumber,
           u.username        AS guestUsername,
           b.admin_read      AS adminRead,
           b.admin_done      AS adminDone
@@ -193,6 +198,7 @@ export function getUpcomingBookings(
       startTime: row.startTime,
       guestName: row.guestName ?? row.guestUsername,
       guestUsername: row.guestUsername,
+      roomNumber: row.roomNumber,
       isRead: row.adminRead === 1,
       isDone: row.adminDone === 1,
     })),
@@ -205,6 +211,7 @@ export function getUpcomingBookings(
       startTime: row.startTime,
       guestName: row.guestName ?? row.guestUsername,
       guestUsername: row.guestUsername,
+      roomNumber: row.roomNumber,
       isRead: row.adminRead === 1,
       isDone: row.adminDone === 1,
     })),
