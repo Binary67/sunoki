@@ -82,7 +82,6 @@ export default async function KitchenPage({ searchParams }: PageProps) {
     selectedGuestName,
     selectedNoteRoomNumber,
   );
-  const hasPrintableContent = servicePrepGroups.length > 0 || notes.length > 0;
   const hasServiceFilter =
     selectedServiceKeys.length !== KITCHEN_PREP_SERVICE_KEYS.length;
   const hasActiveFilters =
@@ -198,75 +197,87 @@ export default async function KitchenPage({ searchParams }: PageProps) {
             preparation.
           </p>
         </div>
-        {hasPrintableContent && <PrintKitchenNotesButton />}
       </div>
 
       <KitchenTabNav activeTab={activeTab} />
 
       <section className="kitchen-print-only">
-        <section className="kitchen-print-section">
-          <h1 className="kitchen-print-heading">
-            Kitchen Service Prep{selectedBookingDate
-              ? ` - ${formatDisplayDate(selectedBookingDate)}`
-              : ""}
-          </h1>
-          {servicePrepGroups.length === 0 ? (
-            <p>No kitchen service prep.</p>
-          ) : (
-            <div className="kitchen-print-grid">
-              {servicePrepGroups.map((group) => (
-                <article className="kitchen-print-card" key={group.key}>
-                  <div className="kitchen-print-meta">
-                    <span className="kitchen-print-name">{group.guestName}</span>
-                    <span className="kitchen-print-room">
-                      Room {formatValue(group.roomNumber)}
-                    </span>
-                  </div>
-                  <ul className="kitchen-print-list">
-                    {group.bookings.map((booking) => (
-                      <li key={booking.id}>
-                        {booking.bookingTime} - {booking.serviceName}
-                      </li>
-                    ))}
-                  </ul>
-                </article>
-              ))}
-            </div>
-          )}
-        </section>
+        {activeTab === "service-prep" && (
+          <section className="kitchen-print-section">
+            <h1 className="kitchen-print-heading">
+              Kitchen Service Prep{selectedBookingDate
+                ? ` - ${formatDisplayDate(selectedBookingDate)}`
+                : ""}
+            </h1>
+            {servicePrepGroups.length === 0 ? (
+              <p>No kitchen service prep.</p>
+            ) : (
+              <div className="kitchen-print-grid">
+                {servicePrepGroups.map((group) => (
+                  <article className="kitchen-print-card" key={group.key}>
+                    <div className="kitchen-print-meta">
+                      <span className="kitchen-print-name">
+                        {group.guestName}
+                      </span>
+                      <span className="kitchen-print-room">
+                        Room {formatValue(group.roomNumber)}
+                      </span>
+                    </div>
+                    <ul className="kitchen-print-list">
+                      {group.bookings.map((booking) => (
+                        <li key={booking.id}>
+                          {booking.bookingTime} - {booking.serviceName}
+                        </li>
+                      ))}
+                    </ul>
+                  </article>
+                ))}
+              </div>
+            )}
+          </section>
+        )}
 
-        <section className="kitchen-print-section">
-          <h1 className="kitchen-print-heading">Guest Profile Kitchen Notes</h1>
-          {notes.length === 0 ? (
-            <p>No guest profile kitchen notes.</p>
-          ) : (
-            <div className="kitchen-print-grid">
-              {notes.map((note) => (
-                <article className="kitchen-print-card" key={note.id}>
-                  <div className="kitchen-print-meta">
-                    <span className="kitchen-print-name">{note.name}</span>
-                    <span className="kitchen-print-room">
-                      Room {formatValue(note.roomNumber)}
-                    </span>
-                  </div>
-                  <p className="kitchen-print-note">{note.kitchenNotes}</p>
-                </article>
-              ))}
-            </div>
-          )}
-        </section>
+        {activeTab === "guest-profile-notes" && (
+          <section className="kitchen-print-section">
+            <h1 className="kitchen-print-heading">
+              Guest Profile Kitchen Notes
+            </h1>
+            {notes.length === 0 ? (
+              <p>No guest profile kitchen notes.</p>
+            ) : (
+              <div className="kitchen-print-grid">
+                {notes.map((note) => (
+                  <article className="kitchen-print-card" key={note.id}>
+                    <div className="kitchen-print-meta">
+                      <span className="kitchen-print-name">{note.name}</span>
+                      <span className="kitchen-print-room">
+                        Room {formatValue(note.roomNumber)}
+                      </span>
+                    </div>
+                    <p className="kitchen-print-note">{note.kitchenNotes}</p>
+                  </article>
+                ))}
+              </div>
+            )}
+          </section>
+        )}
       </section>
 
       {activeTab === "service-prep" && (
         <section className="kitchen-screen-only">
-          <div className="mb-4 flex flex-col gap-1">
-            <h2 className="text-base font-semibold text-ink">
-              Kitchen Service Prep
-            </h2>
-            <span className="text-xs text-ink/50">
-              {servicePrepBookings.length}{" "}
-              {servicePrepBookings.length === 1 ? "item" : "items"}
-            </span>
+          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-1">
+              <h2 className="text-base font-semibold text-ink">
+                Kitchen Service Prep
+              </h2>
+              <span className="text-xs text-ink/50">
+                {servicePrepBookings.length}{" "}
+                {servicePrepBookings.length === 1 ? "item" : "items"}
+              </span>
+            </div>
+            {servicePrepGroups.length > 0 && (
+              <PrintKitchenNotesButton label="Print Service Prep" />
+            )}
           </div>
 
           <form
@@ -404,13 +415,18 @@ export default async function KitchenPage({ searchParams }: PageProps) {
 
       {activeTab === "guest-profile-notes" && (
         <section className="kitchen-screen-only">
-          <div className="mb-4 flex flex-col gap-1">
-            <h2 className="text-base font-semibold text-ink">
-              Guest Profile Kitchen Notes
-            </h2>
-            <span className="text-xs text-ink/50">
-              {notes.length} {notes.length === 1 ? "guest" : "guests"}
-            </span>
+          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-1">
+              <h2 className="text-base font-semibold text-ink">
+                Guest Profile Kitchen Notes
+              </h2>
+              <span className="text-xs text-ink/50">
+                {notes.length} {notes.length === 1 ? "guest" : "guests"}
+              </span>
+            </div>
+            {notes.length > 0 && (
+              <PrintKitchenNotesButton label="Print Kitchen Notes" />
+            )}
           </div>
 
           <form
