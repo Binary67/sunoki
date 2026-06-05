@@ -47,7 +47,7 @@ export function AdminTableSection({
       ? getUserAccessColumns(view)
       : view.table.columns;
   const rowCountLabel = view.pagination
-    ? getPaginationRangeLabel(view.pagination)
+    ? getPaginationRangeLabel(view.pagination, view.rows.length)
     : `${view.rows.length} ${view.rows.length === 1 ? "row" : "rows"}`;
 
   return (
@@ -228,16 +228,11 @@ function PaginationControls({
   hrefForPage: (page: number) => string;
   pagination: AdminTablePagination;
 }) {
-  const hasPrevious = pagination.page > 1;
-  const hasNext = pagination.page < pagination.totalPages;
-
   return (
     <div className="mt-4 flex flex-col gap-3 text-sm text-ink/65 sm:flex-row sm:items-center sm:justify-between">
-      <span>
-        Page {pagination.page} of {pagination.totalPages}
-      </span>
+      <span>Page {pagination.page}</span>
       <div className="flex items-center gap-2">
-        {hasPrevious ? (
+        {pagination.hasPreviousPage ? (
           <Link
             href={hrefForPage(pagination.page - 1)}
             className="rounded-md border border-black/10 px-3 py-2 font-medium text-ink/70 hover:bg-surface"
@@ -249,7 +244,7 @@ function PaginationControls({
             Previous
           </span>
         )}
-        {hasNext ? (
+        {pagination.hasNextPage ? (
           <Link
             href={hrefForPage(pagination.page + 1)}
             className="rounded-md border border-black/10 px-3 py-2 font-medium text-ink/70 hover:bg-surface"
@@ -266,16 +261,18 @@ function PaginationControls({
   );
 }
 
-function getPaginationRangeLabel(pagination: AdminTablePagination): string {
-  if (pagination.totalRows === 0) return "Showing 0 of 0";
+function getPaginationRangeLabel(
+  pagination: AdminTablePagination,
+  rowCount: number,
+): string {
+  if (rowCount === 0) return "Showing 0";
 
   const firstRow = (pagination.page - 1) * pagination.pageSize + 1;
-  const lastRow = Math.min(
-    pagination.page * pagination.pageSize,
-    pagination.totalRows,
-  );
+  const lastRow = firstRow + rowCount - 1;
 
-  return `Showing ${firstRow}-${lastRow} of ${pagination.totalRows}`;
+  return firstRow === lastRow
+    ? `Showing ${firstRow}`
+    : `Showing ${firstRow}-${lastRow}`;
 }
 
 function UserAccessActions({

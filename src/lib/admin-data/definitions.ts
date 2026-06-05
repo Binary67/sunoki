@@ -77,8 +77,8 @@ export type AdminTableView = {
 export type AdminTablePagination = {
   page: number;
   pageSize: number;
-  totalPages: number;
-  totalRows: number;
+  hasPreviousPage: boolean;
+  hasNextPage: boolean;
 };
 
 export type AdminMutationResult =

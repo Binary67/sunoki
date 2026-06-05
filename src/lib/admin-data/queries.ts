@@ -30,16 +30,13 @@ export function getAdminTableView(
   const pageSize = getPageSize(options.pageSize);
 
   if (pageSize) {
-    const requestedPage =
+    const page =
       options.page && Number.isInteger(options.page) && options.page > 0
         ? options.page
         : 1;
-    const totalRows = getRowCount(table, userScope.whereClause, userScope.params);
-    const totalPages = Math.max(1, Math.ceil(totalRows / pageSize));
-    const page = Math.min(requestedPage, totalPages);
     const offset = (page - 1) * pageSize;
 
-    const rows = db
+    const fetchedRows = db
       .prepare(
         `
           SELECT ${getColumnList(table)}
@@ -49,7 +46,8 @@ export function getAdminTableView(
           LIMIT ? OFFSET ?
         `,
       )
-      .all(...userScope.params, pageSize, offset) as AdminRow[];
+      .all(...userScope.params, pageSize + 1, offset) as AdminRow[];
+    const rows = fetchedRows.slice(0, pageSize);
 
     return {
       table,
@@ -58,8 +56,8 @@ export function getAdminTableView(
       pagination: {
         page,
         pageSize,
-        totalPages,
-        totalRows,
+        hasPreviousPage: page > 1,
+        hasNextPage: fetchedRows.length > pageSize,
       },
     };
   }
@@ -130,24 +128,6 @@ function getUserScope(
     whereClause: conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "",
     params,
   };
-}
-
-function getRowCount(
-  table: AdminTableDefinition,
-  whereClause: string,
-  params: (string | number)[],
-): number {
-  const row = db
-    .prepare(
-      `
-        SELECT COUNT(*) AS totalRows
-        FROM ${table.name}
-        ${whereClause}
-      `,
-    )
-    .get(...params) as { totalRows: number } | undefined;
-
-  return row?.totalRows ?? 0;
 }
 
 export function getAdminRowForEdit(
