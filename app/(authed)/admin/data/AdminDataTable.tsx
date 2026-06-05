@@ -137,6 +137,7 @@ export function AdminTableSection({
                                   ? passwordHref(rowId)
                                   : `/admin/data/users?tab=accounts&password=${rowId}`
                               }
+                              prefetch={false}
                               className="inline-flex rounded-md border border-black/10 px-2.5 py-1.5 text-xs font-medium text-ink/70 hover:bg-surface"
                             >
                               Set New Password
@@ -174,6 +175,7 @@ export function AdminTableSection({
                               canEditRecord(tableName, row) && (
                                 <Link
                                   href={editHref(rowId)}
+                                  prefetch={false}
                                   className="rounded-md border border-black/10 px-2.5 py-1.5 text-xs font-medium text-ink/70 hover:bg-surface"
                                 >
                                   Edit

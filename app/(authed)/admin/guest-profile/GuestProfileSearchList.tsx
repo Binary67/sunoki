@@ -149,6 +149,7 @@ function GuestProfileBlock({
         aria-label={`View ${profile.name}`}
         className="absolute inset-0 z-0 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand/20"
         href={profileHref}
+        prefetch={false}
       />
       <div className="pointer-events-none relative z-10 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
@@ -207,6 +208,7 @@ function GuestProfileBlock({
                   <Link
                     className="pointer-events-auto relative z-20 font-semibold underline decoration-amber-500/60 underline-offset-2 hover:text-amber-700 focus:outline-none focus:ring-2 focus:ring-amber-500/30"
                     href={`/admin/guest-profile/${warning.guestId}`}
+                    prefetch={false}
                   >
                     {warning.guestName}
                   </Link>{" "}
