@@ -79,7 +79,11 @@ export default function PendingBookingQuotaModal({
                   </span>
                 </div>
                 <dl className="mt-2 flex flex-wrap gap-x-8 gap-y-2 text-xs">
-                  <QuotaDetailItem label="Booked" value={service.usedQuantity} />
+                  <QuotaDetailItem
+                    label="Booked"
+                    value={service.bookedQuantity}
+                  />
+                  <QuotaDetailItem label="Used" value={service.usedQuantity} />
                   <QuotaDetailItem
                     label="Package"
                     value={service.packageQuantity}

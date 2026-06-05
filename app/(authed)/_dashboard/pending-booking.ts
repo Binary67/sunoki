@@ -20,6 +20,7 @@ import {
 } from "@/src/lib/service-bookings/catalog";
 
 export type PendingBookingServiceQuota = {
+  bookedQuantity: number;
   packageQuantity: number;
   purchasedPerkQuantity: number;
   remainingQuantity: number;
@@ -37,18 +38,23 @@ export type PendingBookingGuest = {
   totalRemainingQuantity: number;
 };
 
-type ActiveServiceBookingCountRow = {
-  count: number;
+type ServiceBookingCountRow = {
+  bookedCount: number;
   profileId: number;
   serviceKey: ServiceBookingKey;
+  usedCount: number;
+};
+
+type ServiceBookingCount = {
+  bookedQuantity: number;
+  usedQuantity: number;
 };
 
 export function getPendingBookingGuests(today: string): PendingBookingGuest[] {
   const profiles = listGuestProfiles("checked_in", today);
   const profileIds = profiles.map((profile) => profile.id);
   const addonsByProfileId = listGuestProfileAddonsByProfileIds(profileIds);
-  const usedCountsByProfileService =
-    listActiveServiceBookingCountsByProfileIds(profileIds);
+  const countsByProfileService = listServiceBookingCountsByProfileIds(profileIds);
   const urgentThroughDate = addBookingDays(today, 7);
 
   return profiles
@@ -62,7 +68,7 @@ export function getPendingBookingGuests(today: string): PendingBookingGuest[] {
         profile,
         snapshot,
         addons,
-        usedCountsByProfileService,
+        countsByProfileService,
       );
 
       if (services.length === 0) return null;
@@ -90,7 +96,7 @@ function getPendingServiceQuotas(
   profile: GuestProfile,
   snapshot: PackageEntitlementSnapshot | null,
   addons: GuestProfileAddon[],
-  usedCountsByProfileService: Map<string, number>,
+  countsByProfileService: Map<string, ServiceBookingCount>,
 ): PendingBookingServiceQuota[] {
   return BOOKABLE_PACKAGE_SERVICES.flatMap((service) => {
     const packageQuantity = getPackageServiceQuantity(snapshot, service.key);
@@ -100,13 +106,16 @@ function getPendingServiceQuotas(
     const totalQuantity = packageQuantity + purchasedPerkQuantity;
     if (totalQuantity <= 0) return [];
 
-    const usedQuantity =
-      usedCountsByProfileService.get(getCountKey(profile.id, service.key)) ?? 0;
+    const counts = countsByProfileService.get(
+      getCountKey(profile.id, service.key),
+    ) ?? { bookedQuantity: 0, usedQuantity: 0 };
+    const usedQuantity = counts.usedQuantity;
     const remainingQuantity = Math.max(0, totalQuantity - usedQuantity);
     if (remainingQuantity <= 0) return [];
 
     return [
       {
+        bookedQuantity: counts.bookedQuantity,
         packageQuantity,
         purchasedPerkQuantity,
         remainingQuantity,
@@ -142,11 +151,11 @@ function getPurchasedPerkQuantity(
   );
 }
 
-function listActiveServiceBookingCountsByProfileIds(
+function listServiceBookingCountsByProfileIds(
   profileIds: number[],
-): Map<string, number> {
+): Map<string, ServiceBookingCount> {
   const validProfileIds = getValidProfileIds(profileIds);
-  const counts = new Map<string, number>();
+  const counts = new Map<string, ServiceBookingCount>();
   if (validProfileIds.length === 0) return counts;
 
   const placeholders = validProfileIds.map(() => "?").join(", ");
@@ -156,17 +165,21 @@ function listActiveServiceBookingCountsByProfileIds(
         SELECT
           guest_profile_id AS profileId,
           service_key AS serviceKey,
-          COUNT(*) AS count
+          COUNT(*) AS bookedCount,
+          SUM(CASE WHEN admin_done = 1 THEN 1 ELSE 0 END) AS usedCount
         FROM guest_service_bookings
         WHERE guest_profile_id IN (${placeholders})
           AND status = 'booked'
         GROUP BY guest_profile_id, service_key
       `,
     )
-    .all(...validProfileIds) as ActiveServiceBookingCountRow[];
+    .all(...validProfileIds) as ServiceBookingCountRow[];
 
   for (const row of rows) {
-    counts.set(getCountKey(row.profileId, row.serviceKey), Number(row.count));
+    counts.set(getCountKey(row.profileId, row.serviceKey), {
+      bookedQuantity: Number(row.bookedCount),
+      usedQuantity: Number(row.usedCount),
+    });
   }
 
   return counts;

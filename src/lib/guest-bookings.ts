@@ -1,4 +1,10 @@
 import { db } from "./db";
+import type { GuestProfileStatus } from "./guest-profile-types";
+import {
+  getBookablePackageService,
+  type ServiceBookingKey,
+} from "./service-bookings/catalog";
+import { getServiceEntitlement } from "./service-bookings/entitlements";
 
 export type GuestBookingType = "facility" | "service";
 export type GuestBookingStatusField = "read" | "done";
@@ -16,12 +22,20 @@ export type GuestBookingChecklistItem = {
 };
 
 type GuestProfileUserRow = {
+  id: number;
+  packageEntitlementSnapshotJson: string | null;
+  status: GuestProfileStatus;
   userId: number | null;
 };
 
 type BookingStatusRow = {
   adminRead: number;
   adminDone: number;
+};
+
+type ServiceBookingStatusRow = BookingStatusRow & {
+  serviceKey: ServiceBookingKey;
+  serviceName: string;
 };
 
 type FacilityBookingRow = {
@@ -289,6 +303,11 @@ export function updateGuestBookingStatus({
     };
   }
 
+  if (checked && booking.adminDone !== 1 && isServiceBookingStatus(booking)) {
+    const quotaError = getServiceDoneQuotaError(profile, booking);
+    if (quotaError) return { ok: false, message: quotaError };
+  }
+
   updateBookingDone(type, bookingId, checked);
   return { ok: true, message: "Booking status updated." };
 }
@@ -297,7 +316,11 @@ function getGuestProfileUser(profileId: number): GuestProfileUserRow | null {
   const row = db
     .prepare(
       `
-        SELECT user_id AS userId
+        SELECT
+          id,
+          user_id AS userId,
+          status,
+          package_entitlement_snapshot_json AS packageEntitlementSnapshotJson
         FROM guest_profiles
         WHERE id = ?
       `,
@@ -393,22 +416,55 @@ function getFacilityBookingStatus(
 function getServiceBookingStatus(
   bookingId: number,
   profileId: number,
-): BookingStatusRow | null {
+): ServiceBookingStatusRow | null {
   const row = db
     .prepare(
       `
         SELECT
           admin_read AS adminRead,
-          admin_done AS adminDone
+          admin_done AS adminDone,
+          service_key AS serviceKey,
+          service_name AS serviceName
         FROM guest_service_bookings
         WHERE id = ?
           AND guest_profile_id = ?
           AND status = 'booked'
       `,
     )
-    .get(bookingId, profileId) as BookingStatusRow | undefined;
+    .get(bookingId, profileId) as ServiceBookingStatusRow | undefined;
 
   return row ?? null;
+}
+
+function getServiceDoneQuotaError(
+  profile: GuestProfileUserRow,
+  booking: ServiceBookingStatusRow,
+): string | null {
+  if (!profile.userId) return "Guest profile has no linked account.";
+
+  const service = getBookablePackageService(booking.serviceKey);
+  if (!service) return "Booking service is not configured.";
+
+  const entitlement = getServiceEntitlement(
+    profile.userId,
+    profile.id,
+    profile,
+    service,
+  );
+  if (
+    entitlement.remainingQuantity !== null &&
+    entitlement.remainingQuantity <= 0
+  ) {
+    return `The selected guest has used all ${service.name} sessions.`;
+  }
+
+  return null;
+}
+
+function isServiceBookingStatus(
+  booking: BookingStatusRow,
+): booking is ServiceBookingStatusRow {
+  return "serviceKey" in booking;
 }
 
 function updateBookingColumn(

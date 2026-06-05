@@ -123,7 +123,7 @@ export function getPurchasedPerkQuantity(
   return Number(row?.quantity ?? 0);
 }
 
-export function getActiveServiceBookingCount(
+export function getDoneServiceBookingCount(
   userId: number,
   serviceKey: ServiceBookingKey,
   excludeBookingId?: number,
@@ -140,6 +140,7 @@ export function getActiveServiceBookingCount(
         WHERE user_id = ?
           AND service_key = ?
           AND status = 'booked'
+          AND admin_done = 1
           ${excludeClause}
       `,
     )
