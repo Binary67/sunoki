@@ -5,6 +5,11 @@ import { updateGuestBookingStatusAction } from "./actions";
 
 type BookingType = "facility" | "service";
 type BookingStatusField = "read" | "done";
+type BookingStatusAction = (formData: FormData) => void | Promise<void>;
+type HiddenField = {
+  name: string;
+  value: number | string;
+};
 
 export default function GuestBookingStatusCheckbox({
   bookingId,
@@ -12,26 +17,38 @@ export default function GuestBookingStatusCheckbox({
   checked,
   disabled = false,
   field,
+  hiddenFields = [],
   label,
   profileId,
+  statusAction = updateGuestBookingStatusAction,
 }: {
   bookingId: number;
   bookingType: BookingType;
   checked: boolean;
   disabled?: boolean;
   field: BookingStatusField;
+  hiddenFields?: HiddenField[];
   label: string;
   profileId: number;
+  statusAction?: BookingStatusAction;
 }) {
   const formRef = useRef<HTMLFormElement>(null);
   const checkedRef = useRef<HTMLInputElement>(null);
 
   return (
-    <form action={updateGuestBookingStatusAction} ref={formRef}>
+    <form action={statusAction} ref={formRef}>
       <input name="profileId" type="hidden" value={profileId} />
       <input name="bookingId" type="hidden" value={bookingId} />
       <input name="bookingType" type="hidden" value={bookingType} />
       <input name="field" type="hidden" value={field} />
+      {hiddenFields.map((hiddenField) => (
+        <input
+          key={`${hiddenField.name}-${hiddenField.value}`}
+          name={hiddenField.name}
+          type="hidden"
+          value={hiddenField.value}
+        />
+      ))}
       <input
         defaultValue={checked ? "1" : "0"}
         name="checked"

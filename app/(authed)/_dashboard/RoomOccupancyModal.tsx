@@ -8,6 +8,8 @@ import {
   type GuestProfile,
   type GuestProfileAddon,
 } from "@/src/lib/guest-profiles";
+import GuestBookingStatusCheckbox from "../admin/guest-profile/GuestBookingStatusCheckbox";
+import { updateRoomOccupancyGuestBookingStatusAction } from "./actions";
 import type { RoomOccupancyGuest, RoomOccupancyRoom } from "./room-occupancy";
 
 export default function RoomOccupancyModal({
@@ -71,10 +73,15 @@ export default function RoomOccupancyModal({
                 key={guest.profile.id}
                 guest={guest}
                 label="Current stay"
+                roomNumber={roomNumber}
               />
             ))}
             {nextGuest && (
-              <RoomGuestArticle guest={nextGuest} label="Next incoming" />
+              <RoomGuestArticle
+                guest={nextGuest}
+                label="Next incoming"
+                roomNumber={roomNumber}
+              />
             )}
           </div>
         </div>
@@ -86,9 +93,11 @@ export default function RoomOccupancyModal({
 function RoomGuestArticle({
   guest,
   label,
+  roomNumber,
 }: {
   guest: RoomOccupancyGuest;
   label: "Current stay" | "Next incoming";
+  roomNumber: string;
 }) {
   const isCurrentStay = label === "Current stay";
 
@@ -150,7 +159,13 @@ function RoomGuestArticle({
           wide
         />
       </dl>
-      {isCurrentStay && <GuestBookingsSummary bookings={guest.bookings} />}
+      {isCurrentStay && (
+        <GuestBookingsSummary
+          bookings={guest.bookings}
+          profileId={guest.profile.id}
+          roomNumber={roomNumber}
+        />
+      )}
       <GuestProfileAddonSummary addons={guest.addons} />
     </article>
   );
@@ -158,9 +173,15 @@ function RoomGuestArticle({
 
 function GuestBookingsSummary({
   bookings,
+  profileId,
+  roomNumber,
 }: {
   bookings: GuestBookingChecklistItem[];
+  profileId: number;
+  roomNumber: string;
 }) {
+  const hiddenFields = [{ name: "roomNumber", value: roomNumber }];
+
   return (
     <section className="mt-5 border-t border-black/5 pt-4">
       <div className="flex items-baseline justify-between gap-4">
@@ -172,39 +193,74 @@ function GuestBookingsSummary({
       {bookings.length === 0 ? (
         <p className="mt-2 text-sm leading-6 text-ink/60">-</p>
       ) : (
-        <ul className="mt-3 grid gap-2">
-          {bookings.map((booking) => (
-            <li
-              className="rounded-md bg-surface px-3 py-2 text-sm"
-              key={`${booking.type}-${booking.id}`}
-            >
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                <div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-medium text-ink">
-                      {booking.name}
-                    </span>
-                    <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.12em] text-ink/45">
-                      {booking.type}
-                    </span>
-                  </div>
-                  <div className="mt-0.5 text-xs text-ink/55">
-                    {booking.bookingDate} at {booking.bookingTime}
-                    {booking.detail ? ` \u00b7 ${booking.detail}` : ""}
-                  </div>
-                </div>
-                <div className="text-xs font-medium text-ink/55">
-                  {getBookingStatusLabel(booking)}
-                </div>
-              </div>
-              {booking.doneAt && (
-                <div className="mt-1 text-xs text-ink/45">
-                  Done {booking.doneAt}
-                </div>
-              )}
-            </li>
-          ))}
-        </ul>
+        <div className="mt-3 overflow-x-auto rounded-lg border border-black/5">
+          <table className="w-full min-w-[760px] text-sm">
+            <thead className="bg-surface text-[11px] uppercase tracking-[0.14em] text-ink/45">
+              <tr>
+                <th className="px-4 py-3 text-left font-medium">Type</th>
+                <th className="px-4 py-3 text-left font-medium">Booking</th>
+                <th className="px-4 py-3 text-left font-medium">Date</th>
+                <th className="px-4 py-3 text-left font-medium">Time</th>
+                <th className="px-4 py-3 text-center font-medium">Read</th>
+                <th className="px-4 py-3 text-center font-medium">Done</th>
+                <th className="px-4 py-3 text-left font-medium">Done At</th>
+              </tr>
+            </thead>
+            <tbody>
+              {bookings.map((booking) => (
+                <tr
+                  className="border-t border-black/5 text-ink/75"
+                  key={`${booking.type}-${booking.id}`}
+                >
+                  <td className="px-4 py-3 capitalize">{booking.type}</td>
+                  <td className="px-4 py-3">
+                    <div className="font-medium text-ink">{booking.name}</div>
+                    {booking.detail && (
+                      <div className="mt-0.5 text-xs text-ink/50">
+                        {booking.detail}
+                      </div>
+                    )}
+                  </td>
+                  <td className="px-4 py-3">{booking.bookingDate}</td>
+                  <td className="px-4 py-3">{booking.bookingTime}</td>
+                  <td className="px-4 py-3">
+                    <div className="flex justify-center">
+                      <GuestBookingStatusCheckbox
+                        bookingId={booking.id}
+                        bookingType={booking.type}
+                        checked={booking.isRead}
+                        disabled={booking.isDone}
+                        field="read"
+                        hiddenFields={hiddenFields}
+                        label={`Mark ${booking.name} as read`}
+                        profileId={profileId}
+                        statusAction={updateRoomOccupancyGuestBookingStatusAction}
+                      />
+                    </div>
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex justify-center">
+                      <GuestBookingStatusCheckbox
+                        bookingId={booking.id}
+                        bookingType={booking.type}
+                        checked={booking.isDone}
+                        disabled={!booking.isRead}
+                        field="done"
+                        hiddenFields={hiddenFields}
+                        label={`Mark ${booking.name} as done`}
+                        profileId={profileId}
+                        statusAction={updateRoomOccupancyGuestBookingStatusAction}
+                      />
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 text-ink/60">
+                    {formatValue(booking.doneAt)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </section>
   );
@@ -338,10 +394,4 @@ function getGuestProfileNotes(profile: GuestProfile): string | null {
 
 function formatValue(value: string | null | undefined): string {
   return value || "-";
-}
-
-function getBookingStatusLabel(booking: GuestBookingChecklistItem): string {
-  if (booking.isDone) return "Done";
-  if (booking.isRead) return "Read";
-  return "Unread";
 }
