@@ -3,6 +3,8 @@ import type { UserRole } from "../roles";
 import { BOOKABLE_PACKAGE_SERVICES } from "../service-bookings/catalog";
 import type { AdminSelectOptions } from "./definitions";
 
+export type AdminSelectOptionKey = keyof AdminSelectOptions;
+
 type FacilityOptionRow = {
   id: number;
   slug: string;
@@ -17,25 +19,13 @@ type UserOptionRow = {
   active: number;
 };
 
-export function getAdminSelectOptions(): AdminSelectOptions {
-  const facilities = db
-    .prepare("SELECT id, slug, name FROM facilities ORDER BY name ASC, id ASC")
-    .all() as FacilityOptionRow[];
-  const users = db
-    .prepare(
-      `
-        SELECT
-          u.id,
-          gp.name AS guestName,
-          u.username,
-          u.role,
-          u.active
-        FROM users u
-        LEFT JOIN guest_profiles gp ON gp.user_id = u.id
-        ORDER BY gp.name ASC, u.username ASC, u.id ASC
-      `,
-    )
-    .all() as UserOptionRow[];
+export function getAdminSelectOptions(
+  requiredKeys: readonly AdminSelectOptionKey[] = [],
+): AdminSelectOptions {
+  const required = new Set(requiredKeys);
+  const facilities = required.has("facilities") ? getFacilityOptions() : [];
+  const users =
+    required.has("guestUsers") || required.has("users") ? getUserOptions() : [];
 
   return {
     active: [
@@ -76,6 +66,30 @@ export function getAdminSelectOptions(): AdminSelectOptions {
       })`,
     })),
   };
+}
+
+function getFacilityOptions(): FacilityOptionRow[] {
+  return db
+    .prepare("SELECT id, slug, name FROM facilities ORDER BY name ASC, id ASC")
+    .all() as FacilityOptionRow[];
+}
+
+function getUserOptions(): UserOptionRow[] {
+  return db
+    .prepare(
+      `
+        SELECT
+          u.id,
+          gp.name AS guestName,
+          u.username,
+          u.role,
+          u.active
+        FROM users u
+        LEFT JOIN guest_profiles gp ON gp.user_id = u.id
+        ORDER BY gp.name ASC, u.username ASC, u.id ASC
+      `,
+    )
+    .all() as UserOptionRow[];
 }
 
 function formatGuestLabel(user: UserOptionRow): string {

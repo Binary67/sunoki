@@ -11,6 +11,7 @@ import {
   DataEditorHeader,
   EditFormSection,
   getEditId,
+  getPageNumber,
   getSingleValue,
   LocalTabNav,
   SetPasswordFormSection,
@@ -179,13 +180,6 @@ function getUsersTab(value: string | undefined): UsersTab {
 function getUserAccessFilter(value: string | undefined): UserAccessFilter {
   if (value === "inactive") return value;
   return "active";
-}
-
-function getPageNumber(value: string | undefined): number {
-  if (!value) return 1;
-
-  const page = Number(value);
-  return Number.isInteger(page) && page > 0 ? page : 1;
 }
 
 function UserAccessFilterSegmentedControl({

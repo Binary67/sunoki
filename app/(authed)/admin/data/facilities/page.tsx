@@ -10,6 +10,7 @@ import {
   DataEditorHeader,
   EditFormSection,
   getEditId,
+  getPageNumber,
   getSingleValue,
   LocalTabNav,
   StatusMessage,
@@ -22,6 +23,7 @@ type PageProps = {
   searchParams: Promise<{
     edit?: string | string[];
     error?: string | string[];
+    page?: string | string[];
     success?: string | string[];
     tab?: string | string[];
   }>;
@@ -41,6 +43,7 @@ const FACILITY_TABS: TabLink<FacilitiesTab>[] = [
 ];
 
 const FACILITY_CONTENT_ENABLED = false;
+const BOOKING_PAGE_SIZE = 10;
 
 export default async function AdminFacilitiesPage({ searchParams }: PageProps) {
   const actor = await requireAdminUser();
@@ -48,7 +51,14 @@ export default async function AdminFacilitiesPage({ searchParams }: PageProps) {
   const activeTab = getFacilitiesTab(getSingleValue(query.tab));
   const tableName = getFacilitiesTableName(activeTab);
   const editId = getEditId(getSingleValue(query.edit));
-  const view = getAdminTableView(tableName, actor);
+  const page = getPageNumber(getSingleValue(query.page));
+  const view = getAdminTableView(
+    tableName,
+    actor,
+    activeTab === "bookings"
+      ? { page, pageSize: BOOKING_PAGE_SIZE }
+      : {},
+  );
   const contentDisabled =
     activeTab === "content" && !FACILITY_CONTENT_ENABLED;
   const editRow =
@@ -81,7 +91,10 @@ export default async function AdminFacilitiesPage({ searchParams }: PageProps) {
           />
           <EditFormSection
             actor={actor}
-            cancelHref={`/admin/data/facilities?tab=${activeTab}`}
+            cancelHref={getFacilitiesHref({
+              page: view.pagination?.page ?? page,
+              tab: activeTab,
+            })}
             editId={editId}
             editRow={editRow}
             tableName={tableName}
@@ -91,7 +104,21 @@ export default async function AdminFacilitiesPage({ searchParams }: PageProps) {
             actionMode="records"
             actor={actor}
             editHref={
-              (rowId) => `/admin/data/facilities?tab=${activeTab}&edit=${rowId}`
+              (rowId) =>
+                getFacilitiesHref({
+                  editId: rowId,
+                  page: view.pagination?.page ?? page,
+                  tab: activeTab,
+                })
+            }
+            paginationHref={
+              activeTab === "bookings"
+                ? (targetPage) =>
+                    getFacilitiesHref({
+                      page: targetPage,
+                      tab: activeTab,
+                    })
+                : undefined
             }
             tableName={tableName}
             view={view}
@@ -144,4 +171,20 @@ function getFacilitiesTableName(tab: FacilitiesTab): EditableTableName {
     case "bookings":
       return "facility_bookings";
   }
+}
+
+function getFacilitiesHref({
+  editId,
+  page,
+  tab,
+}: {
+  editId?: number;
+  page: number;
+  tab: FacilitiesTab;
+}): string {
+  const params = new URLSearchParams();
+  params.set("tab", tab);
+  if (tab === "bookings" && page > 1) params.set("page", String(page));
+  if (editId) params.set("edit", String(editId));
+  return `/admin/data/facilities?${params.toString()}`;
 }

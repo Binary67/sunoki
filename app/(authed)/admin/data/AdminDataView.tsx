@@ -11,4 +11,8 @@ export {
   SetPasswordFormSection,
 } from "./AdminDataForms";
 export { AdminTableSection } from "./AdminDataTable";
-export { getEditId, getSingleValue } from "./adminDataSearchParams";
+export {
+  getEditId,
+  getPageNumber,
+  getSingleValue,
+} from "./adminDataSearchParams";

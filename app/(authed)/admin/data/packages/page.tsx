@@ -10,6 +10,7 @@ import {
   DataEditorHeader,
   EditFormSection,
   getEditId,
+  getPageNumber,
   getSingleValue,
   LocalTabNav,
   StatusMessage,
@@ -22,6 +23,7 @@ type PageProps = {
   searchParams: Promise<{
     edit?: string | string[];
     error?: string | string[];
+    page?: string | string[];
     success?: string | string[];
     tab?: string | string[];
   }>;
@@ -40,6 +42,8 @@ const PACKAGE_TABS: TabLink<PackagesTab>[] = [
   },
 ];
 
+const SERVICE_BOOKING_PAGE_SIZE = 10;
+
 export default async function AdminPackagesPage({ searchParams }: PageProps) {
   const actor = await requireAdminUser();
   const query = await searchParams;
@@ -52,8 +56,15 @@ export default async function AdminPackagesPage({ searchParams }: PageProps) {
     canManagePackages,
   );
   const editId = getEditId(getSingleValue(query.edit));
+  const page = getPageNumber(getSingleValue(query.page));
   const tableName = getPackagesTableName(activeTab);
-  const view = getAdminTableView(tableName, actor);
+  const view = getAdminTableView(
+    tableName,
+    actor,
+    activeTab === "service-bookings"
+      ? { page, pageSize: SERVICE_BOOKING_PAGE_SIZE }
+      : {},
+  );
   const editRow = editId ? getAdminRowForEdit(tableName, editId, actor) : null;
 
   return (
@@ -79,7 +90,10 @@ export default async function AdminPackagesPage({ searchParams }: PageProps) {
       )}
       <EditFormSection
         actor={actor}
-        cancelHref={`/admin/data/packages?tab=${activeTab}`}
+        cancelHref={getPackagesHref({
+          page: view.pagination?.page ?? page,
+          tab: activeTab,
+        })}
         editId={editId}
         editRow={editRow}
         tableName={tableName}
@@ -89,7 +103,21 @@ export default async function AdminPackagesPage({ searchParams }: PageProps) {
         actionMode="records"
         actor={actor}
         editHref={
-          (rowId) => `/admin/data/packages?tab=${activeTab}&edit=${rowId}`
+          (rowId) =>
+            getPackagesHref({
+              editId: rowId,
+              page: view.pagination?.page ?? page,
+              tab: activeTab,
+            })
+        }
+        paginationHref={
+          activeTab === "service-bookings"
+            ? (targetPage) =>
+                getPackagesHref({
+                  page: targetPage,
+                  tab: activeTab,
+                })
+            : undefined
         }
         tableName={tableName}
         view={view}
@@ -110,4 +138,20 @@ function getPackagesTableName(tab: PackagesTab): EditableTableName {
   return tab === "service-bookings"
     ? "guest_service_bookings"
     : "package_service_entitlements";
+}
+
+function getPackagesHref({
+  editId,
+  page,
+  tab,
+}: {
+  editId?: number;
+  page: number;
+  tab: PackagesTab;
+}): string {
+  const params = new URLSearchParams();
+  params.set("tab", tab);
+  if (tab === "service-bookings" && page > 1) params.set("page", String(page));
+  if (editId) params.set("edit", String(editId));
+  return `/admin/data/packages?${params.toString()}`;
 }

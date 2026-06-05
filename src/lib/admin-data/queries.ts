@@ -6,7 +6,10 @@ import {
   type AdminTableView,
   type EditableTableName,
 } from "./definitions";
-import { getAdminSelectOptions } from "./options";
+import {
+  getAdminSelectOptions,
+  type AdminSelectOptionKey,
+} from "./options";
 
 export type UserAccessFilter = "active" | "inactive";
 
@@ -23,14 +26,15 @@ export function getAdminTableView(
 ): AdminTableView {
   const table = getAdminTableDefinition(tableName);
   const userScope = getUserScope(tableName, actor, options.userAccess);
+  const pageSize = getPageSize(options.pageSize);
+  const selectOptions = getAdminSelectOptions(getRequiredSelectOptionKeys(table));
 
-  if (tableName === "users" && options.pageSize) {
-    const pageSize = options.pageSize;
+  if (pageSize) {
     const requestedPage =
       options.page && Number.isInteger(options.page) && options.page > 0
         ? options.page
         : 1;
-    const totalRows = getUserRowCount(userScope.whereClause, userScope.params);
+    const totalRows = getRowCount(table, userScope.whereClause, userScope.params);
     const totalPages = Math.max(1, Math.ceil(totalRows / pageSize));
     const page = Math.min(requestedPage, totalPages);
     const offset = (page - 1) * pageSize;
@@ -50,7 +54,7 @@ export function getAdminTableView(
     return {
       table,
       rows,
-      selectOptions: getAdminSelectOptions(),
+      selectOptions,
       pagination: {
         page,
         pageSize,
@@ -74,8 +78,22 @@ export function getAdminTableView(
   return {
     table,
     rows,
-    selectOptions: getAdminSelectOptions(),
+    selectOptions,
   };
+}
+
+function getPageSize(value: number | undefined): number | null {
+  return value && Number.isInteger(value) && value > 0 ? value : null;
+}
+
+function getRequiredSelectOptionKeys(
+  table: AdminTableDefinition,
+): AdminSelectOptionKey[] {
+  const keys = new Set<AdminSelectOptionKey>();
+  for (const column of table.columns) {
+    if (column.optionsKey) keys.add(column.optionsKey);
+  }
+  return [...keys];
 }
 
 function getUserScope(
@@ -107,7 +125,8 @@ function getUserScope(
   };
 }
 
-function getUserRowCount(
+function getRowCount(
+  table: AdminTableDefinition,
   whereClause: string,
   params: (string | number)[],
 ): number {
@@ -115,7 +134,7 @@ function getUserRowCount(
     .prepare(
       `
         SELECT COUNT(*) AS totalRows
-        FROM users
+        FROM ${table.name}
         ${whereClause}
       `,
     )
