@@ -63,12 +63,12 @@ export function getRoomOccupancy(
   }
 
   for (const profile of incomingProfiles) {
-    const edd = profile.expectedDeliveryDate;
+    const checkInDate = profile.checkInDate;
     if (
       !hasKnownRoom(profile) ||
-      !edd ||
-      !isBookingDate(edd) ||
-      edd < today
+      !checkInDate ||
+      !isBookingDate(checkInDate) ||
+      checkInDate < today
     ) {
       continue;
     }
@@ -136,9 +136,11 @@ function getRoomOccupancyRoom(
 }
 
 function isEarlierIncomingGuest(a: GuestProfile, b: GuestProfile): boolean {
-  const aEdd = a.expectedDeliveryDate;
-  const bEdd = b.expectedDeliveryDate;
+  const aCheckInDate = a.checkInDate;
+  const bCheckInDate = b.checkInDate;
 
-  if (aEdd && bEdd && aEdd !== bEdd) return aEdd < bEdd;
+  if (aCheckInDate && bCheckInDate && aCheckInDate !== bCheckInDate) {
+    return aCheckInDate < bCheckInDate;
+  }
   return a.id < b.id;
 }

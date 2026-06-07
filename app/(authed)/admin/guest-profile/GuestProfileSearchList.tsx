@@ -264,16 +264,22 @@ function getRoomOverlapWarnings(
   profile: GuestProfileListItem,
   checkedInProfiles: CheckedInGuestProfile[],
 ): RoomOverlapWarning[] {
-  const edd = profile.expectedDeliveryDate;
-  if (!profile.roomNumber || !edd || !isBookingDate(edd)) return [];
+  const incomingCheckInDate = profile.checkInDate;
+  if (
+    !profile.roomNumber ||
+    !incomingCheckInDate ||
+    !isBookingDate(incomingCheckInDate)
+  ) {
+    return [];
+  }
 
   return checkedInProfiles.flatMap((checkedInProfile) => {
-    const checkInDate = checkedInProfile.checkInDate;
+    const checkedInCheckInDate = checkedInProfile.checkInDate;
     if (
       checkedInProfile.status !== "checked_in" ||
       checkedInProfile.roomNumber !== profile.roomNumber ||
-      !checkInDate ||
-      !isBookingDate(checkInDate) ||
+      !checkedInCheckInDate ||
+      !isBookingDate(checkedInCheckInDate) ||
       isSameGuest(profile, checkedInProfile)
     ) {
       return [];
@@ -281,7 +287,12 @@ function getRoomOverlapWarnings(
 
     const throughDate = checkedInProfile.checkoutDate;
     if (!throughDate) return [];
-    if (edd < checkInDate || edd > throughDate) return [];
+    if (
+      incomingCheckInDate < checkedInCheckInDate ||
+      incomingCheckInDate > throughDate
+    ) {
+      return [];
+    }
 
     return [
       {

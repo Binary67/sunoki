@@ -48,7 +48,6 @@ export default async function GuestProfilePage({ searchParams }: PageProps) {
       ...profile,
     })),
     today,
-    activeStatus,
   );
   const canDeleteGuestProfiles = user.role === "superadmin";
   const followUpThroughDate = addBookingDays(today, 30);
@@ -278,11 +277,10 @@ function getEmptyStatusMessage(status: GuestProfileFilterStatus): string {
 function sortGuestProfilesByStatusDate(
   profiles: GuestProfileListItem[],
   today: string,
-  status: GuestProfileFilterStatus,
 ): GuestProfileListItem[] {
   return [...profiles].sort((a, b) => {
-    const aDate = getGuestProfileSortDate(a, status);
-    const bDate = getGuestProfileSortDate(b, status);
+    const aDate = getGuestProfileSortDate(a);
+    const bDate = getGuestProfileSortDate(b);
     const aValid = Boolean(aDate && isBookingDate(aDate));
     const bValid = Boolean(bDate && isBookingDate(bDate));
 
@@ -304,11 +302,6 @@ function sortGuestProfilesByStatusDate(
   });
 }
 
-function getGuestProfileSortDate(
-  profile: GuestProfileListItem,
-  status: GuestProfileFilterStatus,
-): string | null {
-  return status === "incoming"
-    ? profile.expectedDeliveryDate
-    : profile.checkInDate;
+function getGuestProfileSortDate(profile: GuestProfileListItem): string | null {
+  return profile.checkInDate;
 }
