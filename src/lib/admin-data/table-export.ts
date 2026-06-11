@@ -100,7 +100,9 @@ function getTableColumns(tableName: ExportTableName): string[] {
   const rows = db
     .prepare(`PRAGMA table_info(${quoteIdentifier(tableName)})`)
     .all() as { name: string }[];
-  return rows.map((row) => row.name);
+  return rows
+    .map((row) => row.name)
+    .filter((columnName) => isExportedColumn(tableName, columnName));
 }
 
 function getTableRowCount(tableName: ExportTableName): number {
@@ -129,6 +131,13 @@ function getTableRows(
 
 function quoteIdentifier(identifier: string): string {
   return `"${identifier.replaceAll('"', '""')}"`;
+}
+
+function isExportedColumn(
+  tableName: ExportTableName,
+  columnName: string,
+): boolean {
+  return tableName !== "guest_profiles" || columnName !== "ic_no_normalized";
 }
 
 function formatFileTimestamp(date: Date): string {

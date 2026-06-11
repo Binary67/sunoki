@@ -5,6 +5,7 @@ import {
   listGuestProfileAddons,
   replaceGuestProfileAddons,
 } from "./guest-profile-addons";
+import { normalizeGuestIcNo } from "./guest-ic";
 import {
   insertGuestUser,
   parseOptionalGuestAccount,
@@ -170,12 +171,13 @@ export function createGuestProfile(
     const result = db
       .prepare(
         `
-          INSERT INTO guest_profiles (${GUEST_PROFILE_COLUMNS.join(", ")}, checkout_date, user_id)
-          VALUES (${GUEST_PROFILE_COLUMNS.map(() => "?").join(", ")}, ?, ?)
+          INSERT INTO guest_profiles (${GUEST_PROFILE_COLUMNS.join(", ")}, ic_no_normalized, checkout_date, user_id)
+          VALUES (${GUEST_PROFILE_COLUMNS.map(() => "?").join(", ")}, ?, ?, ?)
         `,
       )
       .run(
         ...GUEST_PROFILE_COLUMNS.map((column) => values.data[column]),
+        normalizeGuestIcNo(values.data.ic_no),
         stayDates.checkOutDate,
         userId,
       ) as InsertResult;
@@ -216,7 +218,10 @@ export function updateGuestProfile(
   const account = parseOptionalGuestAccount(formData, profile.userId !== null);
   if (!account.ok) return account;
 
-  if (hasDuplicateIncomingIc(values.data.ic_no, id)) {
+  if (
+    profile.status === "incoming" &&
+    hasDuplicateIncomingIc(values.data.ic_no, id)
+  ) {
     return {
       ok: false,
       message: "An incoming guest with this IC number already exists.",
@@ -252,6 +257,7 @@ export function updateGuestProfile(
           SET ${GUEST_PROFILE_COLUMNS.map((column) => `${column} = ?`).join(
             ", ",
           )},
+              ic_no_normalized = ?,
               checkout_date = ?,
               user_id = ?
           WHERE id = ?
@@ -259,6 +265,7 @@ export function updateGuestProfile(
       )
       .run(
         ...GUEST_PROFILE_COLUMNS.map((column) => values.data[column]),
+        normalizeGuestIcNo(values.data.ic_no),
         stayDates.checkOutDate,
         userId,
         id,
@@ -552,11 +559,12 @@ function undoGuestProfileCheckIn(
       .prepare(
         `
           UPDATE guest_profiles
-          SET status = 'incoming'
+          SET status = 'incoming',
+              ic_no_normalized = ?
           WHERE id = ?
         `,
       )
-      .run(id) as MutationResult;
+      .run(normalizeGuestIcNo(profile.icNo), id) as MutationResult;
 
     if (profile.userId) {
       setGuestUserAccess(profile.userId, 0);
@@ -592,7 +600,8 @@ function hasDuplicateIncomingIc(
   icNo: string | null,
   excludeId?: number,
 ): boolean {
-  if (!icNo) return false;
+  const normalizedIcNo = normalizeGuestIcNo(icNo);
+  if (!normalizedIcNo) return false;
 
   const row = db
     .prepare(
@@ -600,12 +609,12 @@ function hasDuplicateIncomingIc(
         SELECT id
         FROM guest_profiles
         WHERE status = 'incoming'
-          AND ic_no = ?
+          AND ic_no_normalized = ?
           AND (? IS NULL OR id != ?)
         LIMIT 1
       `,
     )
-    .get(icNo, excludeId ?? null, excludeId ?? null) as
+    .get(normalizedIcNo, excludeId ?? null, excludeId ?? null) as
     | { id: number }
     | undefined;
 

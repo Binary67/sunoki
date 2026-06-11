@@ -1,4 +1,5 @@
 import type { AdminRow } from "../definitions";
+import { normalizeGuestIcNo } from "../../guest-ic";
 import { indexRowsById } from "./diff";
 import type { BackupImportError, ParsedSheetRow } from "./types";
 import {
@@ -22,6 +23,7 @@ export function validateGuestProfiles(
   const normalized: AdminRow[] = [];
   const ids = new Set<number>();
   const userIds = new Set<number>();
+  const incomingIcNumbers = new Set<string>();
   const usersById = indexRowsById(users);
 
   for (const row of rows) {
@@ -58,6 +60,13 @@ export function validateGuestProfiles(
       "guest_profiles",
       "check_in_date",
       "Check In Date",
+      errors,
+    );
+    const icNo = readOptionalTextValue(
+      row,
+      "guest_profiles",
+      "ic_no",
+      "IC No.",
       errors,
     );
     const userId = readOptionalPositiveIntegerValue(
@@ -130,6 +139,20 @@ export function validateGuestProfiles(
       userIds.add(userId);
     }
 
+    const normalizedIcNo = normalizeGuestIcNo(icNo);
+    if (status === "incoming" && normalizedIcNo) {
+      if (incomingIcNumbers.has(normalizedIcNo)) {
+        addRowError(
+          errors,
+          row,
+          "guest_profiles",
+          "ic_no",
+          "Incoming guest IC number duplicates another guest profile in the workbook.",
+        );
+      }
+      incomingIcNumbers.add(normalizedIcNo);
+    }
+
     normalized.push({
       id,
       name,
@@ -141,13 +164,7 @@ export function validateGuestProfiles(
         "Room number",
         errors,
       ),
-      ic_no: readOptionalTextValue(
-        row,
-        "guest_profiles",
-        "ic_no",
-        "IC No.",
-        errors,
-      ),
+      ic_no: icNo,
       handphone_no: readOptionalTextValue(
         row,
         "guest_profiles",

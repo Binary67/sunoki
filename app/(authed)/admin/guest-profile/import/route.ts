@@ -1,5 +1,6 @@
 import ExcelJS from "exceljs";
 import { getCurrentUser } from "@/src/lib/auth";
+import { normalizeGuestIcNo } from "@/src/lib/guest-ic";
 import { listPackageEntitlementOptions } from "@/src/lib/package-entitlement-options";
 import { isAdminRole } from "@/src/lib/roles";
 import type { GuestProfileColumn } from "@/src/lib/guest-profiles";
@@ -42,7 +43,7 @@ export async function POST(request: Request): Promise<Response> {
   const formData = await request.formData();
   const file = formData.get("file");
   const icNo = readImportText(formData.get("icNo"));
-  const normalizedIcNo = normalizeIcNo(icNo);
+  const normalizedIcNo = normalizeGuestIcNo(icNo);
 
   if (!file || !(file instanceof File) || file.size === 0) {
     return Response.json({ message: "Upload an .xlsx file." }, { status: 400 });
@@ -80,7 +81,7 @@ export async function POST(request: Request): Promise<Response> {
   const matches: GuestImportMatch[] = [];
   for (let rowNumber = 2; rowNumber <= worksheet.rowCount; rowNumber += 1) {
     const row = worksheet.getRow(rowNumber);
-    if (normalizeIcNo(readCellText(row.getCell(4))) !== normalizedIcNo) {
+    if (normalizeGuestIcNo(readCellText(row.getCell(4))) !== normalizedIcNo) {
       continue;
     }
 
@@ -173,10 +174,6 @@ function formatDateInputValue(date: Date): string {
   const month = String(date.getUTCMonth() + 1).padStart(2, "0");
   const day = String(date.getUTCDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
-}
-
-function normalizeIcNo(value: string): string {
-  return value.replace(/[^a-z0-9]/gi, "").toUpperCase();
 }
 
 function getTimestamp(cell: ExcelJS.Cell): number {

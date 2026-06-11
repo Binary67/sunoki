@@ -7,6 +7,7 @@ import {
   type EditableTableName,
 } from "../definitions";
 import { db, type User } from "../../db";
+import { normalizeGuestIcNo } from "../../guest-ic";
 import { hasTableChanges, indexRowsById } from "./diff";
 import {
   generateBackupWorkbookBuffer,
@@ -48,7 +49,10 @@ export function applyBackupRows(
 
   if (usersChanged) insertRows("users", rows.users);
   if (restoreFacilities) insertRows("facilities", rows.facilities);
-  if (restoreGuestProfiles) insertRows("guest_profiles", rows.guest_profiles);
+  if (restoreGuestProfiles) {
+    insertRows("guest_profiles", rows.guest_profiles);
+    refreshGuestProfileIcNoNormalizedValues();
+  }
   if (restoreGuestAddons) {
     insertRows("guest_profile_addons", rows.guest_profile_addons);
   }
@@ -113,6 +117,19 @@ function insertRows(tableName: BackupTableName, rows: AdminRow[]): void {
 
   for (const row of rows) {
     insert.run(...columns.map((columnName) => row[columnName] ?? null));
+  }
+}
+
+function refreshGuestProfileIcNoNormalizedValues(): void {
+  const rows = db
+    .prepare("SELECT id, ic_no AS icNo FROM guest_profiles")
+    .all() as { id: number; icNo: string | null }[];
+  const update = db.prepare(
+    "UPDATE guest_profiles SET ic_no_normalized = ? WHERE id = ?",
+  );
+
+  for (const row of rows) {
+    update.run(normalizeGuestIcNo(row.icNo), row.id);
   }
 }
 

@@ -3,6 +3,7 @@ import { mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { DEFAULT_BRANDING_SETTINGS } from "./branding-defaults";
 import { ADDITIONAL_DAYS_ADDON_NAME } from "./guest-profile-addon-constants";
+import { normalizeGuestIcNo } from "./guest-ic";
 import { GUEST_BASE_STAY_DAYS } from "./guest-profile-types";
 import { PACKAGE_SERVICE_COLUMNS } from "./package-entitlements";
 import type { UserRole } from "./roles";
@@ -101,6 +102,7 @@ db.exec(`
     status                 TEXT NOT NULL DEFAULT 'incoming' CHECK (status IN ('incoming', 'checked_in')),
     room_number            TEXT,
     ic_no                  TEXT,
+    ic_no_normalized       TEXT,
     handphone_no           TEXT,
     email                  TEXT,
     expected_delivery_date TEXT,
@@ -344,6 +346,9 @@ ${guestServiceBookingColumnSql}
 const guestProfileColumns = db
   .prepare("PRAGMA table_info(guest_profiles)")
   .all() as { name: string }[];
+if (!guestProfileColumns.some((column) => column.name === "ic_no_normalized")) {
+  db.exec("ALTER TABLE guest_profiles ADD COLUMN ic_no_normalized TEXT;");
+}
 if (!guestProfileColumns.some((column) => column.name === "check_in_date")) {
   db.exec("ALTER TABLE guest_profiles ADD COLUMN check_in_date TEXT;");
 }
@@ -381,6 +386,8 @@ if (
     "ALTER TABLE guest_profiles ADD COLUMN package_entitlement_snapshot_json TEXT;",
   );
 }
+refreshGuestProfileIcNoNormalizedValues();
+assertNoDuplicateIncomingGuestIcNumbers();
 
 db.prepare(
   `
@@ -402,6 +409,10 @@ db.exec(`
   CREATE UNIQUE INDEX IF NOT EXISTS guest_profiles_user_id_unique
     ON guest_profiles(user_id)
     WHERE user_id IS NOT NULL;
+
+  CREATE UNIQUE INDEX IF NOT EXISTS guest_profiles_incoming_ic_no_normalized_unique
+    ON guest_profiles(ic_no_normalized)
+    WHERE status = 'incoming' AND ic_no_normalized IS NOT NULL;
 
   CREATE INDEX IF NOT EXISTS guest_profiles_status_checkout_id_idx
     ON guest_profiles(status, checkout_date, id);
@@ -447,3 +458,47 @@ export type User = {
 };
 
 export type UserWithPassword = User & { password: string };
+
+function refreshGuestProfileIcNoNormalizedValues(): void {
+  const rows = db
+    .prepare(
+      "SELECT id, ic_no AS icNo, ic_no_normalized AS icNoNormalized FROM guest_profiles",
+    )
+    .all() as {
+    id: number;
+    icNo: string | null;
+    icNoNormalized: string | null;
+  }[];
+  const update = db.prepare(
+    "UPDATE guest_profiles SET ic_no_normalized = ? WHERE id = ?",
+  );
+
+  for (const row of rows) {
+    const normalized = normalizeGuestIcNo(row.icNo);
+    if (row.icNoNormalized !== normalized) {
+      update.run(normalized, row.id);
+    }
+  }
+}
+
+function assertNoDuplicateIncomingGuestIcNumbers(): void {
+  const duplicate = db
+    .prepare(
+      `
+        SELECT ic_no_normalized AS icNoNormalized
+        FROM guest_profiles
+        WHERE status = 'incoming'
+          AND ic_no_normalized IS NOT NULL
+        GROUP BY ic_no_normalized
+        HAVING COUNT(*) > 1
+        LIMIT 1
+      `,
+    )
+    .get() as { icNoNormalized: string } | undefined;
+
+  if (duplicate) {
+    throw new Error(
+      `Duplicate incoming guest IC numbers normalize to ${duplicate.icNoNormalized}. Resolve duplicates before starting the app.`,
+    );
+  }
+}
