@@ -5,7 +5,6 @@ import {
   type GuestProfileAddon,
 } from "@/src/lib/guest-profile-addons";
 import {
-  getGuestProfileCheckoutDate,
   listGuestProfiles,
   type GuestProfile,
 } from "@/src/lib/guest-profiles";
@@ -60,7 +59,7 @@ export function getPendingBookingGuests(today: string): PendingBookingGuest[] {
   return profiles
     .map((profile) => {
       const addons = addonsByProfileId.get(profile.id) ?? [];
-      const checkoutDate = getGuestProfileCheckoutDate(profile, addons);
+      const checkoutDate = profile.checkoutDate;
       const snapshot = parsePackageEntitlementSnapshot(
         profile.packageEntitlementSnapshotJson,
       );

@@ -3,10 +3,8 @@ import {
   formatBookingDate,
   isBookingDate,
 } from "./booking-dates";
-import {
-  ADDITIONAL_DAYS_ADDON_NAME,
-  type GuestStayAddon,
-} from "./guest-profile-addons";
+import { ADDITIONAL_DAYS_ADDON_NAME } from "./guest-profile-addon-constants";
+import type { GuestStayAddon } from "./guest-profile-addons";
 import {
   GUEST_BASE_STAY_DAYS,
   type GuestProfile,
@@ -19,20 +17,18 @@ export type GuestStayDates = {
 };
 
 export function getGuestProfileCheckoutDate(
-  profile: Pick<GuestProfile, "checkInDate">,
-  addons: GuestStayAddon[],
+  profile: Pick<GuestProfile, "checkoutDate">,
 ): string | null {
-  return getGuestCheckoutDateFromStartDate(profile.checkInDate, addons);
+  return profile.checkoutDate;
 }
 
 export function getGuestProfileComputedStatus(
-  profile: Pick<GuestProfile, "status" | "checkInDate">,
-  addons: GuestStayAddon[],
+  profile: Pick<GuestProfile, "status" | "checkoutDate">,
   today = formatBookingDate(new Date()),
 ): GuestProfileFilterStatus {
   if (profile.status === "incoming") return "incoming";
 
-  const checkoutDate = getGuestProfileCheckoutDate(profile, addons);
+  const checkoutDate = getGuestProfileCheckoutDate(profile);
   return checkoutDate && checkoutDate < today ? "checked_out" : "checked_in";
 }
 

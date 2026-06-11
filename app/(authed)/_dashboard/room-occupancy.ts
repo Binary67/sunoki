@@ -11,7 +11,6 @@ import {
 import {
   GUEST_ROOM_LEVELS,
   GUEST_ROOM_NUMBERS,
-  getGuestProfileCheckoutDate,
   type GuestProfile,
 } from "@/src/lib/guest-profiles";
 
@@ -98,7 +97,7 @@ export function getRoomOccupancy(
     room.currentGuests.push({
       addons,
       bookings: bookingsByProfileId.get(profile.id) ?? [],
-      checkoutDate: getGuestProfileCheckoutDate(profile, addons),
+      checkoutDate: profile.checkoutDate,
       hasUnreadBookings: unreadProfileIds.has(profile.id),
       profile,
     });
@@ -110,7 +109,7 @@ export function getRoomOccupancy(
     room.nextGuest = {
       addons,
       bookings: [],
-      checkoutDate: getGuestProfileCheckoutDate(profile, addons),
+      checkoutDate: profile.checkoutDate,
       hasUnreadBookings: false,
       profile,
     };

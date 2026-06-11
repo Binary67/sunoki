@@ -60,6 +60,7 @@ const BACKUP_TABLES: Record<BackupTableName, BackupTableDefinition> = {
       { name: "email", valueType: "text" },
       { name: "expected_delivery_date", valueType: "text" },
       { name: "check_in_date", valueType: "text" },
+      { name: "checkout_date", valueType: "text" },
       { name: "hospital_of_delivery", valueType: "text" },
       { name: "mode_of_delivery", valueType: "text" },
       { name: "child_count", valueType: "text" },

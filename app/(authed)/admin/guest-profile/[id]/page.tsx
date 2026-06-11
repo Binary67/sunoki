@@ -56,8 +56,8 @@ export default async function GuestProfileDetailPage({
   if (!profile) notFound();
   const addons = listGuestProfileAddons(profile.id);
   const bookings = showEdit ? [] : listGuestBookingChecklist(profile.id);
-  const displayStatus = getGuestProfileComputedStatus(profile, addons);
-  const checkoutDate = getGuestProfileCheckoutDate(profile, addons);
+  const displayStatus = getGuestProfileComputedStatus(profile);
+  const checkoutDate = getGuestProfileCheckoutDate(profile);
   const error = getSingleValue(query.error);
   const success = getSingleValue(query.success);
   const canDeleteGuestProfiles = user.role === "superadmin";

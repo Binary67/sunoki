@@ -3,7 +3,6 @@ import { db, type User } from "./db";
 import {
   insertGuestProfileAddons,
   listGuestProfileAddons,
-  listGuestProfileAddonsByProfileIds,
   replaceGuestProfileAddons,
 } from "./guest-profile-addons";
 import {
@@ -19,10 +18,7 @@ import {
   getPackageSnapshotJsonForSave,
   parseGuestProfileForm,
 } from "./guest-profile-form";
-import {
-  getGuestProfileComputedStatus,
-  getGuestStayDates,
-} from "./guest-profile-stay";
+import { getGuestStayDates } from "./guest-profile-stay";
 import {
   GUEST_PROFILE_COLUMNS,
   type GuestKitchenNote,
@@ -86,46 +82,14 @@ export function listGuestProfiles(
   status: GuestProfileFilterStatus = "incoming",
   today = formatBookingDate(new Date()),
 ): GuestProfile[] {
-  const profiles = selectGuestProfiles(
-    status === "incoming" ? "incoming" : "checked_in",
-  );
-  if (status === "incoming") return profiles;
-
-  const addonsByProfileId = listGuestProfileAddonsByProfileIds(
-    profiles.map((profile) => profile.id),
-  );
-
-  return profiles.filter(
-    (profile) =>
-      getGuestProfileComputedStatus(
-        profile,
-        addonsByProfileId.get(profile.id) ?? [],
-        today,
-      ) === status,
-  );
+  return selectGuestProfiles(status, today);
 }
 
 export function listGuestProfileListItems(
   status: GuestProfileFilterStatus = "incoming",
   today = formatBookingDate(new Date()),
 ): GuestProfileListItem[] {
-  const profiles = selectGuestProfileListItems(
-    status === "incoming" ? "incoming" : "checked_in",
-  );
-  if (status === "incoming") return profiles;
-
-  const addonsByProfileId = listGuestProfileAddonsByProfileIds(
-    profiles.map((profile) => profile.id),
-  );
-
-  return profiles.filter(
-    (profile) =>
-      getGuestProfileComputedStatus(
-        profile,
-        addonsByProfileId.get(profile.id) ?? [],
-        today,
-      ) === status,
-  );
+  return selectGuestProfileListItems(status, today);
 }
 
 export function getGuestProfile(id: number): GuestProfile | null {
@@ -194,20 +158,25 @@ export function createGuestProfile(
 
   try {
     db.exec("BEGIN");
+    const stayDates = getGuestStayDates(
+      values.data.check_in_date,
+      values.addons,
+    );
     const userId = insertGuestUser(
       account.username,
       account.password,
-      getGuestStayDates(values.data.check_in_date, values.addons),
+      stayDates,
     );
     const result = db
       .prepare(
         `
-          INSERT INTO guest_profiles (${GUEST_PROFILE_COLUMNS.join(", ")}, user_id)
-          VALUES (${GUEST_PROFILE_COLUMNS.map(() => "?").join(", ")}, ?)
+          INSERT INTO guest_profiles (${GUEST_PROFILE_COLUMNS.join(", ")}, checkout_date, user_id)
+          VALUES (${GUEST_PROFILE_COLUMNS.map(() => "?").join(", ")}, ?, ?)
         `,
       )
       .run(
         ...GUEST_PROFILE_COLUMNS.map((column) => values.data[column]),
+        stayDates.checkOutDate,
         userId,
       ) as InsertResult;
     const profileId = Number(result.lastInsertRowid);
@@ -283,12 +252,14 @@ export function updateGuestProfile(
           SET ${GUEST_PROFILE_COLUMNS.map((column) => `${column} = ?`).join(
             ", ",
           )},
+              checkout_date = ?,
               user_id = ?
           WHERE id = ?
         `,
       )
       .run(
         ...GUEST_PROFILE_COLUMNS.map((column) => values.data[column]),
+        stayDates.checkOutDate,
         userId,
         id,
       ) as MutationResult;
@@ -480,34 +451,42 @@ export function getGuestProfileStatusLabel(
   return status === "checked_in" ? "Checked In" : "Incoming";
 }
 
-function selectGuestProfiles(status: GuestProfileStatus): GuestProfile[] {
+function selectGuestProfiles(
+  status: GuestProfileFilterStatus,
+  today: string,
+): GuestProfile[] {
+  const filter = getGuestProfileStatusFilter(status, today);
+
   return db
     .prepare(
       `
         SELECT ${getGuestProfileSelectList()}
         FROM guest_profiles gp
         LEFT JOIN users u ON u.id = gp.user_id
-        WHERE gp.status = ?
+        WHERE ${filter.whereSql}
         ORDER BY datetime(gp.created_at) DESC, gp.id DESC
       `,
     )
-    .all(status) as GuestProfile[];
+    .all(...filter.params) as GuestProfile[];
 }
 
 function selectGuestProfileListItems(
-  status: GuestProfileStatus,
+  status: GuestProfileFilterStatus,
+  today: string,
 ): GuestProfileListItem[] {
+  const filter = getGuestProfileStatusFilter(status, today);
+
   return db
     .prepare(
       `
         SELECT ${getGuestProfileListItemSelectList()}
         FROM guest_profiles gp
         LEFT JOIN users u ON u.id = gp.user_id
-        WHERE gp.status = ?
+        WHERE ${filter.whereSql}
         ORDER BY datetime(gp.created_at) DESC, gp.id DESC
       `,
     )
-    .all(status) as GuestProfileListItem[];
+    .all(...filter.params) as GuestProfileListItem[];
 }
 
 function checkInGuestProfile(
@@ -529,11 +508,12 @@ function checkInGuestProfile(
         `
           UPDATE guest_profiles
           SET status = 'checked_in',
-              check_in_date = ?
+              check_in_date = ?,
+              checkout_date = ?
           WHERE id = ?
         `,
       )
-      .run(checkInDate, id) as MutationResult;
+      .run(checkInDate, stayDates.checkOutDate, id) as MutationResult;
 
     if (profile.userId) {
       updateGuestUserStayDates(profile.userId, stayDates);
@@ -675,6 +655,28 @@ function hasStayDatesChanged(
   );
 }
 
+function getGuestProfileStatusFilter(
+  status: GuestProfileFilterStatus,
+  today: string,
+): { whereSql: string; params: string[] } {
+  if (status === "checked_out") {
+    return {
+      whereSql: "gp.status = 'checked_in' AND gp.checkout_date < ?",
+      params: [today],
+    };
+  }
+
+  if (status === "checked_in") {
+    return {
+      whereSql:
+        "gp.status = 'checked_in' AND (gp.checkout_date IS NULL OR gp.checkout_date >= ?)",
+      params: [today],
+    };
+  }
+
+  return { whereSql: "gp.status = 'incoming'", params: [] };
+}
+
 function getGuestProfileSelectList(): string {
   return `
     gp.id,
@@ -686,6 +688,7 @@ function getGuestProfileSelectList(): string {
     gp.email,
     gp.expected_delivery_date AS expectedDeliveryDate,
     gp.check_in_date AS checkInDate,
+    gp.checkout_date AS checkoutDate,
     gp.hospital_of_delivery AS hospitalOfDelivery,
     gp.mode_of_delivery AS modeOfDelivery,
     gp.child_count AS childCount,
@@ -723,6 +726,7 @@ function getGuestProfileListItemSelectList(): string {
     gp.handphone_no AS handphoneNo,
     gp.expected_delivery_date AS expectedDeliveryDate,
     gp.check_in_date AS checkInDate,
+    gp.checkout_date AS checkoutDate,
     gp.mode_of_delivery AS modeOfDelivery,
     gp.package_type AS packageType,
     u.username AS accountUsername

@@ -1,4 +1,5 @@
 import type { AdminRow } from "../definitions";
+import { getGuestStayDates } from "../../guest-profile-stay";
 import { validateFacilities } from "./validation-facilities";
 import {
   validateGuestProfileAddons,
@@ -38,6 +39,10 @@ export function validateParsedRows(
     rows.guest_profiles,
     errors,
   );
+  applyDerivedGuestProfileCheckoutDates(
+    rows.guest_profiles,
+    rows.guest_profile_addons,
+  );
   rows.facility_bookings = validateFacilityBookings(
     parsedRows.facility_bookings,
     rows.users,
@@ -53,4 +58,40 @@ export function validateParsedRows(
   );
 
   return { rows, errors };
+}
+
+function applyDerivedGuestProfileCheckoutDates(
+  guestProfiles: AdminRow[],
+  guestProfileAddons: AdminRow[],
+): void {
+  const addonsByProfileId = new Map<
+    number,
+    { serviceName: string; days: number | null }[]
+  >();
+
+  for (const addon of guestProfileAddons) {
+    if (
+      typeof addon.guest_profile_id !== "number" ||
+      typeof addon.service_name !== "string"
+    ) {
+      continue;
+    }
+
+    const addons = addonsByProfileId.get(addon.guest_profile_id) ?? [];
+    addons.push({
+      serviceName: addon.service_name,
+      days: typeof addon.days === "number" ? addon.days : null,
+    });
+    addonsByProfileId.set(addon.guest_profile_id, addons);
+  }
+
+  for (const profile of guestProfiles) {
+    const checkInDate =
+      typeof profile.check_in_date === "string" ? profile.check_in_date : null;
+    const profileId = typeof profile.id === "number" ? profile.id : null;
+    profile.checkout_date = getGuestStayDates(
+      checkInDate,
+      profileId ? (addonsByProfileId.get(profileId) ?? []) : [],
+    ).checkOutDate;
+  }
 }

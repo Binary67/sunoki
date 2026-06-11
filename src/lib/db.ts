@@ -2,6 +2,8 @@ import { DatabaseSync } from "node:sqlite";
 import { mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { DEFAULT_BRANDING_SETTINGS } from "./branding-defaults";
+import { ADDITIONAL_DAYS_ADDON_NAME } from "./guest-profile-addon-constants";
+import { GUEST_BASE_STAY_DAYS } from "./guest-profile-types";
 import { PACKAGE_SERVICE_COLUMNS } from "./package-entitlements";
 import type { UserRole } from "./roles";
 
@@ -98,6 +100,7 @@ db.exec(`
     email                  TEXT,
     expected_delivery_date TEXT,
     check_in_date          TEXT,
+    checkout_date          TEXT,
     hospital_of_delivery   TEXT,
     mode_of_delivery       TEXT,
     child_count            TEXT,
@@ -339,6 +342,31 @@ const guestProfileColumns = db
 if (!guestProfileColumns.some((column) => column.name === "check_in_date")) {
   db.exec("ALTER TABLE guest_profiles ADD COLUMN check_in_date TEXT;");
 }
+if (!guestProfileColumns.some((column) => column.name === "checkout_date")) {
+  db.exec("ALTER TABLE guest_profiles ADD COLUMN checkout_date TEXT;");
+  db.prepare(
+    `
+      UPDATE guest_profiles
+      SET checkout_date = date(
+        check_in_date,
+        '+' || (
+          ? + COALESCE(
+            (
+              SELECT days
+              FROM guest_profile_addons
+              WHERE guest_profile_id = guest_profiles.id
+                AND service_name = ?
+              ORDER BY id ASC
+              LIMIT 1
+            ),
+            0
+          )
+        ) || ' days'
+      )
+      WHERE check_in_date IS NOT NULL
+    `,
+  ).run(GUEST_BASE_STAY_DAYS, ADDITIONAL_DAYS_ADDON_NAME);
+}
 if (
   !guestProfileColumns.some(
     (column) => column.name === "package_entitlement_snapshot_json",
@@ -369,6 +397,9 @@ db.exec(`
   CREATE UNIQUE INDEX IF NOT EXISTS guest_profiles_user_id_unique
     ON guest_profiles(user_id)
     WHERE user_id IS NOT NULL;
+
+  CREATE INDEX IF NOT EXISTS guest_profiles_status_checkout_id_idx
+    ON guest_profiles(status, checkout_date, id);
 `);
 
 db.exec(`

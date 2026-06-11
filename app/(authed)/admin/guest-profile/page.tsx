@@ -8,9 +8,7 @@ import { requireAdminUser } from "@/src/lib/admin-auth";
 import {
   getGuestProfileStatus,
   getGuestProfileStatusLabel,
-  getGuestProfileCheckoutDate,
   listGuestProfileListItems,
-  listGuestProfileAddonsByProfileIds,
   type GuestProfileFilterStatus,
   type GuestProfileListItem,
 } from "@/src/lib/guest-profiles";
@@ -235,19 +233,9 @@ function StatusMessage({
 }
 
 function getCheckedInProfilesWithCheckout(today: string) {
-  const checkedInProfiles = listGuestProfileListItems("checked_in", today).map(
-    (profile) => ({ ...profile }),
-  );
-  const checkedInProfileAddonsByProfileId = listGuestProfileAddonsByProfileIds(
-    checkedInProfiles.map((profile) => profile.id),
-  );
-
-  return checkedInProfiles.map((profile) => ({
+  return listGuestProfileListItems("checked_in", today).map((profile) => ({
     ...profile,
-    checkoutDate: getGuestProfileCheckoutDate(
-      profile,
-      checkedInProfileAddonsByProfileId.get(profile.id) ?? [],
-    ),
+    checkoutDate: profile.checkoutDate,
   }));
 }
 

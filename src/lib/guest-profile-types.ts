@@ -59,6 +59,7 @@ export type GuestProfile = {
   email: string | null;
   expectedDeliveryDate: string | null;
   checkInDate: string | null;
+  checkoutDate: string | null;
   hospitalOfDelivery: string | null;
   modeOfDelivery: string | null;
   childCount: string | null;
@@ -95,6 +96,7 @@ export type GuestProfileListItem = Pick<
   | "handphoneNo"
   | "expectedDeliveryDate"
   | "checkInDate"
+  | "checkoutDate"
   | "modeOfDelivery"
   | "packageType"
   | "accountUsername"
