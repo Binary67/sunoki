@@ -15,7 +15,12 @@ mkdirSync(dirname(DB_PATH), { recursive: true });
 
 export const db = new DatabaseSync(DB_PATH);
 
-db.exec("PRAGMA foreign_keys = ON;");
+db.exec(`
+  PRAGMA foreign_keys = ON;
+  PRAGMA journal_mode = WAL;
+  PRAGMA synchronous = NORMAL;
+  PRAGMA busy_timeout = 5000;
+`);
 
 const packageServiceColumnSql = PACKAGE_SERVICE_COLUMNS.map(
   (column) =>
