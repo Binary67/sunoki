@@ -154,6 +154,10 @@ ${guestServiceBookingColumnSql}
   CREATE INDEX IF NOT EXISTS guest_service_bookings_user_service_status_idx
     ON guest_service_bookings(user_id, service_key, status, booking_date, booking_time);
 
+  CREATE INDEX IF NOT EXISTS guest_service_bookings_profile_booked_service_idx
+    ON guest_service_bookings(guest_profile_id, service_key, booking_date, booking_time, id)
+    WHERE status = 'booked';
+
   CREATE UNIQUE INDEX IF NOT EXISTS guest_service_bookings_active_unique
     ON guest_service_bookings(service_key, booking_date, booking_time)
     WHERE status = 'booked';
