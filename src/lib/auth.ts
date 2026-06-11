@@ -7,6 +7,9 @@ import { db, type User, type UserWithPassword } from "./db";
 const SESSION_COOKIE = "session";
 const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 7;
 const SESSION_TOKEN_BYTES = 32;
+const EXPIRED_GUEST_SWEEP_INTERVAL_MS = 10 * 60 * 1000;
+
+let lastExpiredGuestSweepAt = 0;
 
 type SessionUserRow = User & {
   expiresAt: string;
@@ -73,6 +76,7 @@ function getCookieMaxAge(expiresAt: Date, now: Date): number {
 }
 
 function deactivateExpiredGuestUsers(now: Date): void {
+  lastExpiredGuestSweepAt = now.getTime();
   const today = formatBookingDate(now);
   const expiredUsers = db
     .prepare(
@@ -308,7 +312,9 @@ export const getCurrentUser = cache(async (): Promise<User | null> => {
   if (!token) return null;
 
   const now = new Date();
-  deactivateExpiredGuestUsers(now);
+  if (now.getTime() - lastExpiredGuestSweepAt >= EXPIRED_GUEST_SWEEP_INTERVAL_MS) {
+    deactivateExpiredGuestUsers(now);
+  }
 
   const row = db
     .prepare(

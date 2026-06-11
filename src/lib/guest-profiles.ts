@@ -307,6 +307,15 @@ export function updateGuestProfile(
           userId: profile.userId,
         })
       : null;
+    if (
+      userId &&
+      profile.status === "checked_in" &&
+      profile.accountActive === 1 &&
+      stayDates.checkOutDate &&
+      stayDates.checkOutDate < formatBookingDate(new Date())
+    ) {
+      setGuestUserAccess(userId, 0);
+    }
     db.exec("COMMIT");
 
     return {
