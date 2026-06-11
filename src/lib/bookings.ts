@@ -86,13 +86,13 @@ export type UpcomingBookingFilters = {
   serviceKeys?: ServiceBookingKey[];
 };
 
-function formatNowForSqlite(now: Date): string {
+function formatNowForSqlite(now: Date): { date: string; time: string } {
   const year = now.getFullYear();
   const month = String(now.getMonth() + 1).padStart(2, "0");
   const day = String(now.getDate()).padStart(2, "0");
   const hour = String(now.getHours()).padStart(2, "0");
   const minute = String(now.getMinutes()).padStart(2, "0");
-  return `${year}-${month}-${day} ${hour}:${minute}`;
+  return { date: `${year}-${month}-${day}`, time: `${hour}:${minute}` };
 }
 
 export function getUpcomingBookings(
@@ -108,14 +108,14 @@ export function getUpcomingBookings(
   const includeServices = !hasFacilityFilters || hasServiceFilters;
   const facilityWhere = [
     "b.status = 'booked'",
-    "(b.booking_date || ' ' || b.booking_time) >= ?",
+    "(b.booking_date, b.booking_time) >= (?, ?)",
   ];
-  const facilityParams: (string | number)[] = [cutoff];
+  const facilityParams: (string | number)[] = [cutoff.date, cutoff.time];
   const serviceWhere = [
     "b.status = 'booked'",
-    "(b.booking_date || ' ' || b.booking_time) >= ?",
+    "(b.booking_date, b.booking_time) >= (?, ?)",
   ];
-  const serviceParams = [cutoff];
+  const serviceParams = [cutoff.date, cutoff.time];
 
   if (filters.bookingDate) {
     facilityWhere.push("b.booking_date = ?");

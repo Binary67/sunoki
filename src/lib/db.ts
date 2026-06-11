@@ -95,6 +95,9 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS facility_bookings_user_status_date_time_idx
     ON facility_bookings(user_id, status, booking_date, booking_time);
 
+  CREATE INDEX IF NOT EXISTS facility_bookings_status_date_time_idx
+    ON facility_bookings(status, booking_date, booking_time);
+
   CREATE TABLE IF NOT EXISTS guest_profiles (
     id                     INTEGER PRIMARY KEY,
     name                   TEXT NOT NULL,
@@ -160,6 +163,9 @@ ${guestServiceBookingColumnSql}
   CREATE UNIQUE INDEX IF NOT EXISTS guest_service_bookings_active_unique
     ON guest_service_bookings(service_key, booking_date, booking_time)
     WHERE status = 'booked';
+
+  CREATE INDEX IF NOT EXISTS guest_service_bookings_status_date_time_idx
+    ON guest_service_bookings(status, booking_date, booking_time);
 
   CREATE TABLE IF NOT EXISTS package_service_entitlements (
     id                      INTEGER PRIMARY KEY,
