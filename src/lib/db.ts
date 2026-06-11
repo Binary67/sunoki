@@ -3,7 +3,6 @@ import { mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { DEFAULT_BRANDING_SETTINGS } from "./branding-defaults";
 import { ADDITIONAL_DAYS_ADDON_NAME } from "./guest-profile-addon-constants";
-import { normalizeGuestIcNo } from "./guest-ic";
 import { GUEST_BASE_STAY_DAYS } from "./guest-profile-types";
 import { PACKAGE_SERVICE_COLUMNS } from "./package-entitlements";
 import type { UserRole } from "./roles";
@@ -350,9 +349,6 @@ ${guestServiceBookingColumnSql}
 const guestProfileColumns = db
   .prepare("PRAGMA table_info(guest_profiles)")
   .all() as { name: string }[];
-if (!guestProfileColumns.some((column) => column.name === "ic_no_normalized")) {
-  db.exec("ALTER TABLE guest_profiles ADD COLUMN ic_no_normalized TEXT;");
-}
 if (!guestProfileColumns.some((column) => column.name === "check_in_date")) {
   db.exec("ALTER TABLE guest_profiles ADD COLUMN check_in_date TEXT;");
 }
@@ -390,8 +386,6 @@ if (
     "ALTER TABLE guest_profiles ADD COLUMN package_entitlement_snapshot_json TEXT;",
   );
 }
-refreshGuestProfileIcNoNormalizedValues();
-assertNoDuplicateIncomingGuestIcNumbers();
 
 db.prepare(
   `
@@ -462,47 +456,3 @@ export type User = {
 };
 
 export type UserWithPassword = User & { password: string };
-
-function refreshGuestProfileIcNoNormalizedValues(): void {
-  const rows = db
-    .prepare(
-      "SELECT id, ic_no AS icNo, ic_no_normalized AS icNoNormalized FROM guest_profiles",
-    )
-    .all() as {
-    id: number;
-    icNo: string | null;
-    icNoNormalized: string | null;
-  }[];
-  const update = db.prepare(
-    "UPDATE guest_profiles SET ic_no_normalized = ? WHERE id = ?",
-  );
-
-  for (const row of rows) {
-    const normalized = normalizeGuestIcNo(row.icNo);
-    if (row.icNoNormalized !== normalized) {
-      update.run(normalized, row.id);
-    }
-  }
-}
-
-function assertNoDuplicateIncomingGuestIcNumbers(): void {
-  const duplicate = db
-    .prepare(
-      `
-        SELECT ic_no_normalized AS icNoNormalized
-        FROM guest_profiles
-        WHERE status = 'incoming'
-          AND ic_no_normalized IS NOT NULL
-        GROUP BY ic_no_normalized
-        HAVING COUNT(*) > 1
-        LIMIT 1
-      `,
-    )
-    .get() as { icNoNormalized: string } | undefined;
-
-  if (duplicate) {
-    throw new Error(
-      `Duplicate incoming guest IC numbers normalize to ${duplicate.icNoNormalized}. Resolve duplicates before starting the app.`,
-    );
-  }
-}
