@@ -236,6 +236,7 @@ function getDataPath(tableName: EditableTableName | null): string {
   if (tableName === "users" || tableName === null) return USERS_DATA_PATH;
   if (
     tableName === "package_service_entitlements" ||
+    tableName === "service_booking_limits" ||
     tableName === "guest_service_bookings"
   ) {
     return PACKAGES_DATA_PATH;
@@ -258,6 +259,8 @@ function getDataTab(
       return "bookings";
     case "guest_service_bookings":
       return "service-bookings";
+    case "service_booking_limits":
+      return "booking-limits";
     case "package_service_entitlements":
       return "service-quantities";
   }

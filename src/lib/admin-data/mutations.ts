@@ -337,6 +337,12 @@ function validateTableMutation(
   ) {
     return { ok: false, message: "Only super admins can manage packages." };
   }
+  if (tableName === "service_booking_limits" && actor.role !== "superadmin") {
+    return {
+      ok: false,
+      message: "Only super admins can manage service booking limits.",
+    };
+  }
   return null;
 }
 

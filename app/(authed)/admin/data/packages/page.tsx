@@ -19,7 +19,7 @@ import {
   type TabLink,
 } from "../AdminDataView";
 
-type PackagesTab = "service-quantities" | "service-bookings";
+type PackagesTab = "service-quantities" | "booking-limits" | "service-bookings";
 
 type PageProps = {
   searchParams: Promise<{
@@ -37,6 +37,11 @@ const PACKAGE_TABS: TabLink<PackagesTab>[] = [
     label: "Service Quantities",
     value: "service-quantities",
     href: "/admin/data/packages?tab=service-quantities",
+  },
+  {
+    label: "Booking Limits",
+    value: "booking-limits",
+    href: "/admin/data/packages?tab=booking-limits",
   },
   {
     label: "Bookings",
@@ -80,7 +85,7 @@ export default async function AdminPackagesPage({ searchParams }: PageProps) {
         title="Services"
         description={
           canManagePackages
-            ? "Manage package service quantities, the Deluxe Care celebration choice rule, and guest service bookings."
+            ? "Manage package service quantities, booking limits, the Deluxe Care celebration choice rule, and guest service bookings."
             : "Create and manage guest service bookings for package services."
         }
       />
@@ -159,13 +164,14 @@ function getPackagesTab(
   canManagePackages: boolean,
 ): PackagesTab {
   if (value === "service-bookings") return value;
+  if (value === "booking-limits" && canManagePackages) return value;
   return canManagePackages ? "service-quantities" : "service-bookings";
 }
 
 function getPackagesTableName(tab: PackagesTab): EditableTableName {
-  return tab === "service-bookings"
-    ? "guest_service_bookings"
-    : "package_service_entitlements";
+  if (tab === "service-bookings") return "guest_service_bookings";
+  if (tab === "booking-limits") return "service_booking_limits";
+  return "package_service_entitlements";
 }
 
 function getPackagesHref({

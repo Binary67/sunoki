@@ -313,7 +313,7 @@ export function validateGuestServiceBookings(
   const ids = new Set<number>();
   const usersById = indexRowsById(users);
   const guestProfilesById = indexRowsById(guestProfiles);
-  const uniqueActiveBookings = new Set<string>();
+  const uniqueActiveGuestBookings = new Set<string>();
 
   for (const row of rows) {
     const id = readPositiveIntegerValue(
@@ -530,17 +530,17 @@ export function validateGuestServiceBookings(
       bookingDate !== null &&
       bookingTime !== null
     ) {
-      const key = `${serviceKey}:${bookingDate}:${bookingTime}`;
-      if (uniqueActiveBookings.has(key)) {
+      const key = `${userId}:${serviceKey}:${bookingDate}:${bookingTime}`;
+      if (uniqueActiveGuestBookings.has(key)) {
         addRowError(
           errors,
           row,
           "guest_service_bookings",
           "booking_time",
-          "Active service bookings must be unique by service, date, and time.",
+          "A guest can only have one active booking for a service, date, and time.",
         );
       }
-      uniqueActiveBookings.add(key);
+      uniqueActiveGuestBookings.add(key);
     }
 
     normalized.push({

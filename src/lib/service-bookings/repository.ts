@@ -149,6 +149,79 @@ export function getDoneServiceBookingCount(
   return Number(row.count);
 }
 
+export function getServiceBookingLimit(
+  serviceKey: ServiceBookingKey,
+): number | null {
+  const row = db
+    .prepare(
+      `
+        SELECT max_concurrent_bookings AS count
+        FROM service_booking_limits
+        WHERE service_key = ?
+      `,
+    )
+    .get(serviceKey) as CountRow | undefined;
+
+  return row ? Number(row.count) : null;
+}
+
+export function getActiveServiceBookingSlotCount(
+  serviceKey: ServiceBookingKey,
+  bookingDate: string,
+  bookingTime: string,
+  excludeBookingId?: number,
+): number {
+  const excludeClause = excludeBookingId ? "AND id != ?" : "";
+  const params = excludeBookingId
+    ? [serviceKey, bookingDate, bookingTime, excludeBookingId]
+    : [serviceKey, bookingDate, bookingTime];
+  const row = db
+    .prepare(
+      `
+        SELECT COUNT(*) AS count
+        FROM guest_service_bookings
+        WHERE service_key = ?
+          AND booking_date = ?
+          AND booking_time = ?
+          AND status = 'booked'
+          ${excludeClause}
+      `,
+    )
+    .get(...params) as CountRow;
+
+  return Number(row.count);
+}
+
+export function guestHasActiveServiceBookingSlot(
+  userId: number,
+  serviceKey: ServiceBookingKey,
+  bookingDate: string,
+  bookingTime: string,
+  excludeBookingId?: number,
+): boolean {
+  const excludeClause = excludeBookingId ? "AND id != ?" : "";
+  const params = excludeBookingId
+    ? [userId, serviceKey, bookingDate, bookingTime, excludeBookingId]
+    : [userId, serviceKey, bookingDate, bookingTime];
+  const row = db
+    .prepare(
+      `
+        SELECT id
+        FROM guest_service_bookings
+        WHERE user_id = ?
+          AND service_key = ?
+          AND booking_date = ?
+          AND booking_time = ?
+          AND status = 'booked'
+          ${excludeClause}
+        LIMIT 1
+      `,
+    )
+    .get(...params);
+
+  return Boolean(row);
+}
+
 export function listActiveServiceBookings(
   userId: number,
   serviceKey: ServiceBookingKey,

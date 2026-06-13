@@ -158,12 +158,22 @@ ${guestServiceBookingColumnSql}
     ON guest_service_bookings(guest_profile_id, service_key, booking_date, booking_time, id)
     WHERE status = 'booked';
 
-  CREATE UNIQUE INDEX IF NOT EXISTS guest_service_bookings_active_unique
+  CREATE INDEX IF NOT EXISTS guest_service_bookings_active_slot_idx
     ON guest_service_bookings(service_key, booking_date, booking_time)
+    WHERE status = 'booked';
+
+  CREATE UNIQUE INDEX IF NOT EXISTS guest_service_bookings_active_user_slot_unique
+    ON guest_service_bookings(user_id, service_key, booking_date, booking_time)
     WHERE status = 'booked';
 
   CREATE INDEX IF NOT EXISTS guest_service_bookings_status_date_time_idx
     ON guest_service_bookings(status, booking_date, booking_time);
+
+  CREATE TABLE IF NOT EXISTS service_booking_limits (
+    id                      INTEGER PRIMARY KEY,
+    service_key             TEXT UNIQUE NOT NULL CHECK (service_key IN (${packageServiceKeySql})),
+    max_concurrent_bookings INTEGER NOT NULL DEFAULT 1 CHECK (max_concurrent_bookings > 0)
+  );
 
   CREATE TABLE IF NOT EXISTS package_service_entitlements (
     id                      INTEGER PRIMARY KEY,
@@ -177,7 +187,7 @@ ${guestServiceBookingColumnSql}
     actor_user_id  INTEGER NOT NULL,
     actor_username TEXT NOT NULL,
     operation      TEXT NOT NULL CHECK (operation IN ('insert','update','delete')),
-    table_name     TEXT NOT NULL CHECK (table_name IN ('users','facilities','facility_bookings','guest_service_bookings','package_service_entitlements')),
+    table_name     TEXT NOT NULL CHECK (table_name IN ('users','facilities','facility_bookings','guest_service_bookings','service_booking_limits','package_service_entitlements')),
     row_id         INTEGER NOT NULL,
     before_json    TEXT,
     after_json     TEXT,

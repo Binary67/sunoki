@@ -281,6 +281,8 @@ function getSingularLabel(tableName: EditableTableName): string {
       return "Booking";
     case "guest_service_bookings":
       return "Service Booking";
+    case "service_booking_limits":
+      return "Booking Limit";
     case "package_service_entitlements":
       return "Package";
   }

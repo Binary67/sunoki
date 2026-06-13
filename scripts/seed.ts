@@ -112,3 +112,21 @@ for (const entitlement of PACKAGE_ENTITLEMENT_DEFAULTS) {
   );
   console.log(`${entitlement.packageName} package entitlement: reset`);
 }
+
+const insertServiceBookingLimit = db.prepare(
+  `
+    INSERT INTO service_booking_limits (
+      id,
+      service_key,
+      max_concurrent_bookings
+    )
+    VALUES (?, ?, 1)
+  `,
+);
+
+db.exec("DELETE FROM service_booking_limits");
+
+for (const [index, service] of PACKAGE_SERVICE_COLUMNS.entries()) {
+  insertServiceBookingLimit.run(index + 1, service.name);
+  console.log(`${service.label} booking limit: reset to 1`);
+}

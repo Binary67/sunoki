@@ -5,6 +5,7 @@ export const EDITABLE_TABLE_NAMES = [
   "facilities",
   "facility_bookings",
   "guest_service_bookings",
+  "service_booking_limits",
   "package_service_entitlements",
 ] as const;
 
@@ -15,6 +16,7 @@ const AUDIT_TABLE_NAMES = [
   "facilities",
   "facility_bookings",
   "guest_service_bookings",
+  "service_booking_limits",
   "package_service_entitlements",
 ] as const;
 
@@ -90,6 +92,7 @@ const TABLE_LABELS: Record<AuditTableName, string> = {
   facilities: "Facility Content",
   facility_bookings: "Bookings",
   guest_service_bookings: "Service Bookings",
+  service_booking_limits: "Booking Limits",
   package_service_entitlements: "Services",
 };
 
@@ -227,6 +230,27 @@ const ADMIN_TABLES: Record<EditableTableName, AdminTableDefinition> = {
       { name: "status", label: "Status", readOnly: true },
       { name: "cancelled_at", label: "Cancelled At", readOnly: true },
       { name: "created_at", label: "Created", readOnly: true },
+    ],
+  },
+  service_booking_limits: {
+    name: "service_booking_limits",
+    label: TABLE_LABELS.service_booking_limits,
+    mutationMode: "update-only",
+    columns: [
+      { name: "id", label: "ID", readOnly: true },
+      {
+        name: "service_key",
+        label: "Service",
+        optionsKey: "bookableServices",
+        readOnly: true,
+      },
+      {
+        name: "max_concurrent_bookings",
+        label: "Max Concurrent Bookings",
+        input: "number",
+        required: true,
+        min: 1,
+      },
     ],
   },
   package_service_entitlements: {

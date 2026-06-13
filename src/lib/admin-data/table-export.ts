@@ -8,6 +8,7 @@ export const EXPORT_TABLE_NAMES = [
   "facility_bookings",
   "guest_service_bookings",
   "facilities",
+  "service_booking_limits",
   "package_service_entitlements",
 ] as const;
 
@@ -27,6 +28,7 @@ const EXPORT_TABLE_LABELS: Record<ExportTableName, string> = {
   facility_bookings: "Facility Bookings",
   guest_service_bookings: "Guest Service Bookings",
   facilities: "Facilities",
+  service_booking_limits: "Service Booking Limits",
   package_service_entitlements: "Package Service Entitlements",
 };
 

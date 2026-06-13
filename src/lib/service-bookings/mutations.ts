@@ -5,8 +5,11 @@ import { GUEST_BOOKING_CHECK_IN_REQUIRED_MESSAGE } from "../guest-booking-access
 import { getBookablePackageService } from "./catalog";
 import { getServiceEntitlement } from "./entitlements";
 import {
+  getActiveServiceBookingSlotCount,
   getGuestProfileForServiceBooking,
+  getServiceBookingLimit,
   getServiceBookingUser,
+  guestHasActiveServiceBookingSlot,
   selectServiceBookingAuditRow,
 } from "./repository";
 import { hasServiceBookingStarted, isBookingTime } from "./time";
@@ -133,24 +136,43 @@ export function createServiceBooking({
       };
     }
 
-    const existing = db
-      .prepare(
-        `
-          SELECT id
-          FROM guest_service_bookings
-          WHERE service_key = ?
-            AND booking_date = ?
-            AND booking_time = ?
-            AND status = 'booked'
-        `,
-      )
-      .get(service.key, bookingDate, bookingTime);
-    if (existing) {
+    const bookingLimit = getServiceBookingLimit(service.key);
+    if (bookingLimit === null) {
       db.exec("ROLLBACK");
       inTransaction = false;
       return {
         ok: false,
-        error: "This service date and time is already booked.",
+        error: "Service booking limit is not configured.",
+      };
+    }
+
+    if (
+      guestHasActiveServiceBookingSlot(
+        userId,
+        service.key,
+        bookingDate,
+        bookingTime,
+      )
+    ) {
+      db.exec("ROLLBACK");
+      inTransaction = false;
+      return {
+        ok: false,
+        error: "You already have this service booked at that date and time.",
+      };
+    }
+
+    const activeSlotCount = getActiveServiceBookingSlotCount(
+      service.key,
+      bookingDate,
+      bookingTime,
+    );
+    if (activeSlotCount >= bookingLimit) {
+      db.exec("ROLLBACK");
+      inTransaction = false;
+      return {
+        ok: false,
+        error: "This service date and time has reached its booking limit.",
       };
     }
 
@@ -320,30 +342,46 @@ export function updateServiceBooking({
       };
     }
 
-    const existing = db
-      .prepare(
-        `
-          SELECT id
-          FROM guest_service_bookings
-          WHERE service_key = ?
-            AND booking_date = ?
-            AND booking_time = ?
-            AND status = 'booked'
-            AND id != ?
-        `,
-      )
-      .get(
-        service.key,
-        bookingDate,
-        bookingTime,
-        bookingId,
-      ) as { id: number } | undefined;
-    if (existing) {
+    const bookingLimit = getServiceBookingLimit(service.key);
+    if (bookingLimit === null) {
       db.exec("ROLLBACK");
       inTransaction = false;
       return {
         ok: false,
-        error: "This service date and time is already booked.",
+        error: "Service booking limit is not configured.",
+      };
+    }
+
+    if (
+      guestHasActiveServiceBookingSlot(
+        userId,
+        service.key,
+        bookingDate,
+        bookingTime,
+        bookingId,
+      )
+    ) {
+      db.exec("ROLLBACK");
+      inTransaction = false;
+      return {
+        ok: false,
+        error:
+          "The selected guest already has this service booked at that date and time.",
+      };
+    }
+
+    const activeSlotCount = getActiveServiceBookingSlotCount(
+      service.key,
+      bookingDate,
+      bookingTime,
+      bookingId,
+    );
+    if (activeSlotCount >= bookingLimit) {
+      db.exec("ROLLBACK");
+      inTransaction = false;
+      return {
+        ok: false,
+        error: "This service date and time has reached its booking limit.",
       };
     }
 

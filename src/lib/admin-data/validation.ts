@@ -217,6 +217,20 @@ export function parseFormValues(
         },
       };
     }
+    case "service_booking_limits": {
+      const limit = readPositiveInteger(
+        formData,
+        "max_concurrent_bookings",
+        "max concurrent bookings",
+      );
+      if (!limit.ok) return limit;
+      return {
+        ok: true,
+        values: {
+          max_concurrent_bookings: limit.value,
+        },
+      };
+    }
     case "package_service_entitlements": {
       const values: Record<string, AdminRowValue> = {};
 
