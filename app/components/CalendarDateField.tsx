@@ -158,6 +158,7 @@ export default function CalendarDateField({
     };
   }, [open]);
 
+  const today = new Date();
   const selectedDate = value ? parseBookingDate(value) : null;
   const cells = buildCalendarCells(viewMonth);
   const monthLabel = `${MONTH_NAMES[viewMonth.getMonth()]} ${viewMonth.getFullYear()}`;
@@ -236,12 +237,14 @@ export default function CalendarDateField({
               const dateValue = formatBookingDate(cell.date);
               const selected =
                 selectedDate !== null && isSameDay(cell.date, selectedDate);
+              const isToday = isSameDay(cell.date, today);
               const disabled = isDateDisabled(dateValue);
 
               return (
                 <button
                   key={dateValue}
                   type="button"
+                  aria-current={isToday ? "date" : undefined}
                   disabled={disabled}
                   onClick={() => selectDate(cell.date)}
                   className={`grid size-9 place-items-center rounded-full text-sm transition-colors ${
@@ -250,9 +253,9 @@ export default function CalendarDateField({
                       : disabled
                         ? "cursor-not-allowed text-ink/15"
                         : cell.muted
-                          ? "text-ink/25 hover:bg-surface"
-                          : "text-ink/75 hover:bg-surface"
-                  }`}
+                        ? "text-ink/25 hover:bg-surface"
+                        : "text-ink/75 hover:bg-surface"
+                  }${isToday ? " ring-2 ring-inset ring-red-600" : ""}`}
                 >
                   {cell.date.getDate()}
                 </button>
