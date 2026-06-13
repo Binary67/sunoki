@@ -1,7 +1,10 @@
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { Telegraf, type Context } from "telegraf";
-import { buildUpcomingBookingsTelegramSummary } from "../src/lib/telegram/upcoming-bookings-summary";
+import {
+  buildTodayBookingsTelegramSummary,
+  buildUpcomingBookingsTelegramSummary,
+} from "../src/lib/telegram/upcoming-bookings-summary";
 
 type TelegramBotConfig = {
   token: string;
@@ -14,12 +17,16 @@ const config = readTelegramBotConfig();
 const bot = new Telegraf(config.token);
 
 bot.command("upcoming_bookings", (ctx) => handleUpcomingBookings(ctx, config));
+bot.command("today_bookings", (ctx) => handleTodayBookings(ctx, config));
 bot.command("chat_id", (ctx) => {
   if (!ctx.chat) return;
   return ctx.reply(`This chat ID is ${ctx.chat.id}.`);
 });
 bot.hears(/^\/UpcomingBookings(?:@[A-Za-z0-9_]+)?(?:\s|$)/, (ctx) =>
   handleUpcomingBookings(ctx, config),
+);
+bot.hears(/^\/TodayBookings(?:@[A-Za-z0-9_]+)?(?:\s|$)/, (ctx) =>
+  handleTodayBookings(ctx, config),
 );
 
 bot.catch((error) => {
@@ -36,7 +43,7 @@ main().catch((error) => {
 
 async function main() {
   await bot.launch();
-  console.log("Telegram bot polling for /upcoming_bookings.");
+  console.log("Telegram bot polling for /upcoming_bookings and /today_bookings.");
   console.log(
     `Authorized Telegram chat IDs: ${Array.from(config.allowedChatIds).join(", ")}`,
   );
@@ -44,7 +51,30 @@ async function main() {
 
 async function handleUpcomingBookings(
   ctx: Context,
+  config: TelegramBotConfig,
+) {
+  await handleBookingSummary(
+    ctx,
+    config,
+    buildUpcomingBookingsTelegramSummary,
+    "upcoming bookings",
+  );
+}
+
+async function handleTodayBookings(ctx: Context, config: TelegramBotConfig) {
+  await handleBookingSummary(
+    ctx,
+    config,
+    buildTodayBookingsTelegramSummary,
+    "today's bookings",
+  );
+}
+
+async function handleBookingSummary(
+  ctx: Context,
   { allowedChatIds }: TelegramBotConfig,
+  buildSummary: () => string,
+  summaryName: string,
 ) {
   if (!ctx.chat || !allowedChatIds.has(String(ctx.chat.id))) {
     if (ctx.chat) {
@@ -59,10 +89,10 @@ async function handleUpcomingBookings(
   }
 
   try {
-    await ctx.reply(buildUpcomingBookingsTelegramSummary());
+    await ctx.reply(buildSummary());
   } catch (error) {
-    console.error("Failed to build Telegram booking summary:", error);
-    await ctx.reply("Unable to build the upcoming bookings summary.");
+    console.error(`Failed to build Telegram ${summaryName} summary:`, error);
+    await ctx.reply(`Unable to build the ${summaryName} summary.`);
   }
 }
 

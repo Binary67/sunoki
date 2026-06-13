@@ -27,11 +27,38 @@ type UpcomingBookingGroup = {
   bookings: UpcomingBooking[];
 };
 
+type TelegramBookingSummaryInput = {
+  title: string;
+  bookingDate: string;
+  bookingCutoff: Date;
+};
+
 export function buildUpcomingBookingsTelegramSummary(now = new Date()): string {
   const bookingDate = addBookingDays(formatBookingDate(now), 1);
+  return buildBookingsTelegramSummary({
+    title: `Upcoming Bookings for ${formatDisplayDate(bookingDate)}`,
+    bookingDate,
+    bookingCutoff: now,
+  });
+}
+
+export function buildTodayBookingsTelegramSummary(now = new Date()): string {
+  const bookingDate = formatBookingDate(now);
+  return buildBookingsTelegramSummary({
+    title: `Today's Bookings for ${formatDisplayDate(bookingDate)}`,
+    bookingDate,
+    bookingCutoff: parseBookingDate(bookingDate),
+  });
+}
+
+function buildBookingsTelegramSummary({
+  title,
+  bookingDate,
+  bookingCutoff,
+}: TelegramBookingSummaryInput): string {
   const bookings = getUpcomingBookings(
     { bookingDateFrom: bookingDate, bookingDateTo: bookingDate },
-    now,
+    bookingCutoff,
   ).filter((booking) => !isKitchenPrepBooking(booking));
   const kitchenPrepBookings = listKitchenServicePrepBookings({
     bookingDateFrom: bookingDate,
@@ -39,7 +66,7 @@ export function buildUpcomingBookingsTelegramSummary(now = new Date()): string {
   });
 
   return [
-    `Upcoming Bookings for ${formatDisplayDate(bookingDate)}`,
+    title,
     formatFacilitiesAndServicesSection(bookings),
     formatKitchenServicePrepSection(kitchenPrepBookings),
   ].join("\n\n");
