@@ -404,6 +404,18 @@ export function setGuestProfileStatus(
   }
 
   try {
+    if (status === "checked_in") {
+      const profile = getGuestProfile(id);
+      if (!profile) return { ok: false, message: "Guest profile not found." };
+
+      if (!profile.roomNumber?.trim()) {
+        return {
+          ok: false,
+          message: "Room Number is required before check-in.",
+        };
+      }
+    }
+
     if (status === "incoming") {
       const profile = getGuestProfile(id);
       if (!profile) return { ok: false, message: "Guest profile not found." };

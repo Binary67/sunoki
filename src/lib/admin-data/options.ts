@@ -19,6 +19,7 @@ type FacilityOptionRow = {
 type UserOptionRow = {
   id: number;
   guestName: string | null;
+  roomNumber: string | null;
   username: string;
   role: UserRole;
   active: number;
@@ -159,6 +160,7 @@ function getUserOptions(): UserOptionRow[] {
         SELECT
           u.id,
           gp.name AS guestName,
+          gp.room_number AS roomNumber,
           u.username,
           u.role,
           u.active
@@ -179,6 +181,7 @@ function getUserOptionsByIds(ids: number[]): UserOptionRow[] {
         SELECT
           u.id,
           gp.name AS guestName,
+          gp.room_number AS roomNumber,
           u.username,
           u.role,
           u.active
@@ -191,7 +194,11 @@ function getUserOptionsByIds(ids: number[]): UserOptionRow[] {
 }
 
 function formatGuestLabel(user: UserOptionRow): string {
-  return user.guestName ? `${user.guestName} (${user.username})` : user.username;
+  if (!user.guestName) return user.username;
+  const roomNumber = user.roomNumber?.trim();
+  return roomNumber
+    ? `${user.guestName} (Room ${roomNumber})`
+    : user.guestName;
 }
 
 function formatRoleLabel(role: UserRole): string {

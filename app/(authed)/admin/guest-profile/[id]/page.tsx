@@ -65,6 +65,8 @@ export default async function GuestProfileDetailPage({
   const packageSnapshot = parsePackageEntitlementSnapshot(
     profile.packageEntitlementSnapshotJson,
   );
+  const isCheckInAction = profile.status !== "checked_in";
+  const checkInDisabled = isCheckInAction && !profile.roomNumber?.trim();
 
   return (
     <main className="flex-1 px-4 py-6 sm:px-6 sm:py-8 lg:px-10">
@@ -122,10 +124,18 @@ export default async function GuestProfileDetailPage({
                 }
               />
               <button
+                disabled={checkInDisabled}
                 type="submit"
+                title={
+                  checkInDisabled
+                    ? "Room Number is required before check-in."
+                    : undefined
+                }
                 className={
                   profile.status === "checked_in"
                     ? "h-9 rounded-md border border-red-200 px-3 text-sm font-medium text-red-700 hover:bg-red-50"
+                    : checkInDisabled
+                      ? "h-9 cursor-not-allowed rounded-md bg-brand/45 px-3 text-sm font-medium text-white"
                     : "h-9 rounded-md bg-brand px-3 text-sm font-medium text-white hover:bg-brand/90"
                 }
               >
