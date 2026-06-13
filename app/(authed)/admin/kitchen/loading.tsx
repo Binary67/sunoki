@@ -22,7 +22,7 @@ export default function KitchenLoading() {
         </div>
 
         <div className="mb-5 flex flex-wrap items-center gap-2">
-          <SkeletonBlock className="h-9 w-[15.5rem]" />
+          <SkeletonBlock className="h-9 w-full max-w-[21rem] sm:w-[21rem]" />
           <SkeletonBlock className="h-9 w-28" />
           <SkeletonBlock className="h-9 w-28" />
           <SkeletonBlock className="h-9 w-24" />

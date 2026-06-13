@@ -81,7 +81,8 @@ type UpcomingServiceBookingRow = {
 };
 
 export type UpcomingBookingFilters = {
-  bookingDate?: string;
+  bookingDateFrom?: string;
+  bookingDateTo?: string;
   facilityIds?: number[];
   serviceKeys?: ServiceBookingKey[];
 };
@@ -117,11 +118,15 @@ export function getUpcomingBookings(
   ];
   const serviceParams = [cutoff.date, cutoff.time];
 
-  if (filters.bookingDate) {
-    facilityWhere.push("b.booking_date = ?");
-    facilityParams.push(filters.bookingDate);
-    serviceWhere.push("b.booking_date = ?");
-    serviceParams.push(filters.bookingDate);
+  if (filters.bookingDateFrom && filters.bookingDateTo) {
+    facilityWhere.push("b.booking_date >= ?");
+    facilityParams.push(filters.bookingDateFrom);
+    facilityWhere.push("b.booking_date <= ?");
+    facilityParams.push(filters.bookingDateTo);
+    serviceWhere.push("b.booking_date >= ?");
+    serviceParams.push(filters.bookingDateFrom);
+    serviceWhere.push("b.booking_date <= ?");
+    serviceParams.push(filters.bookingDateTo);
   }
 
   if (facilityIds.length > 0) {

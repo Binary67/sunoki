@@ -26,9 +26,15 @@ import { getRoomOccupancy } from "../_dashboard/room-occupancy";
 
 type DashboardTab = "room-occupancy" | "upcoming-bookings" | "pending-booking";
 
+type BookingDateRange = {
+  from: string;
+  to: string;
+};
+
 type PageProps = {
   searchParams: Promise<{
-    date?: string | string[];
+    dateFrom?: string | string[];
+    dateTo?: string | string[];
     facility?: string | string[];
     pendingGuest?: string | string[];
     room?: string | string[];
@@ -110,7 +116,10 @@ export default async function Dashboard({ searchParams }: PageProps) {
     );
   }
 
-  const selectedBookingDate = getBookingDateFilter(getSingleValue(query.date));
+  const selectedBookingDateRange = getBookingDateRangeFilter(
+    getSingleValue(query.dateFrom),
+    getSingleValue(query.dateTo),
+  );
   const selectedServiceKeys = getServiceKeyFilters(getValues(query.service));
   const facilityOptions = listFacilityBookingOptions();
   const selectedFacilityIds = getFacilityIdFilters(
@@ -118,7 +127,8 @@ export default async function Dashboard({ searchParams }: PageProps) {
     facilityOptions,
   );
   const bookings = getUpcomingBookings({
-    bookingDate: selectedBookingDate,
+    bookingDateFrom: selectedBookingDateRange?.from,
+    bookingDateTo: selectedBookingDateRange?.to,
     facilityIds: selectedFacilityIds,
     serviceKeys: selectedServiceKeys,
   });
@@ -128,7 +138,8 @@ export default async function Dashboard({ searchParams }: PageProps) {
       <UpcomingBookings
         bookings={bookings}
         filters={{
-          bookingDate: selectedBookingDate,
+          bookingDateFrom: selectedBookingDateRange?.from,
+          bookingDateTo: selectedBookingDateRange?.to,
           facilityIds: selectedFacilityIds,
           serviceKeys: selectedServiceKeys,
         }}
@@ -225,8 +236,15 @@ function getPendingBookingGuest(
   return guests.find((guest) => guest.profile.id === selectedProfileId);
 }
 
-function getBookingDateFilter(value: string | undefined): string | undefined {
-  return value && isBookingDate(value) ? value : undefined;
+function getBookingDateRangeFilter(
+  from: string | undefined,
+  to: string | undefined,
+): BookingDateRange | undefined {
+  if (!from || !to || !isBookingDate(from) || !isBookingDate(to) || from > to) {
+    return undefined;
+  }
+
+  return { from, to };
 }
 
 function getServiceKeyFilters(values: string[]): ServiceBookingKey[] {

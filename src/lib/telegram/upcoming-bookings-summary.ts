@@ -29,10 +29,14 @@ type UpcomingBookingGroup = {
 
 export function buildUpcomingBookingsTelegramSummary(now = new Date()): string {
   const bookingDate = addBookingDays(formatBookingDate(now), 1);
-  const bookings = getUpcomingBookings({ bookingDate }, now).filter(
-    (booking) => !isKitchenPrepBooking(booking),
-  );
-  const kitchenPrepBookings = listKitchenServicePrepBookings({ bookingDate });
+  const bookings = getUpcomingBookings(
+    { bookingDateFrom: bookingDate, bookingDateTo: bookingDate },
+    now,
+  ).filter((booking) => !isKitchenPrepBooking(booking));
+  const kitchenPrepBookings = listKitchenServicePrepBookings({
+    bookingDateFrom: bookingDate,
+    bookingDateTo: bookingDate,
+  });
 
   return [
     `Upcoming Bookings for ${formatDisplayDate(bookingDate)}`,

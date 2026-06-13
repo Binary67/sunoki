@@ -23,7 +23,8 @@ export type KitchenServicePrepBooking = {
 };
 
 export type KitchenServicePrepBookingFilters = {
-  bookingDate?: string;
+  bookingDateFrom?: string;
+  bookingDateTo?: string;
   roomNumber?: string;
   serviceKeys?: readonly KitchenPrepServiceKey[];
 };
@@ -40,11 +41,18 @@ type KitchenServicePrepBookingRow = {
 };
 
 export function listKitchenServicePrepBookings({
-  bookingDate,
+  bookingDateFrom,
+  bookingDateTo,
   roomNumber,
   serviceKeys,
 }: KitchenServicePrepBookingFilters): KitchenServicePrepBooking[] {
-  if (bookingDate !== undefined && !isBookingDate(bookingDate)) return [];
+  if (bookingDateFrom !== undefined && !isBookingDate(bookingDateFrom)) {
+    return [];
+  }
+  if (bookingDateTo !== undefined && !isBookingDate(bookingDateTo)) return [];
+  if (bookingDateFrom && bookingDateTo && bookingDateFrom > bookingDateTo) {
+    return [];
+  }
 
   const selectedServiceKeys = getKitchenPrepServiceKeys(serviceKeys);
   const conditions = [
@@ -53,9 +61,11 @@ export function listKitchenServicePrepBookings({
   ];
   const params: string[] = [...selectedServiceKeys];
 
-  if (bookingDate) {
-    conditions.push("b.booking_date = ?");
-    params.push(bookingDate);
+  if (bookingDateFrom && bookingDateTo) {
+    conditions.push("b.booking_date >= ?");
+    params.push(bookingDateFrom);
+    conditions.push("b.booking_date <= ?");
+    params.push(bookingDateTo);
   }
 
   if (roomNumber) {

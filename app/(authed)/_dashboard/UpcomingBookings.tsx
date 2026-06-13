@@ -1,5 +1,5 @@
 import Link from "next/link";
-import CalendarDateField from "@/app/components/CalendarDateField";
+import CalendarDateRangeField from "@/app/components/CalendarDateRangeField";
 import type {
   FacilityBookingOption,
   UpcomingBooking,
@@ -10,7 +10,8 @@ import type {
 } from "@/src/lib/service-bookings/catalog";
 
 type UpcomingBookingFilterState = {
-  bookingDate?: string;
+  bookingDateFrom?: string;
+  bookingDateTo?: string;
   facilityIds: number[];
   serviceKeys: ServiceBookingKey[];
 };
@@ -33,7 +34,8 @@ export default function UpcomingBookings({
   const selectedBookingFilterCount =
     selectedServiceCount + selectedFacilityCount;
   const hasActiveFilters =
-    Boolean(filters.bookingDate) || selectedBookingFilterCount > 0;
+    Boolean(filters.bookingDateFrom && filters.bookingDateTo) ||
+    selectedBookingFilterCount > 0;
 
   return (
     <section>
@@ -50,14 +52,17 @@ export default function UpcomingBookings({
         method="get"
       >
         <input type="hidden" name="tab" value="upcoming-bookings" />
-        <CalendarDateField
+        <CalendarDateRangeField
+          key={`${filters.bookingDateFrom ?? ""}:${filters.bookingDateTo ?? ""}`}
           id="upcoming-booking-date-filter"
-          name="date"
-          defaultValue={filters.bookingDate ?? ""}
+          fromName="dateFrom"
+          toName="dateTo"
+          defaultFromValue={filters.bookingDateFrom ?? ""}
+          defaultToValue={filters.bookingDateTo ?? ""}
           minDate={today}
           prefix="Date"
-          wrapperClassName="relative"
-          buttonClassName="flex h-9 w-[15.5rem] items-center gap-2 rounded-md border border-black/10 bg-white px-3 text-left text-sm text-ink shadow-sm shadow-black/[0.02] outline-none transition-colors hover:bg-white/90 focus:border-brand focus:ring-2 focus:ring-brand/15"
+          wrapperClassName="relative w-full max-w-[21rem] sm:w-[21rem]"
+          buttonClassName="flex h-9 w-full items-center gap-2 rounded-md border border-black/10 bg-white px-3 text-left text-sm text-ink shadow-sm shadow-black/[0.02] outline-none transition-colors hover:bg-white/90 focus:border-brand focus:ring-2 focus:ring-brand/15"
         />
 
         <details className="group relative">

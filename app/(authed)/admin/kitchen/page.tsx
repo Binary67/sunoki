@@ -1,5 +1,5 @@
 import Link from "next/link";
-import CalendarDateField from "@/app/components/CalendarDateField";
+import CalendarDateRangeField from "@/app/components/CalendarDateRangeField";
 import { isBookingDate } from "@/src/lib/booking-dates";
 import {
   GUEST_ROOM_LEVELS,
@@ -18,7 +18,8 @@ import PrintKitchenNotesButton from "./PrintKitchenNotesButton";
 
 type PageProps = {
   searchParams: Promise<{
-    date?: string | string[];
+    dateFrom?: string | string[];
+    dateTo?: string | string[];
     guest?: string | string[];
     noteRoom?: string | string[];
     room?: string | string[];
@@ -44,6 +45,11 @@ type KitchenServicePrepGroup = {
   bookings: KitchenServicePrepBooking[];
 };
 
+type BookingDateRange = {
+  from: string;
+  to: string;
+};
+
 const GUEST_ROOM_OPTIONS = GUEST_ROOM_LEVELS.flatMap((level) =>
   GUEST_ROOM_NUMBERS.map((roomNumber) => `${level}-${roomNumber}`),
 );
@@ -64,7 +70,10 @@ const KITCHEN_TABS: KitchenTabLink[] = [
 export default async function KitchenPage({ searchParams }: PageProps) {
   const query = await searchParams;
   const activeTab = getKitchenTab(getSingleValue(query.tab));
-  const selectedBookingDate = getBookingDateFilter(getSingleValue(query.date));
+  const selectedBookingDateRange = getBookingDateRangeFilter(
+    getSingleValue(query.dateFrom),
+    getSingleValue(query.dateTo),
+  );
   const selectedServiceKeys = getServiceKeyFilters(getValues(query.service));
   const selectedRoomNumber = getRoomNumberFilter(getSingleValue(query.room));
   const selectedGuestName = getGuestNameFilter(getSingleValue(query.guest));
@@ -74,7 +83,8 @@ export default async function KitchenPage({ searchParams }: PageProps) {
   const servicePrepBookings =
     activeTab === "service-prep"
       ? listKitchenServicePrepBookings({
-          bookingDate: selectedBookingDate,
+          bookingDateFrom: selectedBookingDateRange?.from,
+          bookingDateTo: selectedBookingDateRange?.to,
           roomNumber: selectedRoomNumber,
           serviceKeys: selectedServiceKeys,
         })
@@ -91,7 +101,9 @@ export default async function KitchenPage({ searchParams }: PageProps) {
   const hasServiceFilter =
     selectedServiceKeys.length !== KITCHEN_PREP_SERVICE_KEYS.length;
   const hasActiveFilters =
-    Boolean(selectedBookingDate) || hasServiceFilter || Boolean(selectedRoomNumber);
+    Boolean(selectedBookingDateRange) ||
+    hasServiceFilter ||
+    Boolean(selectedRoomNumber);
   const hasNoteFilters =
     Boolean(selectedGuestName) || Boolean(selectedNoteRoomNumber);
 
@@ -211,8 +223,8 @@ export default async function KitchenPage({ searchParams }: PageProps) {
         {activeTab === "service-prep" && (
           <section className="kitchen-print-section">
             <h1 className="kitchen-print-heading">
-              Kitchen Service Prep{selectedBookingDate
-                ? ` - ${formatDisplayDate(selectedBookingDate)}`
+              Kitchen Service Prep{selectedBookingDateRange
+                ? ` - ${formatDisplayDateRange(selectedBookingDateRange)}`
                 : ""}
             </h1>
             {servicePrepGroups.length === 0 ? (
@@ -292,13 +304,16 @@ export default async function KitchenPage({ searchParams }: PageProps) {
             method="get"
           >
             <input type="hidden" name="tab" value="service-prep" />
-            <CalendarDateField
-              buttonClassName="flex h-9 w-[15.5rem] items-center gap-2 rounded-md border border-black/10 bg-white px-3 text-left text-sm text-ink shadow-sm shadow-black/[0.02] outline-none transition-colors hover:bg-white/90 focus:border-brand focus:ring-2 focus:ring-brand/15"
-              defaultValue={selectedBookingDate ?? ""}
+            <CalendarDateRangeField
+              key={`${selectedBookingDateRange?.from ?? ""}:${selectedBookingDateRange?.to ?? ""}`}
+              buttonClassName="flex h-9 w-full items-center gap-2 rounded-md border border-black/10 bg-white px-3 text-left text-sm text-ink shadow-sm shadow-black/[0.02] outline-none transition-colors hover:bg-white/90 focus:border-brand focus:ring-2 focus:ring-brand/15"
+              defaultFromValue={selectedBookingDateRange?.from ?? ""}
+              defaultToValue={selectedBookingDateRange?.to ?? ""}
+              fromName="dateFrom"
               id="kitchen-prep-date-filter"
-              name="date"
               prefix="Date"
-              wrapperClassName="relative"
+              toName="dateTo"
+              wrapperClassName="relative w-full max-w-[21rem] sm:w-[21rem]"
             />
 
             <details className="group relative">
@@ -612,8 +627,15 @@ function filterGuestKitchenNotes(
   });
 }
 
-function getBookingDateFilter(value: string | undefined): string | undefined {
-  return value && isBookingDate(value) ? value : undefined;
+function getBookingDateRangeFilter(
+  from: string | undefined,
+  to: string | undefined,
+): BookingDateRange | undefined {
+  if (!from || !to || !isBookingDate(from) || !isBookingDate(to) || from > to) {
+    return undefined;
+  }
+
+  return { from, to };
 }
 
 function getGuestNameFilter(value: string | undefined): string {
@@ -642,6 +664,11 @@ function formatDisplayDate(value: string): string {
     month: "short",
     day: "numeric",
   });
+}
+
+function formatDisplayDateRange(range: BookingDateRange): string {
+  if (range.from === range.to) return formatDisplayDate(range.from);
+  return `${formatDisplayDate(range.from)} - ${formatDisplayDate(range.to)}`;
 }
 
 function formatValue(value: string | null | undefined): string {
