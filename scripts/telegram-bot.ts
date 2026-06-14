@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { Telegraf, type Context } from "telegraf";
+import { buildRoomOccupancyTelegramSummary } from "../src/lib/telegram/room-occupancy-summary";
 import {
   buildTodayBookingsTelegramSummary,
   buildUpcomingBookingsTelegramSummary,
@@ -18,6 +19,7 @@ const bot = new Telegraf(config.token);
 
 bot.command("upcoming_bookings", (ctx) => handleUpcomingBookings(ctx, config));
 bot.command("today_bookings", (ctx) => handleTodayBookings(ctx, config));
+bot.command("room_occupancy", (ctx) => handleRoomOccupancy(ctx, config));
 bot.command("chat_id", (ctx) => {
   if (!ctx.chat) return;
   return ctx.reply(`This chat ID is ${ctx.chat.id}.`);
@@ -27,6 +29,9 @@ bot.hears(/^\/UpcomingBookings(?:@[A-Za-z0-9_]+)?(?:\s|$)/, (ctx) =>
 );
 bot.hears(/^\/TodayBookings(?:@[A-Za-z0-9_]+)?(?:\s|$)/, (ctx) =>
   handleTodayBookings(ctx, config),
+);
+bot.hears(/^\/RoomOccupancy(?:@[A-Za-z0-9_]+)?(?:\s|$)/, (ctx) =>
+  handleRoomOccupancy(ctx, config),
 );
 
 bot.catch((error) => {
@@ -43,7 +48,9 @@ main().catch((error) => {
 
 async function main() {
   await bot.launch();
-  console.log("Telegram bot polling for /upcoming_bookings and /today_bookings.");
+  console.log(
+    "Telegram bot polling for /upcoming_bookings, /today_bookings, and /room_occupancy.",
+  );
   console.log(
     `Authorized Telegram chat IDs: ${Array.from(config.allowedChatIds).join(", ")}`,
   );
@@ -67,6 +74,15 @@ async function handleTodayBookings(ctx: Context, config: TelegramBotConfig) {
     config,
     buildTodayBookingsTelegramSummary,
     "today's bookings",
+  );
+}
+
+async function handleRoomOccupancy(ctx: Context, config: TelegramBotConfig) {
+  await handleBookingSummary(
+    ctx,
+    config,
+    buildRoomOccupancyTelegramSummary,
+    "room occupancy",
   );
 }
 
