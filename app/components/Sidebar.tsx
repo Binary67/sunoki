@@ -76,6 +76,10 @@ const dataChildren: {
     href: "/admin/data/packages",
   },
   {
+    label: "Booking Counts",
+    href: "/admin/data/booking-counts",
+  },
+  {
     label: "Backup & Restore",
     href: "/admin/data/backup",
     superadminOnly: true,
