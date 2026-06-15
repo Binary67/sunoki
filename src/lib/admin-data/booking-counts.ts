@@ -83,16 +83,18 @@ export function getBookingCountReport({
         bookedCount: counts?.bookedCount ?? 0,
         doneCount: counts?.doneCount ?? 0,
       };
-    }),
-    facilities: listFacilities().map((facility) => {
-      const counts = facilityCounts.get(String(facility.id));
-      return {
-        key: String(facility.id),
-        name: facility.name,
-        bookedCount: counts?.bookedCount ?? 0,
-        doneCount: counts?.doneCount ?? 0,
-      };
-    }),
+    }).sort(compareBookingCountItems),
+    facilities: listFacilities()
+      .map((facility) => {
+        const counts = facilityCounts.get(String(facility.id));
+        return {
+          key: String(facility.id),
+          name: facility.name,
+          bookedCount: counts?.bookedCount ?? 0,
+          doneCount: counts?.doneCount ?? 0,
+        };
+      })
+      .sort(compareBookingCountItems),
   };
 }
 
@@ -259,4 +261,14 @@ function mapDetailRows(rows: DetailRow[]): BookingCountDetailRow[] {
     cancelledAt: row.cancelledAt,
     createdAt: row.createdAt,
   }));
+}
+
+function compareBookingCountItems(
+  a: BookingCountItem,
+  b: BookingCountItem,
+): number {
+  return (
+    a.name.localeCompare(b.name, undefined, { sensitivity: "base" }) ||
+    a.key.localeCompare(b.key)
+  );
 }
