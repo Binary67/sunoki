@@ -25,16 +25,6 @@ type ExistingRow = {
   id: number;
 };
 
-function hasBookingStarted(
-  bookingDate: string,
-  bookingTime: string,
-  now = new Date(),
-) {
-  const [year, month, day] = bookingDate.split("-").map(Number);
-  const [hour, minute] = bookingTime.split(":").map(Number);
-  return new Date(year, month - 1, day, hour, minute) <= now;
-}
-
 function isBookingTime(value: string): boolean {
   return /^([01]\d|2[0-3]):[0-5]\d$/.test(value);
 }
@@ -282,9 +272,6 @@ export function createFacilityBooking({
   ) {
     return { ok: false, error: "Choose a valid facility date and time." };
   }
-  if (hasBookingStarted(bookingDate, bookingTime)) {
-    return { ok: false, error: "Choose an upcoming facility date and time." };
-  }
 
   let inTransaction = false;
 
@@ -438,9 +425,6 @@ export function updateFacilityBooking({
     !isBookingTime(bookingTime)
   ) {
     return { ok: false, error: "Choose a valid facility date and time." };
-  }
-  if (hasBookingStarted(bookingDate, bookingTime)) {
-    return { ok: false, error: "Choose an upcoming facility date and time." };
   }
 
   let inTransaction = false;

@@ -12,7 +12,7 @@ import {
   guestHasActiveServiceBookingSlot,
   selectServiceBookingAuditRow,
 } from "./repository";
-import { hasServiceBookingStarted, isBookingTime } from "./time";
+import { isBookingTime } from "./time";
 
 export type CreateServiceBookingInput = {
   auditActor?: User;
@@ -52,9 +52,6 @@ export function createServiceBooking({
   }
   if (!isBookingDate(bookingDate) || !isBookingTime(bookingTime)) {
     return { ok: false, error: "Choose a valid service date and time." };
-  }
-  if (hasServiceBookingStarted(bookingDate, bookingTime)) {
-    return { ok: false, error: "Choose an upcoming service date and time." };
   }
 
   let inTransaction = false;
@@ -242,9 +239,6 @@ export function updateServiceBooking({
     !isBookingTime(bookingTime)
   ) {
     return { ok: false, error: "Choose a valid service date and time." };
-  }
-  if (hasServiceBookingStarted(bookingDate, bookingTime)) {
-    return { ok: false, error: "Choose an upcoming service date and time." };
   }
 
   let inTransaction = false;
