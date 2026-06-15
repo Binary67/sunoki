@@ -39,7 +39,7 @@ export function getAdminTableView(
     const fetchedRows = db
       .prepare(
         `
-          SELECT ${getColumnList(table)}
+          SELECT ${getTableViewColumnList(table)}
           FROM ${table.name}
           ${userScope.whereClause}
           ORDER BY id ASC
@@ -65,7 +65,7 @@ export function getAdminTableView(
   const rows = db
     .prepare(
       `
-        SELECT ${getColumnList(table)}
+        SELECT ${getTableViewColumnList(table)}
         FROM ${table.name}
         ${userScope.whereClause}
         ORDER BY id ASC
@@ -158,4 +158,15 @@ export function selectRowById(
 
 function getColumnList(table: AdminTableDefinition): string {
   return table.columns.map((column) => column.name).join(", ");
+}
+
+function getTableViewColumnList(table: AdminTableDefinition): string {
+  const columns = table.columns.map((column) => column.name);
+  if (
+    table.name === "facility_bookings" ||
+    table.name === "guest_service_bookings"
+  ) {
+    columns.push("admin_read", "admin_done");
+  }
+  return columns.join(", ");
 }

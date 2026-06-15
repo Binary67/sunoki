@@ -346,7 +346,9 @@ function formatCellValue(
     return "-";
   }
   if (value === null || value === undefined) return "";
-  if (column.name === "status" && value === "booked") return "Booked";
+  if (column.name === "status" && typeof value === "string") {
+    return formatStatusValue(value, row);
+  }
   if (
     column.input === "packageQuantity" &&
     value === UNLIMITED_PACKAGE_SERVICE_QUANTITY
@@ -360,4 +362,16 @@ function formatCellValue(
     if (option) return option.label;
   }
   return String(value);
+}
+
+function formatStatusValue(value: string, row: AdminRow): string {
+  if (value === "cancelled") return "Cancelled";
+  if (value !== "booked") return value;
+  if (isEnabled(row.admin_done)) return "Done";
+  if (isEnabled(row.admin_read)) return "Read";
+  return "Booked";
+}
+
+function isEnabled(value: AdminRow[string]): boolean {
+  return value === 1 || value === "1";
 }

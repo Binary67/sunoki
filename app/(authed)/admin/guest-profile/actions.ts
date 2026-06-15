@@ -19,7 +19,9 @@ import {
 } from "@/src/lib/guest-profiles";
 
 const GUEST_PROFILE_PATH = "/admin/guest-profile";
+const FACILITIES_DATA_PATH = "/admin/data/facilities";
 const KITCHEN_PATH = "/admin/kitchen";
+const PACKAGES_DATA_PATH = "/admin/data/packages";
 const USERS_DATA_PATH = "/admin/data/users";
 
 export async function createGuestProfileAction(
@@ -186,6 +188,9 @@ export async function updateGuestBookingStatusAction(
     revalidatePath("/");
     revalidatePath(GUEST_PROFILE_PATH);
     revalidatePath(`${GUEST_PROFILE_PATH}/${profileId}`);
+    revalidatePath(
+      type === "facility" ? FACILITIES_DATA_PATH : PACKAGES_DATA_PATH,
+    );
   }
 
   redirectToGuestProfileDetail(

@@ -10,6 +10,8 @@ import {
 } from "@/src/lib/guest-bookings";
 
 const GUEST_PROFILE_PATH = "/admin/guest-profile";
+const FACILITIES_DATA_PATH = "/admin/data/facilities";
+const PACKAGES_DATA_PATH = "/admin/data/packages";
 
 export async function updateRoomOccupancyGuestBookingStatusAction(
   formData: FormData,
@@ -41,6 +43,9 @@ export async function updateRoomOccupancyGuestBookingStatusAction(
       revalidatePath("/");
       revalidatePath(GUEST_PROFILE_PATH);
       revalidatePath(`${GUEST_PROFILE_PATH}/${profileId}`);
+      revalidatePath(
+        type === "facility" ? FACILITIES_DATA_PATH : PACKAGES_DATA_PATH,
+      );
     }
   }
 
