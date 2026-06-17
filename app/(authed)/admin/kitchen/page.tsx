@@ -181,8 +181,13 @@ export default async function KitchenPage({ searchParams }: PageProps) {
           }
 
           body:has(.kitchen-print-page) .kitchen-print-name,
+          body:has(.kitchen-print-page) .kitchen-print-date,
           body:has(.kitchen-print-page) .kitchen-print-room {
             font-weight: 700;
+          }
+
+          body:has(.kitchen-print-page) .kitchen-print-date {
+            flex: 0 0 auto;
           }
 
           body:has(.kitchen-print-page) .kitchen-print-room {
@@ -236,6 +241,9 @@ export default async function KitchenPage({ searchParams }: PageProps) {
                     <div className="kitchen-print-meta">
                       <span className="kitchen-print-name">
                         {group.guestName}
+                      </span>
+                      <span className="kitchen-print-date">
+                        {formatDisplayDate(group.bookingDate)}
                       </span>
                       <span className="kitchen-print-room">
                         Room {formatValue(group.roomNumber)}
