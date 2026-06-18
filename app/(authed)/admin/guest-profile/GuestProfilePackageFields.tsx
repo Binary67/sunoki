@@ -403,7 +403,7 @@ function PackageServiceEditorRow({
           <input
             id={quantityInputId}
             type="number"
-            min={1}
+            min={0}
             required={included && !unlimited}
             disabled={!included || unlimited}
             value={quantity}

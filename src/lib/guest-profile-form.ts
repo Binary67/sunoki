@@ -188,13 +188,13 @@ function readPackageServiceQuantity(
     return { ok: false, message: `${label} quantity must be a whole number.` };
   }
 
-  if (quantity === UNLIMITED_PACKAGE_SERVICE_QUANTITY || quantity > 0) {
+  if (quantity === UNLIMITED_PACKAGE_SERVICE_QUANTITY || quantity >= 0) {
     return { ok: true, value: quantity };
   }
 
   return {
     ok: false,
-    message: `${label} quantity must be at least 1, or unlimited.`,
+    message: `${label} quantity must be at least 0, or unlimited.`,
   };
 }
 
