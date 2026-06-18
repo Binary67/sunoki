@@ -45,6 +45,12 @@ type KitchenServicePrepGroup = {
   bookings: KitchenServicePrepBooking[];
 };
 
+type KitchenServicePrepPrintGroup = {
+  serviceKey: KitchenPrepServiceKey;
+  serviceName: string;
+  bookings: KitchenServicePrepBooking[];
+};
+
 type BookingDateRange = {
   from: string;
   to: string;
@@ -90,6 +96,8 @@ export default async function KitchenPage({ searchParams }: PageProps) {
         })
       : [];
   const servicePrepGroups = groupKitchenServicePrepBookings(servicePrepBookings);
+  const servicePrepPrintGroups =
+    groupKitchenServicePrepBookingsByService(servicePrepBookings);
   const notes =
     activeTab === "guest-profile-notes"
       ? filterGuestKitchenNotes(
@@ -203,6 +211,30 @@ export default async function KitchenPage({ searchParams }: PageProps) {
             margin-top: 2px;
           }
 
+          body:has(.kitchen-print-page) .kitchen-print-service + .kitchen-print-service {
+            margin-top: 5mm;
+          }
+
+          body:has(.kitchen-print-page) .kitchen-print-service-title {
+            color: #000;
+            font-size: 11pt;
+            font-weight: 700;
+            margin: 0 0 2mm;
+          }
+
+          body:has(.kitchen-print-page) .kitchen-print-service-list {
+            color: #000;
+            font-size: 9.5pt;
+            line-height: 1.35;
+            list-style: none;
+            margin: 0;
+            padding: 0;
+          }
+
+          body:has(.kitchen-print-page) .kitchen-print-service-list li + li {
+            margin-top: 1.5mm;
+          }
+
           body:has(.kitchen-print-page) .kitchen-print-note {
             margin: 0;
             white-space: pre-wrap;
@@ -232,31 +264,29 @@ export default async function KitchenPage({ searchParams }: PageProps) {
                 ? ` - ${formatDisplayDateRange(selectedBookingDateRange)}`
                 : ""}
             </h1>
-            {servicePrepGroups.length === 0 ? (
+            {servicePrepPrintGroups.length === 0 ? (
               <p>No kitchen service prep.</p>
             ) : (
-              <div className="kitchen-print-grid">
-                {servicePrepGroups.map((group) => (
-                  <article className="kitchen-print-card" key={group.key}>
-                    <div className="kitchen-print-meta">
-                      <span className="kitchen-print-name">
-                        {group.guestName}
-                      </span>
-                      <span className="kitchen-print-date">
-                        {formatDisplayDate(group.bookingDate)}
-                      </span>
-                      <span className="kitchen-print-room">
-                        Room {formatValue(group.roomNumber)}
-                      </span>
-                    </div>
-                    <ul className="kitchen-print-list">
+              <div>
+                {servicePrepPrintGroups.map((group) => (
+                  <section
+                    className="kitchen-print-service"
+                    key={group.serviceKey}
+                  >
+                    <h2 className="kitchen-print-service-title">
+                      {group.serviceName}
+                    </h2>
+                    <ul className="kitchen-print-service-list">
                       {group.bookings.map((booking) => (
                         <li key={booking.id}>
-                          {booking.bookingTime} - {booking.serviceName}
+                          {booking.guestName} - Room{" "}
+                          {formatValue(booking.roomNumber)} -{" "}
+                          {formatDisplayDate(booking.bookingDate)} -{" "}
+                          {booking.bookingTime}
                         </li>
                       ))}
                     </ul>
-                  </article>
+                  </section>
                 ))}
               </div>
             )}
@@ -599,6 +629,71 @@ function groupKitchenServicePrepBookings(
   }
 
   return Array.from(groups.values());
+}
+
+function groupKitchenServicePrepBookingsByService(
+  bookings: KitchenServicePrepBooking[],
+): KitchenServicePrepPrintGroup[] {
+  const groups = new Map<KitchenPrepServiceKey, KitchenServicePrepPrintGroup>();
+
+  for (const booking of bookings) {
+    const group = groups.get(booking.serviceKey);
+
+    if (group) {
+      group.bookings.push(booking);
+    } else {
+      groups.set(booking.serviceKey, {
+        serviceKey: booking.serviceKey,
+        serviceName: booking.serviceName,
+        bookings: [booking],
+      });
+    }
+  }
+
+  const serviceGroups = Array.from(groups.values());
+  serviceGroups.sort(compareKitchenServicePrepPrintGroups);
+
+  for (const group of serviceGroups) {
+    group.bookings.sort(compareKitchenServicePrepPrintBookings);
+  }
+
+  return serviceGroups;
+}
+
+function compareKitchenServicePrepPrintGroups(
+  a: KitchenServicePrepPrintGroup,
+  b: KitchenServicePrepPrintGroup,
+): number {
+  return (
+    a.serviceName.localeCompare(b.serviceName, undefined, {
+      sensitivity: "base",
+    }) || a.serviceKey.localeCompare(b.serviceKey)
+  );
+}
+
+function compareKitchenServicePrepPrintBookings(
+  a: KitchenServicePrepBooking,
+  b: KitchenServicePrepBooking,
+): number {
+  return (
+    a.bookingDate.localeCompare(b.bookingDate) ||
+    compareNullableRoomNumbers(a.roomNumber, b.roomNumber) ||
+    a.guestName.localeCompare(b.guestName, undefined, {
+      sensitivity: "base",
+    }) ||
+    a.bookingTime.localeCompare(b.bookingTime) ||
+    a.id - b.id
+  );
+}
+
+function compareNullableRoomNumbers(
+  a: string | null,
+  b: string | null,
+): number {
+  if (a && b) return a.localeCompare(b);
+  if (a) return -1;
+  if (b) return 1;
+  return 0;
 }
 
 function getServiceKeyFilters(values: string[]): KitchenPrepServiceKey[] {
