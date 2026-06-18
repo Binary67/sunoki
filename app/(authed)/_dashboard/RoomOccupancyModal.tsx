@@ -12,10 +12,19 @@ import GuestBookingStatusCheckbox from "../admin/guest-profile/GuestBookingStatu
 import { updateRoomOccupancyGuestBookingStatusAction } from "./actions";
 import type { RoomOccupancyGuest, RoomOccupancyRoom } from "./room-occupancy";
 
+export type RoomBookingSortField = "date" | "time";
+export type RoomBookingSortDirection = "asc" | "desc";
+export type RoomBookingSortState = {
+  direction: RoomBookingSortDirection;
+  field: RoomBookingSortField;
+};
+
 export default function RoomOccupancyModal({
+  bookingSort,
   roomDetails,
   roomNumber,
 }: {
+  bookingSort?: RoomBookingSortState;
   roomDetails: RoomOccupancyRoom;
   roomNumber: string;
 }) {
@@ -70,6 +79,7 @@ export default function RoomOccupancyModal({
           <div className="grid gap-4">
             {currentGuests.map((guest) => (
               <RoomGuestArticle
+                bookingSort={bookingSort}
                 key={guest.profile.id}
                 guest={guest}
                 label="Current stay"
@@ -91,10 +101,12 @@ export default function RoomOccupancyModal({
 }
 
 function RoomGuestArticle({
+  bookingSort,
   guest,
   label,
   roomNumber,
 }: {
+  bookingSort?: RoomBookingSortState;
   guest: RoomOccupancyGuest;
   label: "Current stay" | "Next incoming";
   roomNumber: string;
@@ -161,6 +173,7 @@ function RoomGuestArticle({
       </dl>
       {isCurrentStay && (
         <GuestBookingsSummary
+          bookingSort={bookingSort}
           bookings={guest.bookings}
           profileId={guest.profile.id}
           roomNumber={roomNumber}
@@ -172,15 +185,18 @@ function RoomGuestArticle({
 }
 
 function GuestBookingsSummary({
+  bookingSort,
   bookings,
   profileId,
   roomNumber,
 }: {
+  bookingSort?: RoomBookingSortState;
   bookings: GuestBookingChecklistItem[];
   profileId: number;
   roomNumber: string;
 }) {
   const hiddenFields = [{ name: "roomNumber", value: roomNumber }];
+  const displayedBookings = getSortedBookings(bookings, bookingSort);
 
   return (
     <section className="mt-5 border-t border-black/5 pt-4">
@@ -199,15 +215,29 @@ function GuestBookingsSummary({
               <tr>
                 <th className="px-4 py-3 text-left font-medium">Type</th>
                 <th className="px-4 py-3 text-left font-medium">Booking</th>
-                <th className="px-4 py-3 text-left font-medium">Date</th>
-                <th className="px-4 py-3 text-left font-medium">Time</th>
+                <th className="px-4 py-3 text-left font-medium">
+                  <BookingSortHeader
+                    bookingSort={bookingSort}
+                    field="date"
+                    label="Date"
+                    roomNumber={roomNumber}
+                  />
+                </th>
+                <th className="px-4 py-3 text-left font-medium">
+                  <BookingSortHeader
+                    bookingSort={bookingSort}
+                    field="time"
+                    label="Time"
+                    roomNumber={roomNumber}
+                  />
+                </th>
                 <th className="px-4 py-3 text-center font-medium">Read</th>
                 <th className="px-4 py-3 text-center font-medium">Done</th>
                 <th className="px-4 py-3 text-left font-medium">Done At</th>
               </tr>
             </thead>
             <tbody>
-              {bookings.map((booking) => (
+              {displayedBookings.map((booking) => (
                 <tr
                   className="border-t border-black/5 text-ink/75"
                   key={`${booking.type}-${booking.id}`}
@@ -263,6 +293,109 @@ function GuestBookingsSummary({
         </div>
       )}
     </section>
+  );
+}
+
+function BookingSortHeader({
+  bookingSort,
+  field,
+  label,
+  roomNumber,
+}: {
+  bookingSort?: RoomBookingSortState;
+  field: RoomBookingSortField;
+  label: string;
+  roomNumber: string;
+}) {
+  const activeDirection =
+    bookingSort?.field === field ? bookingSort.direction : undefined;
+  const active = activeDirection !== undefined;
+  const nextDirection: RoomBookingSortDirection =
+    activeDirection === "asc" ? "desc" : "asc";
+
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      {label}
+      <Link
+        aria-label={`Sort bookings by ${label.toLowerCase()} ${nextDirection}`}
+        className={`inline-grid size-5 translate-y-px place-items-center rounded transition-colors hover:bg-white hover:text-ink/70 ${
+          active ? "text-ink/70" : "text-ink/35"
+        }`}
+        href={getRoomBookingSortHref(roomNumber, field, nextDirection)}
+      >
+        <BookingSortIcon direction={activeDirection} />
+      </Link>
+    </span>
+  );
+}
+
+function BookingSortIcon({
+  direction,
+}: {
+  direction?: RoomBookingSortDirection;
+}) {
+  const upClass =
+    direction === undefined || direction === "asc" ? "opacity-100" : "opacity-30";
+  const downClass =
+    direction === undefined || direction === "desc"
+      ? "opacity-100"
+      : "opacity-30";
+
+  return (
+    <svg
+      aria-hidden="true"
+      className="size-3.5"
+      fill="currentColor"
+      viewBox="0 0 16 16"
+    >
+      <path className={upClass} d="M8 3.5 4.75 7h6.5L8 3.5Z" />
+      <path className={downClass} d="M8 12.5 11.25 9h-6.5L8 12.5Z" />
+    </svg>
+  );
+}
+
+function getRoomBookingSortHref(
+  roomNumber: string,
+  field: RoomBookingSortField,
+  direction: RoomBookingSortDirection,
+): string {
+  const params = new URLSearchParams({
+    room: roomNumber,
+    roomBookingSort: field,
+    roomBookingSortDirection: direction,
+  });
+  return `/?${params.toString()}`;
+}
+
+function getSortedBookings(
+  bookings: GuestBookingChecklistItem[],
+  bookingSort: RoomBookingSortState | undefined,
+): GuestBookingChecklistItem[] {
+  if (!bookingSort) return bookings;
+
+  return [...bookings].sort((a, b) =>
+    compareGuestBookingChecklistItems(a, b, bookingSort),
+  );
+}
+
+function compareGuestBookingChecklistItems(
+  a: GuestBookingChecklistItem,
+  b: GuestBookingChecklistItem,
+  bookingSort: RoomBookingSortState,
+): number {
+  const dateTimeComparison =
+    bookingSort.field === "date"
+      ? a.bookingDate.localeCompare(b.bookingDate) ||
+        a.bookingTime.localeCompare(b.bookingTime)
+      : a.bookingTime.localeCompare(b.bookingTime) ||
+        a.bookingDate.localeCompare(b.bookingDate);
+  const directedDateTimeComparison =
+    bookingSort.direction === "desc" ? -dateTimeComparison : dateTimeComparison;
+
+  return (
+    directedDateTimeComparison ||
+    a.type.localeCompare(b.type) ||
+    a.id - b.id
   );
 }
 

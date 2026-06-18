@@ -18,7 +18,11 @@ import {
 } from "@/src/lib/service-bookings/catalog";
 import PendingBookingQuotaModal from "../_dashboard/PendingBookingQuotaModal";
 import PendingBookingSection from "../_dashboard/PendingBookingSection";
-import RoomOccupancyModal from "../_dashboard/RoomOccupancyModal";
+import RoomOccupancyModal, {
+  type RoomBookingSortDirection,
+  type RoomBookingSortField,
+  type RoomBookingSortState,
+} from "../_dashboard/RoomOccupancyModal";
 import RoomOccupancySection from "../_dashboard/RoomOccupancySection";
 import UpcomingBookings from "../_dashboard/UpcomingBookings";
 import { getPendingBookingGuests } from "../_dashboard/pending-booking";
@@ -38,6 +42,8 @@ type PageProps = {
     facility?: string | string[];
     pendingGuest?: string | string[];
     room?: string | string[];
+    roomBookingSort?: string | string[];
+    roomBookingSortDirection?: string | string[];
     service?: string | string[];
     tab?: string | string[];
   }>;
@@ -82,6 +88,18 @@ export default async function Dashboard({ searchParams }: PageProps) {
     const selectedRoomDetails = selectedRoom
       ? roomOccupancy.rooms.get(selectedRoom)
       : undefined;
+    const selectedRoomBookingSort = getRoomBookingSort(
+      getSingleValue(query.roomBookingSort),
+    );
+    const selectedRoomBookingSortState: RoomBookingSortState | undefined =
+      selectedRoomBookingSort
+        ? {
+            direction: getRoomBookingSortDirection(
+              getSingleValue(query.roomBookingSortDirection),
+            ),
+            field: selectedRoomBookingSort,
+          }
+        : undefined;
 
     return (
       <DashboardFrame activeTab={activeTab}>
@@ -91,6 +109,7 @@ export default async function Dashboard({ searchParams }: PageProps) {
         />
         {selectedRoom && selectedRoomDetails && (
           <RoomOccupancyModal
+            bookingSort={selectedRoomBookingSortState}
             roomDetails={selectedRoomDetails}
             roomNumber={selectedRoom}
           />
@@ -213,6 +232,19 @@ function getDashboardTab(value: string | undefined): DashboardTab {
     return value;
   }
   return "room-occupancy";
+}
+
+function getRoomBookingSort(
+  value: string | undefined,
+): RoomBookingSortField | undefined {
+  if (value === "date" || value === "time") return value;
+  return undefined;
+}
+
+function getRoomBookingSortDirection(
+  value: string | undefined,
+): RoomBookingSortDirection {
+  return value === "desc" ? "desc" : "asc";
 }
 
 function getSingleValue(value: string | string[] | undefined): string | undefined {
