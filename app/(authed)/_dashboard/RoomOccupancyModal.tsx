@@ -12,7 +12,7 @@ import GuestBookingStatusCheckbox from "../admin/guest-profile/GuestBookingStatu
 import { updateRoomOccupancyGuestBookingStatusAction } from "./actions";
 import type { RoomOccupancyGuest, RoomOccupancyRoom } from "./room-occupancy";
 
-export type RoomBookingSortField = "date" | "time";
+export type RoomBookingSortField = "booking" | "date" | "time";
 export type RoomBookingSortDirection = "asc" | "desc";
 export type RoomBookingSortState = {
   direction: RoomBookingSortDirection;
@@ -214,7 +214,14 @@ function GuestBookingsSummary({
             <thead className="bg-surface text-[11px] uppercase tracking-[0.14em] text-ink/45">
               <tr>
                 <th className="px-4 py-3 text-left font-medium">Type</th>
-                <th className="px-4 py-3 text-left font-medium">Booking</th>
+                <th className="px-4 py-3 text-left font-medium">
+                  <BookingSortHeader
+                    bookingSort={bookingSort}
+                    field="booking"
+                    label="Booking"
+                    roomNumber={roomNumber}
+                  />
+                </th>
                 <th className="px-4 py-3 text-left font-medium">
                   <BookingSortHeader
                     bookingSort={bookingSort}
@@ -383,6 +390,20 @@ function compareGuestBookingChecklistItems(
   b: GuestBookingChecklistItem,
   bookingSort: RoomBookingSortState,
 ): number {
+  if (bookingSort.field === "booking") {
+    const bookingComparison = a.name.localeCompare(b.name);
+    const directedBookingComparison =
+      bookingSort.direction === "desc" ? -bookingComparison : bookingComparison;
+
+    return (
+      directedBookingComparison ||
+      a.bookingDate.localeCompare(b.bookingDate) ||
+      a.bookingTime.localeCompare(b.bookingTime) ||
+      a.type.localeCompare(b.type) ||
+      a.id - b.id
+    );
+  }
+
   const dateTimeComparison =
     bookingSort.field === "date"
       ? a.bookingDate.localeCompare(b.bookingDate) ||

@@ -237,7 +237,7 @@ function getDashboardTab(value: string | undefined): DashboardTab {
 function getRoomBookingSort(
   value: string | undefined,
 ): RoomBookingSortField | undefined {
-  if (value === "date" || value === "time") return value;
+  if (value === "booking" || value === "date" || value === "time") return value;
   return undefined;
 }
 
