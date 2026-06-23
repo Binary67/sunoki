@@ -15,6 +15,7 @@ import {
 export type UserAccessFilter = "active" | "inactive";
 
 export type AdminTableViewOptions = {
+  guestNameSearch?: string;
   page?: number;
   pageSize?: number;
   userAccess?: UserAccessFilter;
@@ -26,7 +27,7 @@ export function getAdminTableView(
   options: AdminTableViewOptions = {},
 ): AdminTableView {
   const table = getAdminTableDefinition(tableName);
-  const userScope = getUserScope(tableName, actor, options.userAccess);
+  const viewScope = getViewScope(tableName, actor, options);
   const pageSize = getPageSize(options.pageSize);
 
   if (pageSize) {
@@ -41,12 +42,12 @@ export function getAdminTableView(
         `
           SELECT ${getTableViewColumnList(table)}
           FROM ${table.name}
-          ${userScope.whereClause}
+          ${viewScope.whereClause}
           ORDER BY id ASC
           LIMIT ? OFFSET ?
         `,
       )
-      .all(...userScope.params, pageSize + 1, offset) as AdminRow[];
+      .all(...viewScope.params, pageSize + 1, offset) as AdminRow[];
     const rows = fetchedRows.slice(0, pageSize);
 
     return {
@@ -67,11 +68,11 @@ export function getAdminTableView(
       `
         SELECT ${getTableViewColumnList(table)}
         FROM ${table.name}
-        ${userScope.whereClause}
+        ${viewScope.whereClause}
         ORDER BY id ASC
       `,
     )
-    .all(...userScope.params) as AdminRow[];
+    .all(...viewScope.params) as AdminRow[];
 
   return {
     table,
@@ -101,33 +102,45 @@ function getRequiredSelectOptionKeys(
   return [...keys];
 }
 
-function getUserScope(
+function getViewScope(
   tableName: EditableTableName,
   actor: User,
-  userAccess: UserAccessFilter | undefined,
+  options: AdminTableViewOptions,
 ): { whereClause: string; params: (string | number)[] } {
-  if (tableName !== "users") return { whereClause: "", params: [] };
-
   const conditions: string[] = [];
   const params: (string | number)[] = [];
 
-  if (actor.role !== "superadmin") {
+  if (tableName === "users" && actor.role !== "superadmin") {
     conditions.push("role = ?");
     params.push("guest");
   }
 
-  if (userAccess === "active") {
+  if (tableName === "users" && options.userAccess === "active") {
     conditions.push("active = ?");
     params.push(1);
-  } else if (userAccess === "inactive") {
+  } else if (tableName === "users" && options.userAccess === "inactive") {
     conditions.push("active = ?");
     params.push(0);
+  }
+
+  if (tableName === "guest_service_bookings") {
+    const guestNameSearch = options.guestNameSearch?.trim();
+    if (guestNameSearch) {
+      conditions.push(
+        "guest_profile_id IN (SELECT id FROM guest_profiles WHERE name LIKE ? ESCAPE '\\')",
+      );
+      params.push(`%${escapeLikePattern(guestNameSearch)}%`);
+    }
   }
 
   return {
     whereClause: conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "",
     params,
   };
+}
+
+function escapeLikePattern(value: string): string {
+  return value.replace(/[\\%_]/g, (character) => `\\${character}`);
 }
 
 export function getAdminRowForEdit(

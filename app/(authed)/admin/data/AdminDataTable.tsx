@@ -25,6 +25,7 @@ export function AdminTableSection({
   actionMode,
   actor,
   editHref,
+  filters,
   paginationHref,
   passwordHref,
   tableName,
@@ -34,6 +35,7 @@ export function AdminTableSection({
   actionMode: "records" | "user-access";
   actor: User;
   editHref?: (rowId: number) => string;
+  filters?: ReactNode;
   paginationHref?: (page: number) => string;
   passwordHref?: (rowId: number) => string;
   tableName: EditableTableName;
@@ -61,6 +63,7 @@ export function AdminTableSection({
           <span className="text-xs text-ink/50">{rowCountLabel}</span>
         </div>
       </div>
+      {filters && <div className="mb-4">{filters}</div>}
 
       {view.rows.length === 0 ? (
         <div className="rounded-lg border border-black/5 bg-surface px-6 py-10 text-center text-sm text-ink/60">
