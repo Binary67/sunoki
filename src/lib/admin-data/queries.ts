@@ -1,4 +1,5 @@
 import { db, type User } from "../db";
+import { formatBookingDate } from "../booking-dates";
 import {
   getAdminTableDefinition,
   type AdminRow,
@@ -121,6 +122,30 @@ function getViewScope(
   } else if (tableName === "users" && options.userAccess === "inactive") {
     conditions.push("active = ?");
     params.push(0);
+  }
+
+  if (
+    tableName === "facility_bookings" ||
+    tableName === "guest_service_bookings"
+  ) {
+    const today = formatBookingDate(new Date());
+    conditions.push(`
+      guest_profile_id IN (
+        SELECT gp.id
+        FROM guest_profiles gp
+        JOIN users u ON u.id = gp.user_id
+        WHERE u.role = 'guest'
+          AND u.active = 1
+          AND gp.status = 'checked_in'
+          AND u.check_out_date IS NOT NULL
+          AND length(u.check_out_date) = 10
+          AND u.check_out_date >= ?
+          AND gp.checkout_date IS NOT NULL
+          AND length(gp.checkout_date) = 10
+          AND gp.checkout_date >= ?
+      )
+    `);
+    params.push(today, today);
   }
 
   if (tableName === "guest_service_bookings") {
