@@ -34,6 +34,7 @@ import GuestProfileDeleteForm from "../GuestProfileDeleteForm";
 import GuestProfileForm from "../GuestProfileForm";
 import GuestProfileToast from "../GuestProfileToast";
 import GuestPackageServicesList from "../GuestPackageServicesList";
+import PrintGuestProfileButton from "./PrintGuestProfileButton";
 
 type PageProps = {
   params: Promise<{ id: string }>;
@@ -67,15 +68,214 @@ export default async function GuestProfileDetailPage({
   );
   const isCheckInAction = profile.status !== "checked_in";
   const checkInDisabled = isCheckInAction && !profile.roomNumber?.trim();
+  const generatedAt = formatPrintDateTime(new Date());
 
   return (
-    <main className="flex-1 px-4 py-6 sm:px-6 sm:py-8 lg:px-10">
+    <main className="guest-profile-print-page flex-1 px-4 py-6 sm:px-6 sm:py-8 lg:px-10">
+      <style>{`
+        .guest-profile-print-only {
+          display: none;
+        }
+
+        @media print {
+          @page {
+            margin: 10mm;
+          }
+
+          body:has(.guest-profile-print-page) {
+            background: #fff;
+          }
+
+          body:has(.guest-profile-print-page) aside,
+          body:has(.guest-profile-print-page) header,
+          body:has(.guest-profile-print-page) .guest-profile-screen-only,
+          body:has(.guest-profile-print-page) .guest-profile-print-hidden {
+            display: none !important;
+          }
+
+          body:has(.guest-profile-print-page) .h-screen {
+            height: auto !important;
+          }
+
+          body:has(.guest-profile-print-page) .overflow-hidden,
+          body:has(.guest-profile-print-page) .overflow-x-auto,
+          body:has(.guest-profile-print-page) .overflow-y-auto {
+            overflow: visible !important;
+          }
+
+          body:has(.guest-profile-print-page) .guest-profile-print-page {
+            color: #000;
+            padding: 0 !important;
+          }
+
+          body:has(.guest-profile-print-page) .guest-profile-print-only {
+            display: block !important;
+          }
+
+          body:has(.guest-profile-print-page) .guest-profile-print-header {
+            border-bottom: 1px solid #1d1d1f;
+            margin-bottom: 8mm;
+            padding-bottom: 7mm;
+          }
+
+          body:has(.guest-profile-print-page) .guest-profile-print-header-top {
+            align-items: flex-start;
+            display: flex;
+            gap: 8mm;
+            justify-content: space-between;
+          }
+
+          body:has(.guest-profile-print-page) .guest-profile-print-kicker {
+            color: #666;
+            font-size: 8pt;
+            font-weight: 700;
+            letter-spacing: 0.16em;
+            margin: 0 0 2mm;
+            text-transform: uppercase;
+          }
+
+          body:has(.guest-profile-print-page) .guest-profile-print-title {
+            color: #111;
+            font-size: 20pt;
+            font-weight: 700;
+            line-height: 1.1;
+            margin: 0;
+          }
+
+          body:has(.guest-profile-print-page) .guest-profile-print-generated {
+            color: #444;
+            font-size: 9pt;
+            font-weight: 600;
+            line-height: 1.45;
+            margin: 0;
+            text-align: right;
+          }
+
+          body:has(.guest-profile-print-page) .guest-profile-print-generated span {
+            color: #777;
+            display: block;
+            font-size: 7.5pt;
+            font-weight: 700;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+          }
+
+          body:has(.guest-profile-print-page) .guest-profile-print-summary {
+            border: 1px solid #bbb;
+            display: grid;
+            gap: 0;
+            grid-template-columns: 1fr 1fr;
+            margin: 6mm 0 0;
+          }
+
+          body:has(.guest-profile-print-page) .guest-profile-print-summary-group {
+            padding: 4mm;
+          }
+
+          body:has(.guest-profile-print-page) .guest-profile-print-summary-group + .guest-profile-print-summary-group {
+            border-left: 1px solid #bbb;
+          }
+
+          body:has(.guest-profile-print-page) .guest-profile-print-summary-heading {
+            color: #111;
+            font-size: 8.5pt;
+            font-weight: 700;
+            letter-spacing: 0.12em;
+            margin: 0 0 3mm;
+            text-transform: uppercase;
+          }
+
+          body:has(.guest-profile-print-page) .guest-profile-print-meta {
+            display: grid;
+            gap: 3mm 6mm;
+            grid-template-columns: 1fr 1fr;
+          }
+
+          body:has(.guest-profile-print-page) .guest-profile-print-meta div {
+            min-width: 0;
+          }
+
+          body:has(.guest-profile-print-page) .guest-profile-print-meta dt {
+            color: #777;
+            font-size: 7.5pt;
+            font-weight: 700;
+            letter-spacing: 0.14em;
+            margin: 0 0 1.5mm;
+            text-transform: uppercase;
+          }
+
+          body:has(.guest-profile-print-page) .guest-profile-print-meta dd {
+            color: #111;
+            font-size: 10pt;
+            font-weight: 600;
+            margin: 0;
+          }
+
+          body:has(.guest-profile-print-page) .guest-profile-print-section {
+            break-inside: avoid;
+            border-color: #bbb !important;
+            box-shadow: none !important;
+          }
+
+          body:has(.guest-profile-print-page) .guest-profile-print-table {
+            min-width: 0 !important;
+          }
+        }
+      `}</style>
       <GuestProfileToast error={error} success={success} />
-      <div className="mb-7 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <section className="guest-profile-print-only guest-profile-print-header">
+        <div className="guest-profile-print-header-top">
+          <div>
+            <p className="guest-profile-print-kicker">Guest Profile Reference</p>
+            <h1 className="guest-profile-print-title">{profile.name}</h1>
+          </div>
+          <p className="guest-profile-print-generated">
+            <span>Generated</span>
+            {generatedAt}
+          </p>
+        </div>
+        <div className="guest-profile-print-summary">
+          <section className="guest-profile-print-summary-group">
+            <h2 className="guest-profile-print-summary-heading">Profile</h2>
+            <dl className="guest-profile-print-meta">
+              <div>
+                <dt>Room</dt>
+                <dd>{formatValue(profile.roomNumber)}</dd>
+              </div>
+              <div>
+                <dt>Status</dt>
+                <dd>{getGuestProfileStatusLabel(displayStatus)}</dd>
+              </div>
+              <div>
+                <dt>Registered</dt>
+                <dd>{profile.createdAt}</dd>
+              </div>
+            </dl>
+          </section>
+          <section className="guest-profile-print-summary-group">
+            <h2 className="guest-profile-print-summary-heading">Stay Dates</h2>
+            <dl className="guest-profile-print-meta">
+              <div>
+                <dt>EDD</dt>
+                <dd>{formatValue(profile.expectedDeliveryDate)}</dd>
+              </div>
+              <div>
+                <dt>Check In</dt>
+                <dd>{formatValue(profile.checkInDate)}</dd>
+              </div>
+              <div>
+                <dt>Checkout</dt>
+                <dd>{formatValue(checkoutDate)}</dd>
+              </div>
+            </dl>
+          </section>
+        </div>
+      </section>
+      <div className="guest-profile-print-hidden mb-7 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <Link
             href={getGuestProfileListHref(displayStatus)}
-            className="text-sm font-medium text-brand hover:underline"
+            className="guest-profile-screen-only text-sm font-medium text-brand hover:underline"
           >
             Back to Guest Profile
           </Link>
@@ -113,7 +313,8 @@ export default async function GuestProfileDetailPage({
               {getGuestProfileStatusLabel(displayStatus)}
             </span>
           </div>
-          <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+          <div className="guest-profile-screen-only flex flex-wrap items-center gap-2 sm:justify-end">
+            {!showEdit && <PrintGuestProfileButton />}
             <form action={setGuestProfileStatusAction}>
               <input type="hidden" name="profileId" value={profile.id} />
               <input
@@ -163,7 +364,9 @@ export default async function GuestProfileDetailPage({
         </div>
       </div>
 
-      <StatusMessage error={error} success={success} />
+      <div className="guest-profile-screen-only">
+        <StatusMessage error={error} success={success} />
+      </div>
 
       {showEdit ? (
         <section className="overflow-hidden rounded-lg border border-brand/20 bg-white">
@@ -181,7 +384,7 @@ export default async function GuestProfileDetailPage({
           {GUEST_PROFILE_SECTIONS.map((section) => (
             <section
               key={section.title}
-              className="rounded-lg border border-black/5 bg-white px-4 py-5 sm:px-5"
+              className="guest-profile-print-section rounded-lg border border-black/5 bg-white px-4 py-5 sm:px-5"
             >
               <h2 className="text-base font-semibold text-ink">
                 {section.title}
@@ -226,7 +429,7 @@ function GuestProfileAccountSection({ profile }: { profile: GuestProfile }) {
         : "Not created";
 
   return (
-    <section className="rounded-lg border border-black/5 bg-white px-4 py-5 sm:px-5">
+    <section className="guest-profile-print-hidden rounded-lg border border-black/5 bg-white px-4 py-5 sm:px-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h2 className="text-base font-semibold text-ink">Account Access</h2>
@@ -265,7 +468,7 @@ function GuestProfileBookingsSection({
   profileId: number;
 }) {
   return (
-    <section className="rounded-lg border border-black/5 bg-white px-4 py-5 sm:px-5">
+    <section className="guest-profile-print-section rounded-lg border border-black/5 bg-white px-4 py-5 sm:px-5">
       <div className="flex items-baseline justify-between gap-4">
         <h2 className="text-base font-semibold text-ink">Bookings</h2>
         <span className="text-xs text-ink/50">
@@ -276,7 +479,7 @@ function GuestProfileBookingsSection({
         <p className="mt-4 text-sm leading-6 text-ink/60">-</p>
       ) : (
         <div className="mt-4 overflow-x-auto rounded-lg border border-black/5">
-          <table className="w-full min-w-[760px] text-sm">
+          <table className="guest-profile-print-table w-full min-w-[760px] text-sm">
             <thead className="bg-surface text-[11px] uppercase tracking-[0.14em] text-ink/45">
               <tr>
                 <th className="px-4 py-3 text-left font-medium">Type</th>
@@ -371,7 +574,7 @@ function GuestProfileAddonSection({
   const totalCents = getGuestProfileAddonTotalCents(addons);
 
   return (
-    <section className="rounded-lg border border-black/5 bg-white px-4 py-5 sm:px-5">
+    <section className="guest-profile-print-section rounded-lg border border-black/5 bg-white px-4 py-5 sm:px-5">
       <h2 className="text-base font-semibold text-ink">Addon</h2>
       {addons.length === 0 ? (
         <p className="mt-4 text-sm leading-6 text-ink/60">-</p>
@@ -454,6 +657,17 @@ function ProfileDetailItem({
 
 function formatValue(value: string | null | undefined): string {
   return value || "-";
+}
+
+function formatPrintDateTime(date: Date): string {
+  const day = String(date.getDate()).padStart(2, "0");
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const year = date.getFullYear();
+  const hour = date.getHours();
+  const minute = String(date.getMinutes()).padStart(2, "0");
+  const period = hour >= 12 ? "PM" : "AM";
+  const displayHour = hour % 12 || 12;
+  return `${day}/${month}/${year}, ${displayHour}:${minute} ${period}`;
 }
 
 function StatusMessage({
