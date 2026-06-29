@@ -1,4 +1,5 @@
 import { db } from "../db";
+import { formatBookingDate } from "../booking-dates";
 import type { UserRole } from "../roles";
 import { BOOKABLE_PACKAGE_SERVICES } from "../service-bookings/catalog";
 import type {
@@ -30,8 +31,11 @@ export function getAdminSelectOptions(
 ): AdminSelectOptions {
   const required = new Set(requiredKeys);
   const facilities = required.has("facilities") ? getFacilityOptions() : [];
-  const users =
-    required.has("guestUsers") || required.has("users") ? getUserOptions() : [];
+  const users = required.has("guestUsers")
+    ? getCurrentGuestUserOptions()
+    : required.has("users")
+      ? getUserOptions()
+      : [];
 
   return buildSelectOptions(facilities, users);
 }
@@ -170,6 +174,35 @@ function getUserOptions(): UserOptionRow[] {
       `,
     )
     .all() as UserOptionRow[];
+}
+
+function getCurrentGuestUserOptions(): UserOptionRow[] {
+  const today = formatBookingDate(new Date());
+  return db
+    .prepare(
+      `
+        SELECT
+          u.id,
+          gp.name AS guestName,
+          gp.room_number AS roomNumber,
+          u.username,
+          u.role,
+          u.active
+        FROM users u
+        JOIN guest_profiles gp ON gp.user_id = u.id
+        WHERE u.role = 'guest'
+          AND u.active = 1
+          AND gp.status = 'checked_in'
+          AND u.check_out_date IS NOT NULL
+          AND length(u.check_out_date) = 10
+          AND u.check_out_date >= ?
+          AND gp.checkout_date IS NOT NULL
+          AND length(gp.checkout_date) = 10
+          AND gp.checkout_date >= ?
+        ORDER BY gp.name ASC, u.username ASC, u.id ASC
+      `,
+    )
+    .all(today, today) as UserOptionRow[];
 }
 
 function getUserOptionsByIds(ids: number[]): UserOptionRow[] {
