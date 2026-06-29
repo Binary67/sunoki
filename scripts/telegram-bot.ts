@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { Telegraf, type Context } from "telegraf";
+import { buildKitchenNotesTelegramSummary } from "../src/lib/telegram/kitchen-notes-summary";
 import { buildRoomOccupancyTelegramSummary } from "../src/lib/telegram/room-occupancy-summary";
 import {
   buildTodayBookingsTelegramSummary,
@@ -20,6 +21,7 @@ const bot = new Telegraf(config.token);
 bot.command("upcoming_bookings", (ctx) => handleUpcomingBookings(ctx, config));
 bot.command("today_bookings", (ctx) => handleTodayBookings(ctx, config));
 bot.command("room_occupancy", (ctx) => handleRoomOccupancy(ctx, config));
+bot.command("kitchen_notes", (ctx) => handleKitchenNotes(ctx, config));
 bot.command("chat_id", (ctx) => {
   if (!ctx.chat) return;
   return ctx.reply(`This chat ID is ${ctx.chat.id}.`);
@@ -32,6 +34,9 @@ bot.hears(/^\/TodayBookings(?:@[A-Za-z0-9_]+)?(?:\s|$)/, (ctx) =>
 );
 bot.hears(/^\/RoomOccupancy(?:@[A-Za-z0-9_]+)?(?:\s|$)/, (ctx) =>
   handleRoomOccupancy(ctx, config),
+);
+bot.hears(/^\/KitchenNotes(?:@[A-Za-z0-9_]+)?(?:\s|$)/, (ctx) =>
+  handleKitchenNotes(ctx, config),
 );
 
 bot.catch((error) => {
@@ -49,7 +54,7 @@ main().catch((error) => {
 async function main() {
   await bot.launch();
   console.log(
-    "Telegram bot polling for /upcoming_bookings, /today_bookings, and /room_occupancy.",
+    "Telegram bot polling for /upcoming_bookings, /today_bookings, /room_occupancy, and /kitchen_notes.",
   );
   console.log(
     `Authorized Telegram chat IDs: ${Array.from(config.allowedChatIds).join(", ")}`,
@@ -83,6 +88,15 @@ async function handleRoomOccupancy(ctx: Context, config: TelegramBotConfig) {
     config,
     buildRoomOccupancyTelegramSummary,
     "room occupancy",
+  );
+}
+
+async function handleKitchenNotes(ctx: Context, config: TelegramBotConfig) {
+  await handleBookingSummary(
+    ctx,
+    config,
+    buildKitchenNotesTelegramSummary,
+    "guest profile kitchen notes",
   );
 }
 
