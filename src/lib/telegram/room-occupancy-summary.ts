@@ -32,9 +32,9 @@ export function buildRoomOccupancyTelegramSummary(now = new Date()): string {
     occupiedGuests
       .map(
         (guest, index) =>
-          `${index + 1}. Room ${guest.roomNumber} - ${guest.name} - Checkout ${formatValue(
-            guest.checkoutDate,
-          )}`,
+          `${index + 1}. Room ${guest.roomNumber} - ${guest.name} - Stay ${formatValue(
+            guest.checkInDate,
+          )} to ${formatValue(guest.checkoutDate)}`,
       )
       .join("\n"),
   ].join("\n\n");
