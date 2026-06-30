@@ -56,9 +56,12 @@ export function buildGuestServiceTelegramSummary(
   const profile = profiles[0];
   const userId = profile.userId;
   if (!userId) {
-    return `Guest ${profile.name} in room ${requestedRoomNumber} has no linked account.`;
+    return `Guest ${formatGuestDisplayName(
+      profile.name,
+    )} in room ${requestedRoomNumber} has no linked account.`;
   }
 
+  const guestDisplayName = formatGuestDisplayName(profile.name);
   const serviceGroups = buildServiceSummaryGroups(
     profile,
     userId,
@@ -66,10 +69,10 @@ export function buildGuestServiceTelegramSummary(
   );
 
   return [
-    `Good day ${profile.name}`,
+    `Good day ${guestDisplayName}`,
     "This is the updated summary of service list.",
     [
-      `Update for ${profile.name} [${formatDisplayDate(
+      `Update for ${guestDisplayName} [${formatDisplayDate(
         profile.checkInDate,
       )} to ${formatDisplayDate(profile.checkoutDate)}]`,
       "SERVICES",
@@ -193,6 +196,10 @@ function shouldShowServiceGroup(group: ServiceSummaryGroup): boolean {
     (group.totalQuantity !== UNLIMITED_PACKAGE_SERVICE_QUANTITY &&
       group.totalQuantity > 0)
   );
+}
+
+function formatGuestDisplayName(name: string): string {
+  return `Ms. ${name.replace(/^ms\.?\s+/i, "").trim()}`;
 }
 
 function formatServiceGroups(groups: ServiceSummaryGroup[]): string {
