@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { Telegraf, type Context } from "telegraf";
+import { buildGuestServiceTelegramSummary } from "../src/lib/telegram/guest-service-summary";
 import { buildKitchenNotesTelegramSummary } from "../src/lib/telegram/kitchen-notes-summary";
 import { buildRoomOccupancyTelegramSummary } from "../src/lib/telegram/room-occupancy-summary";
 import {
@@ -22,6 +23,7 @@ bot.command("upcoming_bookings", (ctx) => handleUpcomingBookings(ctx, config));
 bot.command("today_bookings", (ctx) => handleTodayBookings(ctx, config));
 bot.command("room_occupancy", (ctx) => handleRoomOccupancy(ctx, config));
 bot.command("kitchen_notes", (ctx) => handleKitchenNotes(ctx, config));
+bot.command("summary", (ctx) => handleGuestServiceSummary(ctx, config));
 bot.command("chat_id", (ctx) => {
   if (!ctx.chat) return;
   return ctx.reply(`This chat ID is ${ctx.chat.id}.`);
@@ -37,6 +39,9 @@ bot.hears(/^\/RoomOccupancy(?:@[A-Za-z0-9_]+)?(?:\s|$)/, (ctx) =>
 );
 bot.hears(/^\/KitchenNotes(?:@[A-Za-z0-9_]+)?(?:\s|$)/, (ctx) =>
   handleKitchenNotes(ctx, config),
+);
+bot.hears(/^\/Summary(?:@[A-Za-z0-9_]+)?(?:\s|$)/, (ctx) =>
+  handleGuestServiceSummary(ctx, config),
 );
 
 bot.catch((error) => {
@@ -54,7 +59,7 @@ main().catch((error) => {
 async function main() {
   await bot.launch();
   console.log(
-    "Telegram bot polling for /upcoming_bookings, /today_bookings, /room_occupancy, and /kitchen_notes.",
+    "Telegram bot polling for /upcoming_bookings, /today_bookings, /room_occupancy, /kitchen_notes, and /summary.",
   );
   console.log(
     `Authorized Telegram chat IDs: ${Array.from(config.allowedChatIds).join(", ")}`,
@@ -100,6 +105,19 @@ async function handleKitchenNotes(ctx: Context, config: TelegramBotConfig) {
   );
 }
 
+async function handleGuestServiceSummary(
+  ctx: Context,
+  config: TelegramBotConfig,
+) {
+  const roomNumber = readCommandArgument(ctx);
+  await handleBookingSummary(
+    ctx,
+    config,
+    () => buildGuestServiceTelegramSummary(roomNumber),
+    "guest service summary",
+  );
+}
+
 async function handleBookingSummary(
   ctx: Context,
   { allowedChatIds }: TelegramBotConfig,
@@ -124,6 +142,11 @@ async function handleBookingSummary(
     console.error(`Failed to build Telegram ${summaryName} summary:`, error);
     await ctx.reply(`Unable to build the ${summaryName} summary.`);
   }
+}
+
+function readCommandArgument(ctx: Context): string {
+  const text = ctx.message && "text" in ctx.message ? ctx.message.text : "";
+  return text.trim().split(/\s+/).slice(1).join(" ");
 }
 
 function readTelegramBotConfig(): TelegramBotConfig {
