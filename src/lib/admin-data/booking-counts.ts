@@ -21,6 +21,8 @@ export type BookingCountReport = {
 export type BookingCountDetailRow = {
   id: number;
   guestName: string;
+  guestIcNo: string | null;
+  guestPhoneNo: string | null;
   name: string;
   bookingDate: string;
   bookingTime: string;
@@ -55,8 +57,9 @@ type FacilityRow = {
 
 type DetailRow = {
   id: number;
-  guestName: string | null;
-  guestUsername: string;
+  guestName: string;
+  guestIcNo: string | null;
+  guestPhoneNo: string | null;
   name: string;
   bookingDate: string;
   bookingTime: string;
@@ -121,7 +124,8 @@ export function getBookingCountDetails({
               SELECT
                 b.id,
                 gp.name AS guestName,
-                u.username AS guestUsername,
+                gp.ic_no AS guestIcNo,
+                gp.handphone_no AS guestPhoneNo,
                 b.service_name AS name,
                 b.booking_date AS bookingDate,
                 b.booking_time AS bookingTime,
@@ -131,8 +135,7 @@ export function getBookingCountDetails({
                 b.cancelled_at AS cancelledAt,
                 b.created_at AS createdAt
               FROM guest_service_bookings b
-              JOIN users u ON u.id = b.user_id
-              LEFT JOIN guest_profiles gp ON gp.id = b.guest_profile_id
+              JOIN guest_profiles gp ON gp.id = b.guest_profile_id
               WHERE b.service_key = ?
                 AND b.booking_date >= ?
                 AND b.booking_date <= ?
@@ -160,7 +163,8 @@ export function getBookingCountDetails({
             SELECT
               b.id,
               gp.name AS guestName,
-              u.username AS guestUsername,
+              gp.ic_no AS guestIcNo,
+              gp.handphone_no AS guestPhoneNo,
               f.name AS name,
               b.booking_date AS bookingDate,
               b.booking_time AS bookingTime,
@@ -171,8 +175,7 @@ export function getBookingCountDetails({
               b.created_at AS createdAt
             FROM facility_bookings b
             JOIN facilities f ON f.id = b.facility_id
-            JOIN users u ON u.id = b.user_id
-            LEFT JOIN guest_profiles gp ON gp.id = b.guest_profile_id
+            JOIN guest_profiles gp ON gp.id = b.guest_profile_id
             WHERE b.facility_id = ?
               AND b.booking_date >= ?
               AND b.booking_date <= ?
@@ -251,7 +254,9 @@ function getFacility(id: number): FacilityRow | null {
 function mapDetailRows(rows: DetailRow[]): BookingCountDetailRow[] {
   return rows.map((row) => ({
     id: Number(row.id),
-    guestName: row.guestName ?? row.guestUsername,
+    guestName: row.guestName,
+    guestIcNo: row.guestIcNo,
+    guestPhoneNo: row.guestPhoneNo,
     name: row.name,
     bookingDate: row.bookingDate,
     bookingTime: row.bookingTime,

@@ -19,6 +19,7 @@ import {
   getSingleValue,
   StatusMessage,
 } from "../AdminDataView";
+import PrintBookingCountDetailsButton from "./PrintBookingCountDetailsButton";
 
 type BookingCountDateRange = {
   from: string;
@@ -62,38 +63,120 @@ export default async function AdminBookingCountsPage({
       : null;
 
   return (
-    <main className="flex-1 px-4 py-6 sm:px-6 sm:py-8 lg:px-10">
-      <DataEditorHeader
-        title="Booking Counts"
-        description="Check service and facility booking counts for vendor reconciliation."
-      />
-      <StatusMessage error={rangeError} />
-      <BookingCountSearchForm
-        from={range?.from ?? rawFrom ?? ""}
-        hasSubmittedRange={hasSubmittedRange}
-        to={range?.to ?? rawTo ?? ""}
-      />
+    <main className="booking-count-print-page flex-1 px-4 py-6 sm:px-6 sm:py-8 lg:px-10">
+      <style>{`
+        @media print {
+          @page {
+            margin: 10mm;
+          }
 
-      {report && range ? (
-        <div className="space-y-8">
-          <BookingCountSection
-            items={report.services}
-            range={range}
-            title="Service Bookings"
-            type="service"
-          />
-          <BookingCountSection
-            items={report.facilities}
-            range={range}
-            title="Facility Bookings"
-            type="facility"
-          />
-        </div>
-      ) : (
-        <div className="rounded-lg border border-black/5 bg-surface px-6 py-10 text-center text-sm text-ink/60">
-          Choose a date range and search to show booking counts.
-        </div>
-      )}
+          body:has(.booking-count-print-page) {
+            background: #fff;
+          }
+
+          body:has(.booking-count-print-page) aside,
+          body:has(.booking-count-print-page) header,
+          body:has(.booking-count-print-page) .booking-count-screen-content,
+          body:has(.booking-count-print-page) .booking-count-print-hidden {
+            display: none !important;
+          }
+
+          body:has(.booking-count-print-page) .h-screen {
+            height: auto !important;
+          }
+
+          body:has(.booking-count-print-page) .overflow-hidden,
+          body:has(.booking-count-print-page) .overflow-x-auto,
+          body:has(.booking-count-print-page) .overflow-y-auto {
+            overflow: visible !important;
+          }
+
+          body:has(.booking-count-print-page) .booking-count-print-page {
+            color: #000;
+            padding: 0 !important;
+          }
+
+          body:has(.booking-count-print-page) .booking-count-details-dialog {
+            background: #fff !important;
+            display: block !important;
+            inset: auto !important;
+            padding: 0 !important;
+            position: static !important;
+          }
+
+          body:has(.booking-count-print-page) .booking-count-details-panel {
+            border-radius: 0 !important;
+            box-shadow: none !important;
+            max-width: none !important;
+            min-height: 0 !important;
+            overflow: visible !important;
+            width: 100% !important;
+          }
+
+          body:has(.booking-count-print-page) .booking-count-details-header {
+            border-bottom: 1px solid #1d1d1f;
+            padding: 0 0 5mm !important;
+          }
+
+          body:has(.booking-count-print-page) .booking-count-details-body {
+            background: #fff !important;
+            padding: 5mm 0 0 !important;
+          }
+
+          body:has(.booking-count-print-page) .booking-count-details-table-wrap {
+            border: 0 !important;
+            border-radius: 0 !important;
+          }
+
+          body:has(.booking-count-print-page) .booking-count-details-table {
+            border-collapse: collapse;
+            color: #000;
+            font-size: 8.5pt;
+            min-width: 0 !important;
+            width: 100% !important;
+          }
+
+          body:has(.booking-count-print-page) .booking-count-details-table th,
+          body:has(.booking-count-print-page) .booking-count-details-table td {
+            border: 1px solid #bbb;
+            color: #000 !important;
+            padding: 2mm;
+          }
+        }
+      `}</style>
+      <div className="booking-count-screen-content">
+        <DataEditorHeader
+          title="Booking Counts"
+          description="Check service and facility booking counts for vendor reconciliation."
+        />
+        <StatusMessage error={rangeError} />
+        <BookingCountSearchForm
+          from={range?.from ?? rawFrom ?? ""}
+          hasSubmittedRange={hasSubmittedRange}
+          to={range?.to ?? rawTo ?? ""}
+        />
+
+        {report && range ? (
+          <div className="space-y-8">
+            <BookingCountSection
+              items={report.services}
+              range={range}
+              title="Service Bookings"
+              type="service"
+            />
+            <BookingCountSection
+              items={report.facilities}
+              range={range}
+              title="Facility Bookings"
+              type="facility"
+            />
+          </div>
+        ) : (
+          <div className="rounded-lg border border-black/5 bg-surface px-6 py-10 text-center text-sm text-ink/60">
+            Choose a date range and search to show booking counts.
+          </div>
+        )}
+      </div>
 
       {range && details && (
         <BookingCountDetailsModal details={details} range={range} />
@@ -234,17 +317,17 @@ function BookingCountDetailsModal({
     <div
       aria-labelledby="booking-count-details-title"
       aria-modal="true"
-      className="fixed inset-0 z-50 flex items-stretch justify-center bg-black/35 p-3 sm:p-6"
+      className="booking-count-details-dialog fixed inset-0 z-50 flex items-stretch justify-center bg-black/35 p-3 sm:p-6"
       role="dialog"
     >
       <Link
         aria-label="Close booking details"
-        className="absolute inset-0"
+        className="booking-count-print-hidden absolute inset-0"
         href={getBookingCountsHref(range)}
         tabIndex={-1}
       />
-      <section className="relative z-10 flex min-h-0 w-full max-w-5xl flex-col overflow-hidden rounded-lg bg-white shadow-xl">
-        <div className="flex items-start justify-between gap-4 border-b border-black/10 px-4 py-4 sm:px-5">
+      <section className="booking-count-details-panel relative z-10 flex min-h-0 w-full max-w-5xl flex-col overflow-hidden rounded-lg bg-white shadow-xl">
+        <div className="booking-count-details-header flex items-start justify-between gap-4 border-b border-black/10 px-4 py-4 sm:px-5">
           <div>
             <h2
               className="text-base font-semibold text-ink sm:text-lg"
@@ -257,28 +340,35 @@ function BookingCountDetailsModal({
               for {formatDateRange(range)}
             </p>
           </div>
-          <Link
-            aria-label="Close booking details"
-            className="grid size-8 shrink-0 place-items-center rounded-md text-ink/55 hover:bg-surface hover:text-ink"
-            href={getBookingCountsHref(range)}
-          >
-            <span aria-hidden="true" className="text-xl leading-none">
-              x
-            </span>
-          </Link>
+          <div className="flex shrink-0 items-center gap-2">
+            <PrintBookingCountDetailsButton />
+            <Link
+              aria-label="Close booking details"
+              className="booking-count-print-hidden grid size-8 place-items-center rounded-md text-ink/55 hover:bg-surface hover:text-ink"
+              href={getBookingCountsHref(range)}
+            >
+              <span aria-hidden="true" className="text-xl leading-none">
+                x
+              </span>
+            </Link>
+          </div>
         </div>
 
-        <div className="min-h-0 overflow-y-auto bg-surface px-4 py-5 sm:px-5">
+        <div className="booking-count-details-body min-h-0 overflow-y-auto bg-surface px-4 py-5 sm:px-5">
           {details.rows.length === 0 ? (
             <div className="rounded-lg border border-black/5 bg-white px-6 py-10 text-center text-sm text-ink/60">
               No bookings found for this date range.
             </div>
           ) : (
-            <div className="overflow-x-auto rounded-lg border border-black/5 bg-white">
-              <table className="w-full min-w-[920px] text-sm">
+            <div className="booking-count-details-table-wrap overflow-x-auto rounded-lg border border-black/5 bg-white">
+              <table className="booking-count-details-table w-full min-w-[1160px] text-sm">
                 <thead className="bg-surface text-[11px] uppercase tracking-[0.14em] text-ink/50">
                   <tr>
                     <th className="px-4 py-3 text-left font-medium">Guest</th>
+                    <th className="px-4 py-3 text-left font-medium">
+                      Guest IC
+                    </th>
+                    <th className="px-4 py-3 text-left font-medium">Phone</th>
                     <th className="px-4 py-3 text-left font-medium">
                       {details.type === "service" ? "Service" : "Facility"}
                     </th>
@@ -302,6 +392,12 @@ function BookingCountDetailsModal({
                     <tr className="border-t border-black/5" key={row.id}>
                       <td className="px-4 py-3 text-ink/80">
                         {row.guestName}
+                      </td>
+                      <td className="px-4 py-3 text-ink/80">
+                        {formatOptionalValue(row.guestIcNo)}
+                      </td>
+                      <td className="px-4 py-3 text-ink/80">
+                        {formatOptionalValue(row.guestPhoneNo)}
                       </td>
                       <td className="px-4 py-3 text-ink/80">{row.name}</td>
                       <td className="px-4 py-3 text-ink/80">
