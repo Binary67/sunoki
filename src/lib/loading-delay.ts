@@ -1,6 +1,5 @@
-export async function waitForSkeletonLoadingDelay() {
-  const delaySeconds = Number(process.env.STIME ?? 0);
-  if (!(delaySeconds > 0)) return;
+const STIME = 0;
 
-  await new Promise((resolve) => setTimeout(resolve, delaySeconds * 1000));
+export async function waitForSkeletonLoadingDelay() {
+  await new Promise((resolve) => setTimeout(resolve, STIME * 1000));
 }
