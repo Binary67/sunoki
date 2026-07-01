@@ -5,6 +5,7 @@ import {
   getAdminTableView,
   type UserAccessFilter,
 } from "@/src/lib/admin-data/queries";
+import { waitForSkeletonLoadingDelay } from "@/src/lib/loading-delay";
 import {
   AdminTableSection,
   CreateFormSection,
@@ -50,6 +51,8 @@ const USER_TABS: TabLink<UsersTab>[] = [
 
 export default async function AdminUsersPage({ searchParams }: PageProps) {
   const actor = await requireAdminUser();
+  await waitForSkeletonLoadingDelay();
+
   const query = await searchParams;
   const activeTab = getUsersTab(getSingleValue(query.tab));
   const accessFilter = getUserAccessFilter(getSingleValue(query.access));

@@ -13,6 +13,7 @@ import {
   type BookingCountItem,
   type BookingCountType,
 } from "@/src/lib/admin-data/booking-counts";
+import { waitForSkeletonLoadingDelay } from "@/src/lib/loading-delay";
 import {
   DataEditorHeader,
   getSingleValue,
@@ -39,6 +40,7 @@ export default async function AdminBookingCountsPage({
   searchParams,
 }: PageProps) {
   await requireAdminUser();
+  await waitForSkeletonLoadingDelay();
 
   const query = await searchParams;
   const rawFrom = getSingleValue(query.dateFrom);

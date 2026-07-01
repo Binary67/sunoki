@@ -16,6 +16,7 @@ import {
   BOOKABLE_PACKAGE_SERVICES,
   type ServiceBookingKey,
 } from "@/src/lib/service-bookings/catalog";
+import { waitForSkeletonLoadingDelay } from "@/src/lib/loading-delay";
 import PendingBookingQuotaModal from "../_dashboard/PendingBookingQuotaModal";
 import PendingBookingSection from "../_dashboard/PendingBookingSection";
 import RoomOccupancyModal, {
@@ -71,6 +72,7 @@ export default async function Dashboard({ searchParams }: PageProps) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
   if (!isAdminRole(user.role)) return <GuestHome />;
+  await waitForSkeletonLoadingDelay();
 
   const query = await searchParams;
   const activeTab = getDashboardTab(getSingleValue(query.tab));

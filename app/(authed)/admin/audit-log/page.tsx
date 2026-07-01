@@ -11,6 +11,7 @@ import {
   isAuditOperation,
   type AuditOperation,
 } from "@/src/lib/admin-data/audit";
+import { waitForSkeletonLoadingDelay } from "@/src/lib/loading-delay";
 
 type PageProps = {
   searchParams: Promise<{
@@ -20,6 +21,8 @@ type PageProps = {
 };
 
 export default async function AuditLogPage({ searchParams }: PageProps) {
+  await waitForSkeletonLoadingDelay();
+
   const query = await searchParams;
   const tableName = getTableFilter(getSingleValue(query.table));
   const operation = getOperationFilter(getSingleValue(query.operation));

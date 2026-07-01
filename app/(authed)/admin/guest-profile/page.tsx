@@ -12,6 +12,7 @@ import {
   type GuestProfileFilterStatus,
   type GuestProfileListItem,
 } from "@/src/lib/guest-profiles";
+import { waitForSkeletonLoadingDelay } from "@/src/lib/loading-delay";
 import { listPackageEntitlementOptions } from "@/src/lib/package-entitlement-options";
 import { createGuestProfileAction } from "./actions";
 import GuestProfileForm from "./GuestProfileForm";
@@ -39,6 +40,8 @@ export default async function GuestProfilePage({ searchParams }: PageProps) {
   const error = getSingleValue(query.error);
   const success = getSingleValue(query.success);
   const user = await requireAdminUser();
+  await waitForSkeletonLoadingDelay();
+
   const activeStatus = getGuestProfileStatus(getSingleValue(query.status));
   const today = formatBookingDate(new Date());
   const profiles = sortGuestProfilesByStatusDate(

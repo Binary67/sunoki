@@ -14,6 +14,7 @@ import {
   type KitchenPrepServiceKey,
   type KitchenServicePrepBooking,
 } from "@/src/lib/service-bookings/kitchen-prep";
+import { waitForSkeletonLoadingDelay } from "@/src/lib/loading-delay";
 import PrintKitchenNotesButton from "./PrintKitchenNotesButton";
 
 type PageProps = {
@@ -74,6 +75,8 @@ const KITCHEN_TABS: KitchenTabLink[] = [
 ];
 
 export default async function KitchenPage({ searchParams }: PageProps) {
+  await waitForSkeletonLoadingDelay();
+
   const query = await searchParams;
   const activeTab = getKitchenTab(getSingleValue(query.tab));
   const selectedBookingDateRange = getBookingDateRangeFilter(

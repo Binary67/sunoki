@@ -19,6 +19,7 @@ import {
   type GuestProfileFilterStatus,
 } from "@/src/lib/guest-profiles";
 import { ADDITIONAL_DAYS_ADDON_NAME } from "@/src/lib/guest-profile-addons";
+import { waitForSkeletonLoadingDelay } from "@/src/lib/loading-delay";
 import {
   listPackageEntitlementOptions,
   parsePackageEntitlementSnapshot,
@@ -55,6 +56,8 @@ export default async function GuestProfileDetailPage({
   const showEdit = getSingleValue(query.edit) === "1";
   const profile = getGuestProfile(Number(id));
   if (!profile) notFound();
+  await waitForSkeletonLoadingDelay();
+
   const addons = listGuestProfileAddons(profile.id);
   const bookings = showEdit ? [] : listGuestBookingChecklist(profile.id);
   const displayStatus = getGuestProfileComputedStatus(profile);

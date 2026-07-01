@@ -182,7 +182,6 @@ function SidebarNav({
           <div className="flex flex-col">
             <Link
               href="/"
-              prefetch={false}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-md text-sm transition-colors duration-200 ${
                 dashboardActive
                   ? "text-brand font-medium bg-surface"
@@ -194,7 +193,6 @@ function SidebarNav({
             </Link>
             <Link
               href="/admin/guest-profile"
-              prefetch={false}
               className={`flex items-center gap-3 rounded-md px-3 py-2.5 text-sm transition-colors duration-200 ${
                 guestProfileActive
                   ? "bg-surface font-medium text-brand"
@@ -206,7 +204,6 @@ function SidebarNav({
             </Link>
             <Link
               href="/admin/kitchen"
-              prefetch={false}
               className={`flex items-center gap-3 rounded-md px-3 py-2.5 text-sm transition-colors duration-200 ${
                 kitchenActive
                   ? "bg-surface font-medium text-brand"
@@ -246,7 +243,6 @@ function SidebarNav({
                       <Link
                         key={href}
                         href={href}
-                        prefetch={false}
                         className={`relative flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors duration-200 ${
                           active
                             ? "text-brand font-medium bg-surface"
@@ -267,7 +263,6 @@ function SidebarNav({
             )}
             <Link
               href="/admin/audit-log"
-              prefetch={false}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-md text-sm transition-colors duration-200 ${
                 auditActive
                   ? "text-brand font-medium bg-surface"
@@ -281,7 +276,6 @@ function SidebarNav({
           <div className="mt-auto pt-6">
             <Link
               href="/admin/personalization"
-              prefetch={false}
               className={`flex items-center gap-3 rounded-md px-3 py-2.5 text-sm transition-colors duration-200 ${
                 personalizationActive
                   ? "bg-surface font-medium text-brand"
@@ -298,7 +292,6 @@ function SidebarNav({
       {!isAdmin && (
         <Link
           href="/"
-          prefetch={false}
           className={`flex items-center gap-3 rounded-md px-3 py-2.5 text-sm transition-colors duration-200 ${
             dashboardActive
               ? "bg-surface font-medium text-brand"

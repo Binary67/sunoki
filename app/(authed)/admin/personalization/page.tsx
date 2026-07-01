@@ -4,6 +4,7 @@ import {
   BRAND_NAME_MAX_LENGTH,
   getBrandingSettings,
 } from "@/src/lib/branding";
+import { waitForSkeletonLoadingDelay } from "@/src/lib/loading-delay";
 import { updateBrandingSettingsAction } from "./actions";
 import PersonalizationForm from "./PersonalizationForm";
 
@@ -17,6 +18,8 @@ type PageProps = {
 export default async function PersonalizationPage({
   searchParams,
 }: PageProps) {
+  await waitForSkeletonLoadingDelay();
+
   const branding = getBrandingSettings();
   const query = await searchParams;
   const error = getSingleValue(query.error);

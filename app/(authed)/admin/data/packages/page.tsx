@@ -6,6 +6,7 @@ import {
   getAdminRowForEdit,
   getAdminTableView,
 } from "@/src/lib/admin-data/queries";
+import { waitForSkeletonLoadingDelay } from "@/src/lib/loading-delay";
 import {
   AdminTableSection,
   CreateFormSection,
@@ -55,6 +56,8 @@ const SERVICE_BOOKING_PAGE_SIZE = 10;
 
 export default async function AdminPackagesPage({ searchParams }: PageProps) {
   const actor = await requireAdminUser();
+  await waitForSkeletonLoadingDelay();
+
   const query = await searchParams;
   const canManagePackages = actor.role === "superadmin";
   const tabs = canManagePackages

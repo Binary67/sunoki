@@ -6,6 +6,7 @@ import {
   getAdminRowForEdit,
   getAdminTableView,
 } from "@/src/lib/admin-data/queries";
+import { waitForSkeletonLoadingDelay } from "@/src/lib/loading-delay";
 import {
   AdminTableSection,
   CreateFormSection,
@@ -50,6 +51,8 @@ const BOOKING_PAGE_SIZE = 10;
 
 export default async function AdminFacilitiesPage({ searchParams }: PageProps) {
   const actor = await requireAdminUser();
+  await waitForSkeletonLoadingDelay();
+
   const query = await searchParams;
   const activeTab = getFacilitiesTab(getSingleValue(query.tab));
   const tableName = getFacilitiesTableName(activeTab);

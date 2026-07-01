@@ -3,6 +3,7 @@ import {
   getExportTableSummaries,
   type ExportTableSummary,
 } from "@/src/lib/admin-data/table-export";
+import { waitForSkeletonLoadingDelay } from "@/src/lib/loading-delay";
 import {
   getBackupImportDraft,
   type BackupCellDiff,
@@ -38,6 +39,8 @@ export default async function AdminDataBackupPage({
   searchParams,
 }: PageProps) {
   const actor = await requireSuperAdminUser();
+  await waitForSkeletonLoadingDelay();
+
   const query = await searchParams;
   const activeTab = getBackupTab(getSingleValue(query.tab));
   const draftToken = getSingleValue(query.draft);
