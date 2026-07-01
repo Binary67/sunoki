@@ -24,7 +24,7 @@ export type GuestServiceBookingSummary = {
   packageQuantity: number;
   purchasedPerkQuantity: number;
   totalQuantity: number;
-  usedQuantity: number;
+  bookedQuantity: number;
   remainingQuantity: number | null;
   bookings: GuestServiceBooking[];
 };

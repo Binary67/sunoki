@@ -83,7 +83,6 @@ export default function PendingBookingQuotaModal({
                     label="Booked"
                     value={service.bookedQuantity}
                   />
-                  <QuotaDetailItem label="Used" value={service.usedQuantity} />
                   <QuotaDetailItem
                     label="Package"
                     value={service.packageQuantity}

@@ -2,7 +2,7 @@ import { parsePackageEntitlementSnapshot } from "../package-entitlement-options"
 import { UNLIMITED_PACKAGE_SERVICE_QUANTITY } from "../package-entitlements";
 import type { BookablePackageService } from "./catalog";
 import {
-  getDoneServiceBookingCount,
+  getBookedServiceBookingCount,
   getPurchasedPerkQuantity,
   type GuestProfileServiceRow,
 } from "./repository";
@@ -11,7 +11,7 @@ export type ServiceEntitlement = {
   packageQuantity: number;
   purchasedPerkQuantity: number;
   totalQuantity: number;
-  usedQuantity: number;
+  bookedQuantity: number;
   remainingQuantity: number | null;
 };
 
@@ -37,7 +37,7 @@ export function getServiceEntitlement(
     packageQuantity === UNLIMITED_PACKAGE_SERVICE_QUANTITY
       ? UNLIMITED_PACKAGE_SERVICE_QUANTITY
       : packageQuantity + purchasedPerkQuantity;
-  const usedQuantity = getDoneServiceBookingCount(
+  const bookedQuantity = getBookedServiceBookingCount(
     userId,
     service.key,
     excludeBookingId,
@@ -45,13 +45,13 @@ export function getServiceEntitlement(
   const remainingQuantity =
     totalQuantity === UNLIMITED_PACKAGE_SERVICE_QUANTITY
       ? null
-      : Math.max(0, totalQuantity - usedQuantity);
+      : Math.max(0, totalQuantity - bookedQuantity);
 
   return {
     packageQuantity,
     purchasedPerkQuantity,
     totalQuantity,
-    usedQuantity,
+    bookedQuantity,
     remainingQuantity,
   };
 }

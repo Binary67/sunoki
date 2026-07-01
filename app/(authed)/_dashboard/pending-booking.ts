@@ -26,7 +26,6 @@ export type PendingBookingServiceQuota = {
   serviceKey: ServiceBookingKey;
   serviceName: string;
   totalQuantity: number;
-  usedQuantity: number;
 };
 
 export type PendingBookingGuest = {
@@ -41,12 +40,10 @@ type ServiceBookingCountRow = {
   bookedCount: number;
   profileId: number;
   serviceKey: ServiceBookingKey;
-  usedCount: number;
 };
 
 type ServiceBookingCount = {
   bookedQuantity: number;
-  usedQuantity: number;
 };
 
 export function getPendingBookingGuests(today: string): PendingBookingGuest[] {
@@ -107,9 +104,8 @@ function getPendingServiceQuotas(
 
     const counts = countsByProfileService.get(
       getCountKey(profile.id, service.key),
-    ) ?? { bookedQuantity: 0, usedQuantity: 0 };
-    const usedQuantity = counts.usedQuantity;
-    const remainingQuantity = Math.max(0, totalQuantity - usedQuantity);
+    ) ?? { bookedQuantity: 0 };
+    const remainingQuantity = Math.max(0, totalQuantity - counts.bookedQuantity);
     if (remainingQuantity <= 0) return [];
 
     return [
@@ -121,7 +117,6 @@ function getPendingServiceQuotas(
         serviceKey: service.key,
         serviceName: service.name,
         totalQuantity,
-        usedQuantity,
       },
     ];
   });
@@ -164,8 +159,7 @@ function listServiceBookingCountsByProfileIds(
         SELECT
           guest_profile_id AS profileId,
           service_key AS serviceKey,
-          COUNT(*) AS bookedCount,
-          SUM(CASE WHEN admin_done = 1 THEN 1 ELSE 0 END) AS usedCount
+          COUNT(*) AS bookedCount
         FROM guest_service_bookings
         WHERE guest_profile_id IN (${placeholders})
           AND status = 'booked'
@@ -177,7 +171,6 @@ function listServiceBookingCountsByProfileIds(
   for (const row of rows) {
     counts.set(getCountKey(row.profileId, row.serviceKey), {
       bookedQuantity: Number(row.bookedCount),
-      usedQuantity: Number(row.usedCount),
     });
   }
 

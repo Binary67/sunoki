@@ -129,7 +129,7 @@ export function createServiceBooking({
       inTransaction = false;
       return {
         ok: false,
-        error: `You have used all ${service.name} sessions. Please inform admin to add more in your guest profile.`,
+        error: `You have booked all ${service.name} sessions. Please inform admin to add more in your guest profile.`,
       };
     }
 
@@ -332,7 +332,7 @@ export function updateServiceBooking({
       inTransaction = false;
       return {
         ok: false,
-        error: `The selected guest has used all ${service.name} sessions.`,
+        error: `The selected guest has booked all ${service.name} sessions.`,
       };
     }
 
