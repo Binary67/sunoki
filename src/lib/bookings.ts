@@ -43,6 +43,7 @@ export type UpcomingBooking = {
   roomNumber: string | null;
   isRead: boolean;
   isDone: boolean;
+  isRecentlyChanged: boolean;
 };
 
 type UpcomingFacilityBookingRow = {
@@ -55,6 +56,8 @@ type UpcomingFacilityBookingRow = {
   roomNumber: string | null;
   adminRead: number;
   adminDone: number;
+  createdAt: string;
+  latestAuditAt: string | null;
 };
 
 type UpcomingServiceBookingRow = {
@@ -68,6 +71,8 @@ type UpcomingServiceBookingRow = {
   roomNumber: string | null;
   adminRead: number;
   adminDone: number;
+  createdAt: string;
+  latestAuditAt: string | null;
 };
 
 export type UpcomingBookingFilters = {
@@ -77,6 +82,8 @@ export type UpcomingBookingFilters = {
   serviceKeys?: ServiceBookingKey[];
 };
 
+const RECENT_BOOKING_WINDOW_MS = 24 * 60 * 60 * 1000;
+
 function formatNowForSqlite(now: Date): { date: string; time: string } {
   const year = now.getFullYear();
   const month = String(now.getMonth() + 1).padStart(2, "0");
@@ -84,6 +91,41 @@ function formatNowForSqlite(now: Date): { date: string; time: string } {
   const hour = String(now.getHours()).padStart(2, "0");
   const minute = String(now.getMinutes()).padStart(2, "0");
   return { date: `${year}-${month}-${day}`, time: `${hour}:${minute}` };
+}
+
+function isRecentBookingActivity(
+  createdAt: string,
+  latestAuditAt: string | null,
+  now: Date,
+): boolean {
+  const createdAtMs = parseSqliteUtcDateTime(createdAt);
+  const latestAuditAtMs = parseSqliteUtcDateTime(latestAuditAt);
+  const latestActivityAtMs = Math.max(
+    createdAtMs ?? Number.NEGATIVE_INFINITY,
+    latestAuditAtMs ?? Number.NEGATIVE_INFINITY,
+  );
+
+  return (
+    Number.isFinite(latestActivityAtMs) &&
+    now.getTime() - latestActivityAtMs < RECENT_BOOKING_WINDOW_MS
+  );
+}
+
+function parseSqliteUtcDateTime(value: string | null | undefined): number | null {
+  const match =
+    typeof value === "string"
+      ? /^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})$/.exec(value)
+      : null;
+  if (!match) return null;
+
+  return Date.UTC(
+    Number(match[1]),
+    Number(match[2]) - 1,
+    Number(match[3]),
+    Number(match[4]),
+    Number(match[5]),
+    Number(match[6]),
+  );
 }
 
 export function getUpcomingBookings(
@@ -146,7 +188,15 @@ export function getUpcomingBookings(
           gp.room_number    AS roomNumber,
           u.username        AS guestUsername,
           b.admin_read      AS adminRead,
-          b.admin_done      AS adminDone
+          b.admin_done      AS adminDone,
+          b.created_at      AS createdAt,
+          (
+            SELECT MAX(al.created_at)
+            FROM audit_logs al
+            WHERE al.table_name = 'facility_bookings'
+              AND al.row_id = b.id
+              AND al.operation IN ('insert', 'update')
+          ) AS latestAuditAt
         FROM facility_bookings b
         JOIN facilities f ON f.id = b.facility_id
         JOIN users u ON u.id = b.user_id
@@ -172,7 +222,15 @@ export function getUpcomingBookings(
           gp.room_number    AS roomNumber,
           u.username        AS guestUsername,
           b.admin_read      AS adminRead,
-          b.admin_done      AS adminDone
+          b.admin_done      AS adminDone,
+          b.created_at      AS createdAt,
+          (
+            SELECT MAX(al.created_at)
+            FROM audit_logs al
+            WHERE al.table_name = 'guest_service_bookings'
+              AND al.row_id = b.id
+              AND al.operation IN ('insert', 'update')
+          ) AS latestAuditAt
         FROM guest_service_bookings b
         JOIN users u ON u.id = b.user_id
         LEFT JOIN guest_profiles gp ON gp.id = b.guest_profile_id
@@ -196,6 +254,11 @@ export function getUpcomingBookings(
       roomNumber: row.roomNumber,
       isRead: row.adminRead === 1,
       isDone: row.adminDone === 1,
+      isRecentlyChanged: isRecentBookingActivity(
+        row.createdAt,
+        row.latestAuditAt,
+        now,
+      ),
     })),
     ...serviceRows.map((row) => ({
       type: "service" as const,
@@ -209,6 +272,11 @@ export function getUpcomingBookings(
       roomNumber: row.roomNumber,
       isRead: row.adminRead === 1,
       isDone: row.adminDone === 1,
+      isRecentlyChanged: isRecentBookingActivity(
+        row.createdAt,
+        row.latestAuditAt,
+        now,
+      ),
     })),
   ].sort((a, b) => {
     const aTime = `${a.bookingDate} ${a.startTime}`;

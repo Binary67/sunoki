@@ -165,7 +165,11 @@ export default function UpcomingBookings({
               {bookings.map((booking) => (
                 <tr
                   key={`${booking.type}-${booking.bookingId}`}
-                  className="border-t border-black/5"
+                  className={
+                    booking.isRecentlyChanged
+                      ? "border-2 border-red-500"
+                      : "border-t border-black/5"
+                  }
                 >
                   <td className="px-5 py-3">
                     <BookingTypeBadge type={booking.type} />
