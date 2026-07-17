@@ -4,6 +4,7 @@ import { Telegraf, type Context } from "telegraf";
 import { buildGuestServiceTelegramSummary } from "../src/lib/telegram/guest-service-summary";
 import { buildKitchenNotesTelegramSummary } from "../src/lib/telegram/kitchen-notes-summary";
 import { buildRoomOccupancyTelegramSummary } from "../src/lib/telegram/room-occupancy-summary";
+import { buildSpecialAttentionTelegramSummary } from "../src/lib/telegram/special-attention-summary";
 import {
   buildTodayBookingsTelegramSummary,
   buildUpcomingBookingsTelegramSummary,
@@ -24,6 +25,7 @@ bot.command("today_bookings", (ctx) => handleTodayBookings(ctx, config));
 bot.command("room_occupancy", (ctx) => handleRoomOccupancy(ctx, config));
 bot.command("kitchen_notes", (ctx) => handleKitchenNotes(ctx, config));
 bot.command("summary", (ctx) => handleGuestServiceSummary(ctx, config));
+bot.command("special_attention", (ctx) => handleSpecialAttention(ctx, config));
 bot.command("chat_id", (ctx) => {
   if (!ctx.chat) return;
   return ctx.reply(`This chat ID is ${ctx.chat.id}.`);
@@ -43,6 +45,9 @@ bot.hears(/^\/KitchenNotes(?:@[A-Za-z0-9_]+)?(?:\s|$)/, (ctx) =>
 bot.hears(/^\/Summary(?:@[A-Za-z0-9_]+)?(?:\s|$)/, (ctx) =>
   handleGuestServiceSummary(ctx, config),
 );
+bot.hears(/^\/SpecialAttention(?:@[A-Za-z0-9_]+)?(?:\s|$)/, (ctx) =>
+  handleSpecialAttention(ctx, config),
+);
 
 bot.catch((error) => {
   console.error("Telegram bot error:", error);
@@ -59,7 +64,7 @@ main().catch((error) => {
 async function main() {
   await bot.launch();
   console.log(
-    "Telegram bot polling for /upcoming_bookings, /today_bookings, /room_occupancy, /kitchen_notes, and /summary.",
+    "Telegram bot polling for /upcoming_bookings, /today_bookings, /room_occupancy, /kitchen_notes, /summary, and /special_attention.",
   );
   console.log(
     `Authorized Telegram chat IDs: ${Array.from(config.allowedChatIds).join(", ")}`,
@@ -115,6 +120,18 @@ async function handleGuestServiceSummary(
     config,
     () => buildGuestServiceTelegramSummary(roomNumber),
     "guest service summary",
+  );
+}
+
+async function handleSpecialAttention(
+  ctx: Context,
+  config: TelegramBotConfig,
+) {
+  await handleBookingSummary(
+    ctx,
+    config,
+    buildSpecialAttentionTelegramSummary,
+    "special attention report",
   );
 }
 
