@@ -8,7 +8,7 @@ import { getUpcomingBookings, type UpcomingBooking } from "../bookings";
 import { listGuestProfiles, type GuestProfile } from "../guest-profiles";
 import type { ServiceBookingKey } from "../service-bookings/catalog";
 
-const REPORT_WINDOW_DAYS = 14;
+const REPORT_WINDOW_DAYS = 7;
 const IMPORTANT_EVENT_SERVICE_KEYS = [
   "full_moon_ceremony",
   "candlelight_dinner",
@@ -26,7 +26,7 @@ export function buildSpecialAttentionTelegramSummary(
   now = new Date(),
 ): string {
   const today = formatBookingDate(now);
-  const throughDate = addBookingDays(today, REPORT_WINDOW_DAYS);
+  const throughDate = addBookingDays(today, REPORT_WINDOW_DAYS - 1);
   const checkedInProfiles = listGuestProfiles("checked_in", today);
   const upcomingCheckouts = checkedInProfiles
     .flatMap((profile) =>
