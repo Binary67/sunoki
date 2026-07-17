@@ -166,7 +166,7 @@ export default function UpcomingBookings({
                 <tr
                   key={`${booking.type}-${booking.bookingId}`}
                   className={
-                    booking.isRecentlyChanged
+                    booking.isRecentlyAdded
                       ? "border-2 border-red-500"
                       : "border-t border-black/5"
                   }
