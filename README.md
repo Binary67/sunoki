@@ -9,8 +9,7 @@ backed by a local SQLite database.
 - Admin dashboard for room occupancy and upcoming facility/service bookings.
 - Guest profile management for intake, check-in, check-out, package details,
   add-ons, kitchen notes, and linked guest accounts.
-- Admin-managed facility bookings for the Karaoke Lounge, Guest Room 1, Guest
-  Room 2, and Multipurpose Hall.
+- Admin-managed bookings for a configurable facility catalogue.
 - Admin-managed service booking for Relaxing Hair Wash with package entitlement
   and purchased perk tracking.
 - Admin data editor for users, facilities, bookings, service bookings, and
@@ -74,7 +73,7 @@ The data editor under `/admin/data` exposes structured forms around the local
 SQLite tables instead of raw SQL. It covers:
 
 - users and access controls;
-- facility content and facility bookings;
+- facility catalogue and facility bookings;
 - package service quantities and guest service bookings.
 
 Mutations are validated in application code and recorded in the audit log where

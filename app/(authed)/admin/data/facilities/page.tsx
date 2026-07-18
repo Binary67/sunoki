@@ -5,6 +5,7 @@ import {
   getAdminFormSelectOptions,
   getAdminRowForEdit,
   getAdminTableView,
+  getFacilityDeletionImpact,
 } from "@/src/lib/admin-data/queries";
 import { waitForSkeletonLoadingDelay } from "@/src/lib/loading-delay";
 import {
@@ -19,11 +20,13 @@ import {
   StatusMessage,
   type TabLink,
 } from "../AdminDataView";
+import FacilityDeleteModal from "./FacilityDeleteModal";
 
 type FacilitiesTab = "content" | "bookings";
 
 type PageProps = {
   searchParams: Promise<{
+    delete?: string | string[];
     edit?: string | string[];
     error?: string | string[];
     new?: string | string[];
@@ -41,13 +44,12 @@ const FACILITY_TABS: TabLink<FacilitiesTab>[] = [
     href: "/admin/data/facilities?tab=bookings",
   },
   {
-    label: "Content",
+    label: "Facilities",
     value: "content",
     href: "/admin/data/facilities?tab=content",
   },
 ];
 
-const FACILITY_CONTENT_ENABLED = false;
 const BOOKING_PAGE_SIZE = 10;
 
 export default async function AdminFacilitiesPage({ searchParams }: PageProps) {
@@ -58,11 +60,12 @@ export default async function AdminFacilitiesPage({ searchParams }: PageProps) {
   const activeTab = getFacilitiesTab(getSingleValue(query.tab));
   const tableName = getFacilitiesTableName(activeTab);
   const editId = getEditId(getSingleValue(query.edit));
+  const deleteId =
+    activeTab === "content" ? getEditId(getSingleValue(query.delete)) : null;
   const page = getPageNumber(getSingleValue(query.page));
   const guestNameSearch =
     activeTab === "bookings" ? getSearchQuery(getSingleValue(query.q)) : "";
-  const createOpen = activeTab === "bookings" && getSingleValue(query.new) === "1";
-  const showCreate = activeTab !== "bookings" || createOpen;
+  const createOpen = getSingleValue(query.new) === "1";
   const view = getAdminTableView(
     tableName,
     actor,
@@ -70,140 +73,116 @@ export default async function AdminFacilitiesPage({ searchParams }: PageProps) {
       ? { guestNameSearch, page, pageSize: BOOKING_PAGE_SIZE }
       : {},
   );
-  const contentDisabled =
-    activeTab === "content" && !FACILITY_CONTENT_ENABLED;
-  const editRow =
-    editId && !contentDisabled
-      ? getAdminRowForEdit(tableName, editId, actor)
-      : null;
+  const editRow = editId
+    ? getAdminRowForEdit(tableName, editId, actor)
+    : null;
   const formSelectOptions =
-    !contentDisabled && (showCreate || editId)
+    createOpen || editId
       ? getAdminFormSelectOptions(tableName)
       : undefined;
+  const deletionImpact = deleteId
+    ? getFacilityDeletionImpact(deleteId)
+    : null;
+  const currentPage = view.pagination?.page ?? page;
 
   return (
-    <main className="flex-1 px-4 py-6 sm:px-6 sm:py-8 lg:px-10">
-      <DataEditorHeader
-        title="Facilities"
-        description="Manage facility content and facility bookings in one focused workspace."
-      />
-      <LocalTabNav activeTab={activeTab} tabs={FACILITY_TABS} />
-      <StatusMessage
-        error={getSingleValue(query.error)}
-        success={getSingleValue(query.success)}
-      />
-      {contentDisabled ? (
-        <DisabledFacilityContent
-          actor={actor}
-          tableName={tableName}
-          view={view}
+    <>
+      <main className="flex-1 px-4 py-6 sm:px-6 sm:py-8 lg:px-10">
+        <DataEditorHeader
+          title="Facilities"
+          description="Manage facilities and facility bookings in one focused workspace."
         />
-      ) : (
-        <>
-          {showCreate ? (
-            <CreateFormSection
-              cancelHref={
-                activeTab === "bookings"
-                  ? getFacilitiesHref({
-                      guestNameSearch,
-                      page: view.pagination?.page ?? page,
-                      tab: activeTab,
-                    })
-                  : undefined
-              }
-              formSelectOptions={formSelectOptions}
-              tableName={tableName}
-              view={view}
-            />
-          ) : (
-            <div className="mb-7 flex justify-end">
-              <Link
-                href={getFacilitiesHref({
-                  create: true,
-                  guestNameSearch,
-                  page: view.pagination?.page ?? page,
-                  tab: activeTab,
-                })}
-                className="inline-flex h-9 items-center justify-center rounded-md bg-brand px-3 text-sm font-medium text-white hover:bg-brand/90"
-              >
-                New Booking
-              </Link>
-            </div>
-          )}
-          <EditFormSection
-            actor={actor}
+        <LocalTabNav activeTab={activeTab} tabs={FACILITY_TABS} />
+        <StatusMessage
+          error={getSingleValue(query.error)}
+          success={getSingleValue(query.success)}
+        />
+        {createOpen ? (
+          <CreateFormSection
             cancelHref={getFacilitiesHref({
               guestNameSearch,
-              page: view.pagination?.page ?? page,
+              page: currentPage,
               tab: activeTab,
             })}
-            editId={editId}
-            editRow={editRow}
             formSelectOptions={formSelectOptions}
             tableName={tableName}
             view={view}
           />
-          <AdminTableSection
-            actionMode="records"
-            actor={actor}
-            editHref={
-              (rowId) =>
-                getFacilitiesHref({
-                  editId: rowId,
-                  guestNameSearch,
-                  page: view.pagination?.page ?? page,
-                  tab: activeTab,
-                })
-            }
-            filters={
-              activeTab === "bookings" ? (
-                <FacilityBookingSearchForm searchQuery={guestNameSearch} />
-              ) : undefined
-            }
-            paginationHref={
-              activeTab === "bookings"
-                ? (targetPage) =>
-                    getFacilitiesHref({
-                      guestNameSearch,
-                      page: targetPage,
-                      tab: activeTab,
-                    })
-                : undefined
-            }
-            tableName={tableName}
-            view={view}
-          />
-        </>
-      )}
-    </main>
-  );
-}
-
-function DisabledFacilityContent({
-  actor,
-  tableName,
-  view,
-}: {
-  actor: Awaited<ReturnType<typeof requireAdminUser>>;
-  tableName: EditableTableName;
-  view: ReturnType<typeof getAdminTableView>;
-}) {
-  return (
-    <section className="relative overflow-hidden rounded-lg">
-      <div inert aria-hidden className="blur-[1.5px]">
-        <AdminTableSection
-          actionMode="records"
+        ) : (
+          <div className="mb-7 flex justify-end">
+            <Link
+              href={getFacilitiesHref({
+                create: true,
+                guestNameSearch,
+                page: currentPage,
+                tab: activeTab,
+              })}
+              className="inline-flex h-9 items-center justify-center rounded-md bg-brand px-3 text-sm font-medium text-white hover:bg-brand/90"
+            >
+              {activeTab === "bookings" ? "New Booking" : "New Facility"}
+            </Link>
+          </div>
+        )}
+        <EditFormSection
           actor={actor}
+          cancelHref={getFacilitiesHref({
+            guestNameSearch,
+            page: currentPage,
+            tab: activeTab,
+          })}
+          editId={editId}
+          editRow={editRow}
+          formSelectOptions={formSelectOptions}
           tableName={tableName}
           view={view}
         />
-      </div>
-      <div className="absolute inset-0 flex items-center justify-center bg-white/45 px-4 backdrop-blur-[2px]">
-        <div className="rounded-md border border-black/10 bg-white px-5 py-3 text-sm font-semibold text-ink shadow-sm">
-          Coming Soon
-        </div>
-      </div>
-    </section>
+        <AdminTableSection
+          actionMode="records"
+          actor={actor}
+          deleteHref={
+            activeTab === "content"
+              ? (rowId) =>
+                  getFacilitiesHref({
+                    deleteId: rowId,
+                    page: currentPage,
+                    tab: activeTab,
+                  })
+              : undefined
+          }
+          editHref={(rowId) =>
+            getFacilitiesHref({
+              editId: rowId,
+              guestNameSearch,
+              page: currentPage,
+              tab: activeTab,
+            })
+          }
+          filters={
+            activeTab === "bookings" ? (
+              <FacilityBookingSearchForm searchQuery={guestNameSearch} />
+            ) : undefined
+          }
+          paginationHref={
+            activeTab === "bookings"
+              ? (targetPage) =>
+                  getFacilitiesHref({
+                    guestNameSearch,
+                    page: targetPage,
+                    tab: activeTab,
+                  })
+              : undefined
+          }
+          tableName={tableName}
+          view={view}
+        />
+      </main>
+      {deletionImpact && (
+        <FacilityDeleteModal
+          cancelHref={getFacilitiesHref({ page: 1, tab: "content" })}
+          impact={deletionImpact}
+        />
+      )}
+    </>
   );
 }
 
@@ -271,12 +250,14 @@ function FacilityBookingSearchForm({
 
 function getFacilitiesHref({
   create,
+  deleteId,
   editId,
   guestNameSearch,
   page,
   tab,
 }: {
   create?: boolean;
+  deleteId?: number;
   editId?: number;
   guestNameSearch?: string;
   page: number;
@@ -289,6 +270,7 @@ function getFacilitiesHref({
   }
   if (tab === "bookings" && page > 1) params.set("page", String(page));
   if (create) params.set("new", "1");
+  if (deleteId) params.set("delete", String(deleteId));
   if (editId) params.set("edit", String(editId));
   return `/admin/data/facilities?${params.toString()}`;
 }

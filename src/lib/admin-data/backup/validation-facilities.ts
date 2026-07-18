@@ -7,13 +7,6 @@ import {
   readRequiredTextValue,
 } from "./values";
 
-const REQUIRED_FACILITY_SLUGS = [
-  "karaoke",
-  "guest-room-1",
-  "guest-room-2",
-  "multipurpose-hall",
-] as const;
-
 export function validateFacilities(
   rows: ParsedSheetRow[],
   errors: BackupImportError[],
@@ -21,6 +14,7 @@ export function validateFacilities(
   const normalized: AdminRow[] = [];
   const ids = new Set<number>();
   const slugs = new Set<string>();
+  const names = new Set<string>();
 
   for (const row of rows) {
     const id = readPositiveIntegerValue(row, "facilities", "id", "ID", errors);
@@ -83,16 +77,21 @@ export function validateFacilities(
           `Duplicate facility slug "${slug}".`,
         );
       }
-      if (!isRequiredFacilitySlug(slug)) {
+      slugs.add(slug);
+    }
+
+    if (name !== null) {
+      const normalizedName = name.normalize("NFKC").toLowerCase();
+      if (names.has(normalizedName)) {
         addRowError(
           errors,
           row,
           "facilities",
-          "slug",
-          "Choose a valid facility slug.",
+          "name",
+          `Duplicate facility name "${name}".`,
         );
       }
-      slugs.add(slug);
+      names.add(normalizedName);
     }
 
     normalized.push({
@@ -105,18 +104,5 @@ export function validateFacilities(
     });
   }
 
-  for (const slug of REQUIRED_FACILITY_SLUGS) {
-    if (!slugs.has(slug)) {
-      errors.push({
-        tableName: "facilities",
-        message: `Facility "${slug}" is missing from the workbook.`,
-      });
-    }
-  }
-
   return normalized;
-}
-
-function isRequiredFacilitySlug(value: string): boolean {
-  return (REQUIRED_FACILITY_SLUGS as readonly string[]).includes(value);
 }

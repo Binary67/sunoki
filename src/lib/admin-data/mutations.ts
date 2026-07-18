@@ -8,7 +8,7 @@ import {
   type AdminMutationResult,
   type EditableTableName,
 } from "./definitions";
-import { selectRowById } from "./queries";
+import { getFacilityDeletionImpact, selectRowById } from "./queries";
 import { parseFormValues } from "./validation";
 import type { UserRole } from "../roles";
 import { createFacilityBooking, updateFacilityBooking } from "../bookings";
@@ -37,6 +37,9 @@ export function createAdminRow(
   }
   if (tableName === "guest_service_bookings") {
     return createAdminServiceBooking(actor, formData);
+  }
+  if (tableName === "facilities") {
+    return createAdminFacility(actor, formData);
   }
 
   const parsed = parseFormValues(tableName, formData, "create");
@@ -87,6 +90,9 @@ export function updateAdminRow(
   }
   if (tableName === "guest_service_bookings") {
     return updateAdminServiceBooking(actor, rowId, formData);
+  }
+  if (tableName === "facilities") {
+    return updateAdminFacility(actor, rowId, formData);
   }
 
   const parsed = parseFormValues(tableName, formData, "update");
@@ -142,6 +148,12 @@ export function deleteAdminRow(
   rowId: number,
 ): AdminMutationResult {
   const table = getAdminTableDefinition(tableName);
+  if (tableName === "facilities") {
+    return {
+      ok: false,
+      message: "Facility deletion requires confirmation.",
+    };
+  }
   if (isUpdateOnlyAdminTable(tableName)) {
     return { ok: false, message: `${table.label} cannot be deleted.` };
   }
@@ -178,6 +190,58 @@ export function deleteAdminRow(
       ok: false,
       message: "Unable to delete row. Check related records.",
     };
+  }
+}
+
+export function deleteFacility(
+  actor: User,
+  facilityId: number,
+  confirmation: string,
+): AdminMutationResult {
+  if (confirmation !== "delete") {
+    return { ok: false, message: 'Type "delete" to confirm deletion.' };
+  }
+  if (!Number.isInteger(facilityId) || facilityId <= 0) {
+    return { ok: false, message: "Choose a valid facility." };
+  }
+
+  let found = true;
+  let relatedBookingCount = 0;
+
+  try {
+    runTransaction(() => {
+      const impact = getFacilityDeletionImpact(facilityId);
+      if (!impact) {
+        found = false;
+        return;
+      }
+
+      relatedBookingCount = impact.relatedBookingCount;
+      db.prepare("DELETE FROM facilities WHERE id = ?").run(facilityId);
+      insertAuditLog(
+        actor,
+        "delete",
+        "facilities",
+        facilityId,
+        {
+          id: impact.id,
+          name: impact.name,
+          related_booking_count: impact.relatedBookingCount,
+          upcoming_booking_count: impact.upcomingBookingCount,
+        },
+        null,
+      );
+    });
+
+    if (!found) return { ok: false, message: "Facility not found." };
+    return {
+      ok: true,
+      message: `Facility deleted. ${relatedBookingCount} related ${
+        relatedBookingCount === 1 ? "booking was" : "bookings were"
+      } also deleted.`,
+    };
+  } catch {
+    return { ok: false, message: "Unable to delete facility." };
   }
 }
 
@@ -244,6 +308,84 @@ function createAdminServiceBooking(
   if (!result.ok) return { ok: false, message: result.error };
 
   return { ok: true, message: "Row created." };
+}
+
+function createAdminFacility(
+  actor: User,
+  formData: FormData,
+): AdminMutationResult {
+  const table = getAdminTableDefinition("facilities");
+  const parsed = parseFormValues("facilities", formData, "create");
+  if (!parsed.ok) return { ok: false, message: parsed.message };
+  const name = String(parsed.values.name);
+  let duplicateName = false;
+
+  try {
+    runTransaction(() => {
+      if (facilityNameExists(name)) {
+        duplicateName = true;
+        return;
+      }
+
+      const result = db
+        .prepare("INSERT INTO facilities (slug, name) VALUES (?, ?)")
+        .run(getUniqueFacilitySlug(name), name) as InsertResult;
+      const rowId = Number(result.lastInsertRowid);
+      const after = selectRowById(table, rowId);
+      if (!after) throw new Error("Inserted facility could not be loaded.");
+      insertAuditLog(actor, "insert", "facilities", rowId, null, after);
+    });
+
+    if (duplicateName) {
+      return { ok: false, message: "A facility with this name already exists." };
+    }
+    return { ok: true, message: "Facility created." };
+  } catch {
+    return { ok: false, message: "Unable to create facility." };
+  }
+}
+
+function updateAdminFacility(
+  actor: User,
+  facilityId: number,
+  formData: FormData,
+): AdminMutationResult {
+  const table = getAdminTableDefinition("facilities");
+  const parsed = parseFormValues("facilities", formData, "update");
+  if (!parsed.ok) return { ok: false, message: parsed.message };
+  const name = String(parsed.values.name);
+  let found = true;
+  let duplicateName = false;
+
+  try {
+    runTransaction(() => {
+      const before = selectRowById(table, facilityId);
+      if (!before) {
+        found = false;
+        return;
+      }
+      if (facilityNameExists(name, facilityId)) {
+        duplicateName = true;
+        return;
+      }
+
+      db.prepare("UPDATE facilities SET name = ? WHERE id = ?").run(
+        name,
+        facilityId,
+      );
+      const after = selectRowById(table, facilityId);
+      if (!after) throw new Error("Updated facility could not be loaded.");
+      insertAuditLog(actor, "update", "facilities", facilityId, before, after);
+    });
+
+    if (!found) return { ok: false, message: "Facility not found." };
+    if (duplicateName) {
+      return { ok: false, message: "A facility with this name already exists." };
+    }
+    return { ok: true, message: "Facility updated." };
+  } catch {
+    return { ok: false, message: "Unable to update facility." };
+  }
 }
 
 function createAdminFacilityBooking(
@@ -443,6 +585,37 @@ function getSuperAdminCount(): number {
     .prepare("SELECT COUNT(*) AS count FROM users WHERE role = 'superadmin'")
     .get() as { count: number };
   return Number(row.count);
+}
+
+function facilityNameExists(name: string, excludedId?: number): boolean {
+  const normalizedName = name.normalize("NFKC").toLowerCase();
+  const rows = db
+    .prepare("SELECT id, name FROM facilities")
+    .all() as { id: number; name: string }[];
+  return rows.some(
+    (row) =>
+      row.id !== excludedId &&
+      row.name.normalize("NFKC").toLowerCase() === normalizedName,
+  );
+}
+
+function getUniqueFacilitySlug(name: string): string {
+  const base =
+    name
+      .normalize("NFKD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "") || "facility";
+  let slug = base;
+  let suffix = 2;
+
+  while (db.prepare("SELECT id FROM facilities WHERE slug = ?").get(slug)) {
+    slug = `${base}-${suffix}`;
+    suffix += 1;
+  }
+
+  return slug;
 }
 
 function runTransaction(fn: () => void): void {

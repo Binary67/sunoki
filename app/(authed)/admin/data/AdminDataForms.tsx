@@ -62,6 +62,8 @@ export function CreateFormSection({
           <p className="mt-1 text-xs leading-5 text-ink/55">
             {tableName === "guest_service_bookings"
               ? "Package service availability and guest booking rules still apply."
+              : tableName === "facilities"
+                ? "This name is shown in booking and reporting views."
               : "IDs and timestamp defaults are assigned by SQLite."}
           </p>
         </div>
@@ -95,7 +97,7 @@ export function CreateFormSection({
             type="submit"
             className="rounded-md bg-brand px-4 py-2 text-sm font-medium text-white hover:bg-brand/90"
           >
-            Create Row
+            {tableName === "facilities" ? "Create Facility" : "Create Row"}
           </button>
         </div>
       </form>
@@ -145,7 +147,9 @@ export function EditFormSection({
           <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h2 className="text-base font-semibold text-ink">
-                Edit Row #{editId}
+                {tableName === "facilities"
+                  ? `Edit Facility #${editId}`
+                  : `Edit Row #${editId}`}
               </h2>
               <p className="mt-1 text-xs leading-5 text-ink/55">
                 Update editable fields for the selected row.
@@ -276,7 +280,7 @@ function getSingularLabel(tableName: EditableTableName): string {
     case "users":
       return "User";
     case "facilities":
-      return "Facility Content";
+      return "Facility";
     case "facility_bookings":
       return "Booking";
     case "guest_service_bookings":

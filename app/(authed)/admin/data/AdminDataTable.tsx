@@ -24,6 +24,7 @@ import {
 export function AdminTableSection({
   actionMode,
   actor,
+  deleteHref,
   editHref,
   filters,
   paginationHref,
@@ -34,6 +35,7 @@ export function AdminTableSection({
 }: {
   actionMode: "records" | "user-access";
   actor: User;
+  deleteHref?: (rowId: number) => string;
   editHref?: (rowId: number) => string;
   filters?: ReactNode;
   paginationHref?: (page: number) => string;
@@ -185,11 +187,21 @@ export function AdminTableSection({
                                 </Link>
                               )}
                             {canManageRecord && !updateOnly && (
-                              <DeleteRowForm
-                                tableName={tableName}
-                                rowId={rowId}
-                                label={`${view.table.label} row #${rowId}`}
-                              />
+                              deleteHref ? (
+                                <Link
+                                  href={deleteHref(rowId)}
+                                  prefetch={false}
+                                  className="rounded-md border border-red-200 px-2.5 py-1.5 text-xs font-medium text-red-700 hover:bg-red-50"
+                                >
+                                  Delete
+                                </Link>
+                              ) : (
+                                <DeleteRowForm
+                                  tableName={tableName}
+                                  rowId={rowId}
+                                  label={`${view.table.label} row #${rowId}`}
+                                />
+                              )
                             )}
                             {!canManageRecord && tableName === "users" && (
                               <span className="rounded-md bg-surface px-2.5 py-1.5 text-xs font-medium text-ink/55">

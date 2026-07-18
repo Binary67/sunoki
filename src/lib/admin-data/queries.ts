@@ -22,6 +22,13 @@ export type AdminTableViewOptions = {
   userAccess?: UserAccessFilter;
 };
 
+export type FacilityDeletionImpact = {
+  id: number;
+  name: string;
+  relatedBookingCount: number;
+  upcomingBookingCount: number;
+};
+
 export function getAdminTableView(
   tableName: EditableTableName,
   actor: User,
@@ -87,6 +94,59 @@ export function getAdminFormSelectOptions(
 ): AdminTableView["selectOptions"] {
   const table = getAdminTableDefinition(tableName);
   return getAdminSelectOptions(getRequiredSelectOptionKeys(table));
+}
+
+export function getFacilityDeletionImpact(
+  facilityId: number,
+): FacilityDeletionImpact | null {
+  if (!Number.isInteger(facilityId) || facilityId <= 0) return null;
+
+  const now = new Date();
+  const today = formatBookingDate(now);
+  const currentTime = `${String(now.getHours()).padStart(2, "0")}:${String(
+    now.getMinutes(),
+  ).padStart(2, "0")}`;
+  const row = db
+    .prepare(
+      `
+        SELECT
+          f.id,
+          f.name,
+          COUNT(b.id) AS relatedBookingCount,
+          SUM(
+            CASE
+              WHEN b.status = 'booked'
+                AND (
+                  b.booking_date > ?
+                  OR (b.booking_date = ? AND b.booking_time >= ?)
+                )
+              THEN 1
+              ELSE 0
+            END
+          ) AS upcomingBookingCount
+        FROM facilities f
+        LEFT JOIN facility_bookings b ON b.facility_id = f.id
+        WHERE f.id = ?
+        GROUP BY f.id, f.name
+      `,
+    )
+    .get(today, today, currentTime, facilityId) as
+    | {
+        id: number;
+        name: string;
+        relatedBookingCount: number;
+        upcomingBookingCount: number;
+      }
+    | undefined;
+
+  return row
+    ? {
+        id: Number(row.id),
+        name: row.name,
+        relatedBookingCount: Number(row.relatedBookingCount),
+        upcomingBookingCount: Number(row.upcomingBookingCount),
+      }
+    : null;
 }
 
 function getPageSize(value: number | undefined): number | null {

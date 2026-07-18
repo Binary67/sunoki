@@ -10,6 +10,7 @@ import {
 } from "@/src/lib/admin-data/definitions";
 import {
   createAdminRow,
+  deleteFacility,
   deleteAdminRow,
   updateAdminRow,
   updateUserPassword,
@@ -19,6 +20,9 @@ import { clearUserLoginLock } from "@/src/lib/login-attempts";
 
 const USERS_DATA_PATH = "/admin/data/users";
 const FACILITIES_DATA_PATH = "/admin/data/facilities";
+const BOOKING_COUNTS_PATH = "/admin/data/booking-counts";
+const GUEST_PROFILE_PATH = "/admin/guest-profile";
+const GUEST_PROFILE_DETAIL_PATH = "/admin/guest-profile/[id]";
 const PACKAGES_DATA_PATH = "/admin/data/packages";
 const AUDIT_PATH = "/admin/audit-log";
 const KITCHEN_PATH = "/admin/kitchen";
@@ -33,9 +37,10 @@ export async function createAdminRowAction(formData: FormData): Promise<void> {
   if (result.ok) {
     revalidatePath(getDataPath(tableName));
     revalidatePath(AUDIT_PATH);
-    revalidateBookingPaths(tableName);
+    revalidateRelatedPaths(tableName);
   }
-  const showCreate = !result.ok && isBookingTable(tableName);
+  const showCreate =
+    !result.ok && (tableName === "facilities" || isBookingTable(tableName));
   redirectWithMessage(
     tableName,
     result.ok ? "success" : "error",
@@ -58,7 +63,7 @@ export async function updateAdminRowAction(formData: FormData): Promise<void> {
   if (result.ok) {
     revalidatePath(getDataPath(tableName));
     revalidatePath(AUDIT_PATH);
-    revalidateBookingPaths(tableName);
+    revalidateRelatedPaths(tableName);
   }
   redirectWithMessage(
     tableName,
@@ -101,9 +106,30 @@ export async function deleteAdminRowAction(formData: FormData): Promise<void> {
   if (result.ok) {
     revalidatePath(getDataPath(tableName));
     revalidatePath(AUDIT_PATH);
-    revalidateBookingPaths(tableName);
+    revalidateRelatedPaths(tableName);
   }
   redirectWithMessage(tableName, result.ok ? "success" : "error", result.message);
+}
+
+export async function deleteFacilityAction(formData: FormData): Promise<void> {
+  const facilityId = getFacilityId(formData);
+  const confirmation = getConfirmation(formData);
+  const user = await requireAdminUser();
+  const result = deleteFacility(user, facilityId, confirmation);
+
+  if (result.ok) {
+    revalidatePath(FACILITIES_DATA_PATH);
+    revalidatePath(AUDIT_PATH);
+    revalidateRelatedPaths("facilities");
+  }
+
+  const params = new URLSearchParams();
+  params.set("tab", "content");
+  params.set(result.ok ? "success" : "error", result.message);
+  if (!result.ok && Number.isInteger(facilityId) && facilityId > 0) {
+    params.set("delete", String(facilityId));
+  }
+  redirect(`${FACILITIES_DATA_PATH}?${params.toString()}`);
 }
 
 export async function revokeUserSessionsAction(formData: FormData): Promise<void> {
@@ -184,18 +210,30 @@ function getUserId(formData: FormData): number {
   return typeof raw === "string" ? Number(raw) : NaN;
 }
 
+function getFacilityId(formData: FormData): number {
+  const raw = formData.get("facilityId");
+  return typeof raw === "string" ? Number(raw) : NaN;
+}
+
+function getConfirmation(formData: FormData): string {
+  const raw = formData.get("confirmation");
+  return typeof raw === "string" ? raw : "";
+}
+
 function getCreateMode(formData: FormData): "admin" | null {
   const raw = formData.get("createMode");
   return raw === "admin" ? raw : null;
 }
 
-function revalidateBookingPaths(tableName: EditableTableName): void {
-  if (tableName !== "facility_bookings" && tableName !== "guest_service_bookings") {
-    return;
+function revalidateRelatedPaths(tableName: EditableTableName): void {
+  if (tableName === "facilities" || tableName === "facility_bookings") {
+    revalidatePath("/");
+    revalidatePath(BOOKING_COUNTS_PATH);
+    revalidatePath(GUEST_PROFILE_PATH);
+    revalidatePath(GUEST_PROFILE_DETAIL_PATH, "page");
   }
-
-  revalidatePath("/");
   if (tableName === "guest_service_bookings") {
+    revalidatePath("/");
     revalidatePath(KITCHEN_PATH);
   }
 }

@@ -89,7 +89,7 @@ export type AdminMutationResult =
 
 const TABLE_LABELS: Record<AuditTableName, string> = {
   users: "Users",
-  facilities: "Facility Content",
+  facilities: "Facilities",
   facility_bookings: "Bookings",
   guest_service_bookings: "Service Bookings",
   service_booking_limits: "Booking Limits",
@@ -135,28 +135,13 @@ const ADMIN_TABLES: Record<EditableTableName, AdminTableDefinition> = {
   facilities: {
     name: "facilities",
     label: TABLE_LABELS.facilities,
-    mutationMode: "update-only",
     columns: [
       { name: "id", label: "ID", readOnly: true },
-      { name: "slug", label: "Slug", readOnly: true },
-      { name: "name", label: "Name", readOnly: true },
       {
-        name: "tagline_1",
-        label: "Tagline 1",
+        name: "name",
+        label: "Facility Name",
         input: "text",
-        maxLength: FACILITY_TAGLINE_MAX_LENGTH,
-      },
-      {
-        name: "tagline_2",
-        label: "Tagline 2",
-        input: "text",
-        maxLength: FACILITY_TAGLINE_MAX_LENGTH,
-      },
-      {
-        name: "tagline_3",
-        label: "Tagline 3",
-        input: "text",
-        maxLength: FACILITY_TAGLINE_MAX_LENGTH,
+        required: true,
       },
     ],
   },

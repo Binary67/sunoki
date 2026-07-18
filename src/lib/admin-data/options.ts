@@ -13,7 +13,6 @@ export type AdminSelectOptionKey = keyof AdminSelectOptions;
 
 type FacilityOptionRow = {
   id: number;
-  slug: string;
   name: string;
 };
 
@@ -77,7 +76,7 @@ function buildSelectOptions(
     ],
     facilities: facilities.map((facility) => ({
       value: String(facility.id),
-      label: `${facility.name} (${facility.slug})`,
+      label: facility.name,
     })),
     guestUsers: users
       .filter((user) => user.role === "guest")
@@ -139,7 +138,7 @@ function parseId(value: AdminRowValue): number | null {
 
 function getFacilityOptions(): FacilityOptionRow[] {
   return db
-    .prepare("SELECT id, slug, name FROM facilities ORDER BY name ASC, id ASC")
+    .prepare("SELECT id, name FROM facilities ORDER BY name ASC, id ASC")
     .all() as FacilityOptionRow[];
 }
 
@@ -149,7 +148,7 @@ function getFacilityOptionsByIds(ids: number[]): FacilityOptionRow[] {
   return db
     .prepare(
       `
-        SELECT id, slug, name
+        SELECT id, name
         FROM facilities
         WHERE id IN (${ids.map(() => "?").join(", ")})
       `,
