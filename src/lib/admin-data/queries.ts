@@ -148,7 +148,10 @@ function getViewScope(
     params.push(today, today);
   }
 
-  if (tableName === "guest_service_bookings") {
+  if (
+    tableName === "facility_bookings" ||
+    tableName === "guest_service_bookings"
+  ) {
     const guestNameSearch = options.guestNameSearch?.trim();
     if (guestNameSearch) {
       conditions.push(

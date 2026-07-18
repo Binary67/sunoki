@@ -28,6 +28,7 @@ type PageProps = {
     error?: string | string[];
     new?: string | string[];
     page?: string | string[];
+    q?: string | string[];
     success?: string | string[];
     tab?: string | string[];
   }>;
@@ -58,13 +59,15 @@ export default async function AdminFacilitiesPage({ searchParams }: PageProps) {
   const tableName = getFacilitiesTableName(activeTab);
   const editId = getEditId(getSingleValue(query.edit));
   const page = getPageNumber(getSingleValue(query.page));
+  const guestNameSearch =
+    activeTab === "bookings" ? getSearchQuery(getSingleValue(query.q)) : "";
   const createOpen = activeTab === "bookings" && getSingleValue(query.new) === "1";
   const showCreate = activeTab !== "bookings" || createOpen;
   const view = getAdminTableView(
     tableName,
     actor,
     activeTab === "bookings"
-      ? { page, pageSize: BOOKING_PAGE_SIZE }
+      ? { guestNameSearch, page, pageSize: BOOKING_PAGE_SIZE }
       : {},
   );
   const contentDisabled =
@@ -102,6 +105,7 @@ export default async function AdminFacilitiesPage({ searchParams }: PageProps) {
               cancelHref={
                 activeTab === "bookings"
                   ? getFacilitiesHref({
+                      guestNameSearch,
                       page: view.pagination?.page ?? page,
                       tab: activeTab,
                     })
@@ -116,6 +120,7 @@ export default async function AdminFacilitiesPage({ searchParams }: PageProps) {
               <Link
                 href={getFacilitiesHref({
                   create: true,
+                  guestNameSearch,
                   page: view.pagination?.page ?? page,
                   tab: activeTab,
                 })}
@@ -128,6 +133,7 @@ export default async function AdminFacilitiesPage({ searchParams }: PageProps) {
           <EditFormSection
             actor={actor}
             cancelHref={getFacilitiesHref({
+              guestNameSearch,
               page: view.pagination?.page ?? page,
               tab: activeTab,
             })}
@@ -144,14 +150,21 @@ export default async function AdminFacilitiesPage({ searchParams }: PageProps) {
               (rowId) =>
                 getFacilitiesHref({
                   editId: rowId,
+                  guestNameSearch,
                   page: view.pagination?.page ?? page,
                   tab: activeTab,
                 })
+            }
+            filters={
+              activeTab === "bookings" ? (
+                <FacilityBookingSearchForm searchQuery={guestNameSearch} />
+              ) : undefined
             }
             paginationHref={
               activeTab === "bookings"
                 ? (targetPage) =>
                     getFacilitiesHref({
+                      guestNameSearch,
                       page: targetPage,
                       tab: activeTab,
                     })
@@ -210,19 +223,70 @@ function getFacilitiesTableName(tab: FacilitiesTab): EditableTableName {
   }
 }
 
+function getSearchQuery(value: string | undefined): string {
+  return value?.trim() ?? "";
+}
+
+function FacilityBookingSearchForm({
+  searchQuery,
+}: {
+  searchQuery: string;
+}) {
+  return (
+    <form
+      action="/admin/data/facilities"
+      className="flex flex-col gap-2 sm:flex-row sm:items-center"
+    >
+      <input type="hidden" name="tab" value="bookings" />
+      <label className="sr-only" htmlFor="facility-booking-guest-search">
+        Search guest name
+      </label>
+      <input
+        className="h-9 w-full rounded-md border border-black/10 px-3 text-sm text-ink outline-none transition-colors placeholder:text-ink/40 focus:border-brand sm:max-w-xs"
+        defaultValue={searchQuery}
+        id="facility-booking-guest-search"
+        name="q"
+        placeholder="Search guest name"
+        type="search"
+      />
+      <div className="flex gap-2">
+        <button
+          type="submit"
+          className="inline-flex h-9 items-center justify-center rounded-md bg-brand px-3 text-sm font-medium text-white hover:bg-brand/90"
+        >
+          Search
+        </button>
+        {searchQuery && (
+          <Link
+            href={getFacilitiesHref({ page: 1, tab: "bookings" })}
+            className="inline-flex h-9 items-center justify-center rounded-md border border-black/10 px-3 text-sm font-medium text-ink/70 hover:bg-surface"
+          >
+            Clear
+          </Link>
+        )}
+      </div>
+    </form>
+  );
+}
+
 function getFacilitiesHref({
   create,
   editId,
+  guestNameSearch,
   page,
   tab,
 }: {
   create?: boolean;
   editId?: number;
+  guestNameSearch?: string;
   page: number;
   tab: FacilitiesTab;
 }): string {
   const params = new URLSearchParams();
   params.set("tab", tab);
+  if (tab === "bookings" && guestNameSearch) {
+    params.set("q", guestNameSearch);
+  }
   if (tab === "bookings" && page > 1) params.set("page", String(page));
   if (create) params.set("new", "1");
   if (editId) params.set("edit", String(editId));
