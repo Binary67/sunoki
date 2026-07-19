@@ -50,7 +50,7 @@ export function buildSpecialAttentionTelegramSummary(
       serviceKeys: [...IMPORTANT_EVENT_SERVICE_KEYS],
     },
     parseBookingDate(today),
-  );
+  ).filter((event) => !event.isDone);
 
   const title = [
     "Special Attention",
